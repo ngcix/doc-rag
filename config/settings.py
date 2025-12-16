@@ -20,9 +20,16 @@ PROCESS_INPUT_DIR = PROCESS_DIR / "input"
 PROCESS_OUTPUT_DIR = PROCESS_DIR / "output"
 
 
+# Model snapshot for local/offline use
+MODEL_SNAPSHOT_ID = "9bbca17d9273fd0d03d5725c7a4b0f6b45142062"
+
 class ModelConfig(BaseModel):
     """Configuration for the embedding model."""
-    model_name: str = "Alibaba-NLP/gte-multilingual-base"
+    # For online use: model_name: str = "Alibaba-NLP/gte-multilingual-base"
+    # For local/offline use:
+    model_name: str = str(MODELS_DIR / "models--Alibaba-NLP--gte-multilingual-base" / "snapshots" / MODEL_SNAPSHOT_ID)
+
+
     model_cache_dir: Path = MODELS_DIR
     max_seq_length: int = 8192
     device: str = "cpu"  # or "cuda" if GPU available

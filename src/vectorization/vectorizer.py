@@ -64,27 +64,19 @@ class TextVectorizer:
         # Ensure cache directory exists
         self.config.model_cache_dir.mkdir(parents=True, exist_ok=True)
         
-        # Determine model path (auto-detect local offline model)
+        # Prepare model path
         model_name_or_path = self.config.model_name
-        
-        # Check for local "flat" model directory (created by download_model.py)
-        # e.g. models/Alibaba-NLP_gte-multilingual-base
-        safe_name = self.config.model_name.replace("/", "_")
-        local_model_path = self.config.model_cache_dir / safe_name
-        
-        if local_model_path.exists() and (local_model_path / "config.json").exists():
-            print(f"Found local offline model at: {local_model_path}")
-            model_name_or_path = str(local_model_path)
-        else:
-            print("Local offline model not found. Using HuggingFace Hub/Cache.")
         
         # Load model
         # trust_remote_code=True is required for Alibaba-NLP/gte-multilingual-base
+        # Setting local_files_only=True to ensure offline usage when model_name points to local path
         model = SentenceTransformer(
             model_name_or_path,
             cache_folder=str(self.config.model_cache_dir),
             device=self.config.device,
-            trust_remote_code=True
+            trust_remote_code=True,
+            model_kwargs={"local_files_only": True},
+            tokenizer_kwargs={"local_files_only": True}
         )
         
         # Set max sequence length
