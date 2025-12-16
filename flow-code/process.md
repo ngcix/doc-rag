@@ -169,7 +169,249 @@ flowchart TD
 
 ---
 
-## 4. Chi tiết Vectorization
+## 4. Chi tiết PaddleOCR PP-Structure và PyMuPDF
+
+### Tổng quan hai công nghệ
+
+Dự án sử dụng **hai phương pháp** để trích xuất hình ảnh từ documents:
+
+| Công nghệ | Vai trò | Khi nào sử dụng |
+|-----------|---------|-----------------|
+| **PyMuPDF (fitz)** | Phương pháp chính | Trích xuất trực tiếp từ PDF |
+| **PaddleOCR PP-Structure** | Phương pháp bổ sung | Phân tích layout phức tạp, xử lý ảnh |
+
+### 4.1 PyMuPDF (fitz) - Phương pháp chính
+
+```mermaid
+flowchart TB
+    subgraph PYMUPDF["🔧 PyMuPDF (fitz)"]
+        direction TB
+        P1["fitz.open(pdf_path)"] --> P2["doc[page_num]"]
+        
+        subgraph EXTRACT["Extraction Methods"]
+            P2 --> E1["page.get_images(full=True)<br/>→ Embedded bitmaps (PNG/JPEG)"]
+            P2 --> E2["page.get_drawings()<br/>→ Vector paths (lines, shapes)"]
+        end
+        
+        E1 --> PIX1["fitz.Pixmap(doc, xref)<br/>Convert to image data"]
+        E2 --> CLUSTER["Cluster nearby paths<br/>merge_distance=50px"]
+        CLUSTER --> PIX2["page.get_pixmap(clip=region, dpi=150)<br/>Render vector to raster"]
+    end
+
+    subgraph OUTPUT["Output"]
+        PIX1 --> SAVE["Save as PNG"]
+        PIX2 --> SAVE
+    end
+
+    style PYMUPDF fill:#E3F2FD
+    style OUTPUT fill:#E8F5E9
+```
+
+**Ưu điểm PyMuPDF:**
+- ⚡ **Nhanh**: Trích xuất trực tiếp từ PDF, không cần render toàn trang
+- 🎯 **Chính xác**: Lấy đúng embedded images gốc
+- 📐 **Vector support**: Trích xuất cả vector drawings (diagrams, flowcharts)
+- 💾 **Nhẹ**: Không cần GPU, chạy nhanh trên CPU
+
+**Code flow trong `extractor.py`:**
+```python
+# Line 159-250: Trích xuất embedded images
+def _extract_pdf_with_pymupdf(self, pdf_path: Path):
+    doc = fitz.open(str(pdf_path))
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        image_list = page.get_images(full=True)  # Lấy danh sách images
+        for img in image_list:
+            xref = img[0]
+            pix = fitz.Pixmap(doc, xref)  # Chuyển thành Pixmap
+            # Xử lý alpha channel, color space...
+            pix.save(str(image_path))
+
+# Line 252-357: Trích xuất vector drawings
+def _extract_drawings_with_pymupdf(self, pdf_path: Path):
+    drawings = page.get_drawings()  # Lấy vector paths
+    # Cluster nearby rects để gom thành diagram
+    for rect in clusters:
+        pix = page.get_pixmap(clip=rect, dpi=150)  # Render vùng
+```
+
+---
+
+### 4.2 PaddleOCR PP-Structure - Phân tích Layout
+
+```mermaid
+flowchart TB
+    subgraph PADDLE["🤖 PaddleOCR PP-Structure V3"]
+        direction TB
+        PP1["PPStructureV3()"] --> PP2["engine.predict(image_path)"]
+        
+        PP2 --> ANALYSIS["Layout Analysis"]
+        
+        subgraph REGIONS["Detected Regions"]
+            R1["📊 Figure / Image / Chart"]
+            R2["📋 Table"]
+            R3["📝 Text / Title / Paragraph"]
+            R4["📸 Picture"]
+        end
+        
+        ANALYSIS --> REGIONS
+        
+        REGIONS --> BBOX["Bounding Box (x1, y1, x2, y2)"]
+        BBOX --> CROP["Crop region from image"]
+    end
+
+    subgraph CONTEXT["Text Context"]
+        C1["Extract surrounding text"]
+        C2["Get nearby text blocks"]
+        C3["Caption detection"]
+    end
+
+    REGIONS --> CONTEXT
+
+    style PADDLE fill:#F3E5F5
+    style CONTEXT fill:#FFF3E0
+```
+
+**Ưu điểm PaddleOCR PP-Structure:**
+- 🧠 **AI-powered**: Deep learning model phát hiện layout chính xác
+- 📊 **Multi-region**: Phân biệt được figure, table, text, chart
+- 📖 **Context aware**: Lấy được text context xung quanh hình
+- 🌐 **OCR tích hợp**: Có thể OCR text trong hình
+
+**Khi nào PP-Structure được gọi (trong `extractor.py`):**
+```python
+# Line 112-128: Khởi tạo PP-Structure engine (lazy loading)
+def _init_structure_engine(self):
+    from paddleocr import PPStructureV3
+    engine = PPStructureV3(
+        use_doc_orientation_classify=False,  # Không cần xoay trang
+        use_doc_unwarping=False,  # Không cần làm phẳng
+    )
+    return engine
+
+# Line 396-486: Xử lý ảnh với PP-Structure
+def _extract_from_image(self, image_path, source_file, page_number):
+    results = self.structure_engine.predict(input=str(image_path))
+    
+    for result in results:
+        layout_result = result.layout_parsing_result
+        for box in layout_result.get('boxes', []):
+            region_type = box.get('type')  # 'figure', 'table', etc.
+            bbox = box.get('bbox')
+            # Crop and save region...
+```
+
+---
+
+### 4.3 So sánh hai phương pháp
+
+```mermaid
+flowchart LR
+    subgraph COMPARISON["Comparison"]
+        direction TB
+        
+        subgraph PYMUPDF_PROS["PyMuPDF ✅"]
+            PM1["Fast extraction"]
+            PM2["Native PDF objects"]
+            PM3["Vector drawings support"]
+            PM4["No GPU needed"]
+        end
+        
+        subgraph PADDLE_PROS["PP-Structure ✅"]
+            PP1["AI layout detection"]
+            PP2["Region classification"]
+            PP3["Text context extraction"]
+            PP4["Works on any image"]
+        end
+    end
+
+    style PYMUPDF_PROS fill:#E8F5E9
+    style PADDLE_PROS fill:#F3E5F5
+```
+
+| Tiêu chí | PyMuPDF | PP-Structure |
+|----------|---------|--------------|
+| **Tốc độ** | ⚡ Rất nhanh | 🐢 Chậm hơn (AI model) |
+| **Độ chính xác** | Cao với PDF chuẩn | Cao với layout phức tạp |
+| **GPU** | Không cần | Có thể dùng để tăng tốc |
+| **Input** | Chỉ PDF | Mọi định dạng ảnh |
+| **Output** | Raw images | Classified regions |
+
+---
+
+### 4.4 Luồng xử lý thực tế
+
+```mermaid
+flowchart TD
+    INPUT[/"📄 Input File"/] --> CHECK{File Type?}
+    
+    CHECK -->|PDF| PDF_FLOW
+    CHECK -->|Image| IMG_FLOW
+    
+    subgraph PDF_FLOW["PDF Processing"]
+        direction TB
+        P1["PyMuPDF: Extract embedded images<br/>(Primary method)"]
+        P2["PyMuPDF: Extract vector drawings<br/>(Diagrams, flowcharts)"]
+        P3["Fallback: pdf2image + PP-Structure<br/>(If PyMuPDF fails)"]
+        P1 --> P2
+        P2 -.->|"On error"| P3
+    end
+    
+    subgraph IMG_FLOW["Image Processing"]
+        direction TB
+        I1["PP-Structure: Analyze layout"]
+        I2["Detect regions (figure/table/text)"]
+        I3["Crop and save regions"]
+        I1 --> I2 --> I3
+    end
+    
+    PDF_FLOW --> VALIDATE
+    IMG_FLOW --> VALIDATE
+    
+    VALIDATE["Validation Filter<br/>brightness, std_dev, dark_ratio"]
+    VALIDATE --> SAVE["Save valid images<br/>+ Extract text context"]
+
+    style PDF_FLOW fill:#E3F2FD
+    style IMG_FLOW fill:#F3E5F5
+    style VALIDATE fill:#FFEBEE
+    style SAVE fill:#E8F5E9
+```
+
+---
+
+### 4.5 Cấu hình Image Extraction
+
+```python
+@dataclass  
+class ImageExtractionConfig:
+    # Output settings
+    output_dir: Path = EXTRACTED_IMAGES_DIR
+    image_format: str = "png"
+    
+    # Size filters
+    min_width: int = 50      # Bỏ qua ảnh < 50px
+    min_height: int = 50
+    
+    # Quality filters (tránh black/empty images)
+    min_brightness: float = 30.0     # Mean brightness >= 30
+    min_std_dev: float = 15.0        # Variance >= 15
+    max_dark_pixel_ratio: float = 0.85  # Dark pixels < 85%
+    
+    # Region types to extract
+    extract_tables: bool = True
+    extract_figures: bool = True
+    
+    # Context extraction
+    context_chars: int = 500  # Lấy 500 chars xung quanh ảnh
+    
+    # Vector drawings clustering
+    cluster_merge_distance: int = 50   # Merge paths within 50px
+    min_diagram_size: int = 100        # Min diagram size
+```
+
+---
+
+## 5. Chi tiết Vectorization
 
 ```mermaid
 flowchart LR
@@ -206,7 +448,7 @@ flowchart LR
 
 ---
 
-## 5. Storage Architecture
+## 6. Storage Architecture
 
 ```mermaid
 flowchart TB
@@ -240,7 +482,7 @@ flowchart TB
 
 ---
 
-## 6. Output Summary
+## 7. Output Summary
 
 Khi `process` hoàn thành, terminal sẽ hiển thị:
 
@@ -262,7 +504,7 @@ Processing complete!
 
 ---
 
-## 7. Command Options
+## 8. Command Options
 
 ```bash
 # Full processing (text + images + charts)

@@ -62,6 +62,44 @@ class SequenceChartConfig(BaseModel):
     include_description: bool = True
 
 
+class ImageExtractionConfig(BaseModel):
+    """Configuration for image extraction from documents.
+    
+    Supports two methods:
+    - PyMuPDF (fitz): Fast, extracts embedded images and vector drawings
+    - PP-Structure (PaddleOCR): AI-based layout analysis and context extraction
+    """
+    # Output settings
+    output_dir: Path = EXTRACTED_IMAGES_DIR
+    image_format: str = "png"
+    
+    # Size filters
+    min_width: int = 50  # Minimum width to consider as valid image
+    min_height: int = 50  # Minimum height
+    
+    # Quality filters (to avoid black/empty images)
+    min_brightness: float = 30.0  # Minimum mean brightness (0-255)
+    min_std_dev: float = 15.0  # Minimum standard deviation
+    max_dark_pixel_ratio: float = 0.85  # Maximum ratio of dark pixels
+    
+    # Extraction options
+    extract_tables: bool = True  # Extract table regions
+    extract_figures: bool = True  # Extract figure/image regions
+    context_chars: int = 500  # Number of characters to extract around image
+    
+    # PP-Structure settings
+    use_ppstructure: bool = False  # Enable PP-Structure for layout analysis
+    ppstructure_max_pages: int = 20  # Max pages to analyze with PP-Structure
+    
+    # PyMuPDF vector drawings clustering
+    cluster_merge_distance: int = 50  # Pixels to merge nearby drawings
+    min_drawing_size: int = 20  # Minimum size for a drawing path
+    min_diagram_size: int = 100  # Minimum size for a clustered diagram
+    
+    # GPU settings (for PP-Structure)
+    use_gpu: bool = False  # Use GPU for PP-Structure (if available)
+
+
 class Settings(BaseModel):
     """Main settings class combining all configurations."""
     model: ModelConfig = Field(default_factory=ModelConfig)
@@ -69,6 +107,7 @@ class Settings(BaseModel):
     vectordb: VectorDBConfig = Field(default_factory=VectorDBConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
     sequence_chart: SequenceChartConfig = Field(default_factory=SequenceChartConfig)
+    image_extraction: ImageExtractionConfig = Field(default_factory=ImageExtractionConfig)
 
 
 # Global settings instance

@@ -9,8 +9,35 @@ from pathlib import Path
 from dataclasses import dataclass, field
 import hashlib
 import os
-
 import sys
+
+# LangChain compatibility shim for PaddleOCR
+# PaddleOCR uses old langchain imports that no longer exist in langchain >= 1.0
+# This shim re-maps old module paths to their new locations
+try:
+    import langchain.docstore
+except ModuleNotFoundError:
+    import types
+    import langchain
+    
+    # Create a fake docstore module
+    docstore_module = types.ModuleType('langchain.docstore')
+    document_module = types.ModuleType('langchain.docstore.document')
+    
+    # Import Document from new location
+    try:
+        from langchain_core.documents import Document
+    except ImportError:
+        from langchain.schema import Document
+    
+    document_module.Document = Document
+    docstore_module.document = document_module
+    
+    # Register in sys.modules
+    sys.modules['langchain.docstore'] = docstore_module
+    sys.modules['langchain.docstore.document'] = document_module
+    langchain.docstore = docstore_module
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from config import settings, ensure_directories, EXTRACTED_IMAGES_DIR
 from PIL import Image, ImageOps
@@ -58,49 +85,88 @@ class ExtractedImage:
         return "\n".join(parts)
 
 
-@dataclass  
-class ImageExtractionConfig:
-    """Configuration for image extraction."""
-    output_dir: Path = field(default_factory=lambda: EXTRACTED_IMAGES_DIR)
-    image_format: str = "png"
-    min_width: int = 50  # Minimum width to consider as valid image
-    min_height: int = 50  # Minimum height
-    min_brightness: float = 30.0  # Minimum mean brightness (0-255) to avoid black images
-    min_std_dev: float = 15.0  # Minimum standard deviation to avoid solid color images
-    max_dark_pixel_ratio: float = 0.85  # Maximum ratio of dark pixels (< 30) allowed
-    extract_tables: bool = True
-    extract_figures: bool = True
-    context_chars: int = 500  # Number of characters to extract around image
-    use_gpu: bool = False
-    
-    # Clustering config
-    cluster_merge_distance: int = 50  # Pixels to merge nearby drawings
-    min_drawing_size: int = 20  # Minimum size for a drawing path
-    min_diagram_size: int = 100  # Minimum size for a clustered diagram
+# Import config from settings (use this instead of local dataclass)
+# This allows centralized configuration management
+def _get_image_extraction_config():
+    """Get image extraction config from global settings."""
+    try:
+        from config.settings import settings
+        return settings.image_extraction
+    except ImportError:
+        # Fallback to default values if settings not available
+        return None
 
 
 class ImageExtractor:
     """
-    Extracts image regions from documents using PaddleOCR PP-Structure.
+    Extracts image regions from documents using PyMuPDF and PP-Structure.
     
-    PP-Structure performs layout analysis to identify:
-    - Figures/Images
-    - Tables
-    - Charts
-    - Text blocks
+    Extraction methods:
+    - PyMuPDF (fitz): Fast extraction of embedded images and vector drawings
+    - PP-Structure: AI-based layout analysis for context enrichment
+    
+    Configuration is loaded from config/settings.py
     """
     
-    def __init__(self, config: Optional[ImageExtractionConfig] = None):
+    def __init__(self, config=None):
         """
         Initialize the ImageExtractor.
         
         Args:
-            config: Image extraction configuration.
+            config: Image extraction configuration. If None, loads from settings.
         """
-        self.config = config or ImageExtractionConfig()
+        # Load config from settings if not provided
+        if config is None:
+            config = _get_image_extraction_config()
+        
+        # Store config (may be pydantic model or None)
+        self._config = config
         self._structure_engine = None
         ensure_directories()
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure output directory exists
+        output_dir = self._get_config_value('output_dir', EXTRACTED_IMAGES_DIR)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    def _get_config_value(self, key: str, default):
+        """Get config value with fallback to default."""
+        if self._config is None:
+            return default
+        return getattr(self._config, key, default)
+    
+    # Property shortcuts for config values (backward compatible)
+    @property
+    def output_dir(self): return self._get_config_value('output_dir', EXTRACTED_IMAGES_DIR)
+    @property
+    def image_format(self): return self._get_config_value('image_format', 'png')
+    @property
+    def min_width(self): return self._get_config_value('min_width', 50)
+    @property
+    def min_height(self): return self._get_config_value('min_height', 50)
+    @property
+    def min_brightness(self): return self._get_config_value('min_brightness', 30.0)
+    @property
+    def min_std_dev(self): return self._get_config_value('min_std_dev', 15.0)
+    @property
+    def max_dark_pixel_ratio(self): return self._get_config_value('max_dark_pixel_ratio', 0.85)
+    @property
+    def extract_tables(self): return self._get_config_value('extract_tables', True)
+    @property
+    def extract_figures(self): return self._get_config_value('extract_figures', True)
+    @property
+    def context_chars(self): return self._get_config_value('context_chars', 500)
+    @property
+    def use_ppstructure(self): return self._get_config_value('use_ppstructure', True)
+    @property
+    def ppstructure_max_pages(self): return self._get_config_value('ppstructure_max_pages', 20)
+    @property
+    def cluster_merge_distance(self): return self._get_config_value('cluster_merge_distance', 50)
+    @property
+    def min_drawing_size(self): return self._get_config_value('min_drawing_size', 20)
+    @property
+    def min_diagram_size(self): return self._get_config_value('min_diagram_size', 100)
+    @property
+    def use_gpu(self): return self._get_config_value('use_gpu', False)
     
     @property
     def structure_engine(self):
@@ -131,7 +197,8 @@ class ImageExtractor:
         """
         Extract images from a PDF file.
         
-        Uses PyMuPDF (fitz) as primary method, falls back to pdf2image if needed.
+        Uses PyMuPDF (fitz) as primary method for image extraction,
+        and PP-Structure for layout analysis and context enrichment.
         
         Args:
             pdf_path: Path to the PDF file.
@@ -145,16 +212,325 @@ class ImageExtractor:
         
         print(f"Extracting images from: {pdf_path.name}")
         
-        # 1. Extract embedded images (bitmaps)
+        # 1. Extract embedded images (bitmaps) with PyMuPDF
         extracted_images = self._extract_pdf_with_pymupdf(pdf_path)
         
-        # 2. Extract vector drawings (diagrams)
-        if self.config.extract_figures:
+        # 2. Extract vector drawings (diagrams) with PyMuPDF
+        if self.extract_figures:
             drawings = self._extract_drawings_with_pymupdf(pdf_path)
             extracted_images.extend(drawings)
         
+        # 3. Run PP-Structure for layout analysis and context enrichment
+        if self.use_ppstructure and extracted_images:
+            try:
+                # Only analyze pages that have extracted images
+                pages_with_images = list(set(img.page_number for img in extracted_images))
+                pages_with_images.sort()
+                
+                layout_info = self._analyze_pdf_layout_with_ppstructure(
+                    pdf_path, 
+                    pages_to_analyze=pages_with_images
+                )
+                if layout_info:
+                    extracted_images = self._enrich_images_with_layout_context(
+                        extracted_images, layout_info
+                    )
+                    print(f"  Enriched {len(extracted_images)} images with PP-Structure context")
+            except Exception as e:
+                print(f"  PP-Structure analysis skipped: {e}")
+        
         print(f"  Extracted {len(extracted_images)} images/drawings from {pdf_path.name}")
         return extracted_images
+    
+    def _analyze_pdf_layout_with_ppstructure(
+        self, 
+        pdf_path: Path, 
+        pages_to_analyze: list[int] = None,
+        max_pages: int = 20
+    ) -> dict:
+        """
+        Analyze PDF layout using PP-Structure.
+        
+        Renders pages and runs PP-Structure to detect:
+        - Text regions with content
+        - Figure/image regions
+        - Table regions
+        - Title/caption regions
+        
+        Args:
+            pdf_path: Path to PDF file
+            pages_to_analyze: Specific page numbers (1-indexed) to analyze. 
+                            If None, analyzes first max_pages.
+            max_pages: Maximum number of pages to analyze (default 20)
+        
+        Returns:
+            Dict mapping page_number to layout analysis results.
+        """
+        import fitz
+        
+        layout_info = {}
+        temp_paths = []
+        
+        try:
+            doc = fitz.open(str(pdf_path))
+            num_pages = len(doc)
+            
+            # Determine which pages to analyze
+            if pages_to_analyze:
+                pages = [p - 1 for p in pages_to_analyze if 1 <= p <= num_pages]  # Convert to 0-indexed
+            else:
+                pages = list(range(min(num_pages, max_pages)))
+            
+            if not pages:
+                doc.close()
+                return layout_info
+            
+            print(f"  Running PP-Structure layout analysis on {len(pages)} pages...")
+            
+            # Step 1: Render pages to temp images
+            for page_num in pages:
+                page = doc[page_num]
+                pix = page.get_pixmap(dpi=150)
+                temp_path = self.output_dir / f"_temp_page_{page_num}.png"
+                pix.save(str(temp_path))
+                temp_paths.append((page_num, temp_path))
+                pix = None
+            
+            doc.close()
+            
+            # Step 2: Process with PP-Structure using batch input
+            # Create list of all temp image paths
+            image_paths = [str(tp[1]) for tp in temp_paths]
+            
+            try:
+                # Call PP-Structure with batch of images
+                results = self.structure_engine.predict(input=image_paths)
+                
+                # Process results - one result per image
+                for idx, result in enumerate(results):
+                    if idx >= len(temp_paths):
+                        break
+                    
+                    page_num = temp_paths[idx][0]
+                    
+                    page_layout = {
+                        "text_regions": [],
+                        "figure_regions": [],
+                        "table_regions": [],
+                        "title_regions": [],
+                    }
+                    
+                    # Get layout parsing result
+                    if hasattr(result, 'layout_parsing_result'):
+                        layout_result = result.layout_parsing_result
+                    elif isinstance(result, dict) and 'layout_parsing_result' in result:
+                        layout_result = result['layout_parsing_result']
+                    else:
+                        continue
+                    
+                    if isinstance(layout_result, dict):
+                        boxes = layout_result.get('boxes', [])
+                        for box in boxes:
+                            region_type = box.get('type', 'unknown').lower()
+                            bbox = box.get('bbox', box.get('coordinate', []))
+                            text = box.get('text', '')
+                            
+                            region_data = {
+                                "bbox": bbox,
+                                "text": text,
+                                "type": region_type,
+                            }
+                            
+                            if region_type in ['text', 'paragraph']:
+                                page_layout["text_regions"].append(region_data)
+                            elif region_type in ['figure', 'image', 'chart', 'picture']:
+                                page_layout["figure_regions"].append(region_data)
+                            elif region_type == 'table':
+                                page_layout["table_regions"].append(region_data)
+                            elif region_type in ['title', 'caption']:
+                                page_layout["title_regions"].append(region_data)
+                    
+                    layout_info[page_num + 1] = page_layout
+                    print(f"    Page {page_num + 1}: {len(page_layout['text_regions'])} text, "
+                          f"{len(page_layout['figure_regions'])} figures, "
+                          f"{len(page_layout['table_regions'])} tables")
+                
+            except Exception as e:
+                print(f"  PP-Structure batch processing failed: {e}")
+            
+        except ImportError:
+            print("  PP-Structure not available, skipping layout analysis")
+        except Exception as e:
+            print(f"  Layout analysis error: {e}")
+        finally:
+            # Clean up all temp files
+            for _, temp_path in temp_paths:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except:
+                    pass
+        
+        return layout_info
+    
+    def _enrich_images_with_layout_context(
+        self, 
+        images: list[ExtractedImage], 
+        layout_info: dict
+    ) -> list[ExtractedImage]:
+        """
+        Enrich extracted images with context from PP-Structure layout analysis.
+        
+        For each image, finds nearby text regions and captions from the layout.
+        """
+        for img in images:
+            page_num = img.page_number
+            if page_num not in layout_info:
+                continue
+            
+            page_layout = layout_info[page_num]
+            
+            # Collect all text from the page for context
+            all_text_parts = []
+            
+            # Add title/caption regions (highest priority)
+            for region in page_layout.get("title_regions", []):
+                if region.get("text"):
+                    all_text_parts.append(f"[Title] {region['text']}")
+            
+            # Add nearby text regions
+            for region in page_layout.get("text_regions", []):
+                if region.get("text"):
+                    all_text_parts.append(region['text'])
+            
+            # Combine and update image context
+            if all_text_parts:
+                enriched_text = "\n".join(all_text_parts)
+                # Combine with existing surrounding_text
+                if img.surrounding_text:
+                    img.surrounding_text = f"{enriched_text}\n---\n{img.surrounding_text}"
+                else:
+                    img.surrounding_text = enriched_text
+                
+                # Truncate to config limit
+                img.surrounding_text = img.surrounding_text[:self.context_chars]
+            
+            # Try to find caption for the image
+            for region in page_layout.get("title_regions", []):
+                text = region.get("text", "").lower()
+                if any(keyword in text for keyword in ["figure", "fig.", "hình", "diagram", "chart"]):
+                    img.caption = region.get("text", "")[:200]
+                    break
+        
+        return images
+    
+    def _find_caption_near_image(self, page, image_bbox: tuple, search_distance: int = 100) -> str:
+        """
+        Find caption text near an image by searching for keywords.
+        
+        Looks for patterns like:
+        - "Figure X.Y: Description"
+        - "Table X: Description"
+        - "Fig. X - Description"
+        - "Hình X.Y: Mô tả"
+        
+        Args:
+            page: PyMuPDF page object
+            image_bbox: Bounding box of the image (x0, y0, x1, y1)
+            search_distance: Max distance in pixels to search for caption
+            
+        Returns:
+            Caption text if found, empty string otherwise.
+        """
+        import re
+        import fitz
+        
+        # Keywords to detect captions (case-insensitive)
+        caption_patterns = [
+            r"(?i)^fig(?:ure)?\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^table\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^picture\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^diagram\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^chart\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^hình\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+            r"(?i)^bảng\.?\s*\d+[\.\-\:]?\s*\d*\s*[:\-–—]?\s*.+",
+        ]
+        
+        try:
+            # Get text blocks with positions
+            blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]
+            
+            x0, y0, x1, y1 = image_bbox
+            
+            # Collect candidate caption texts with their distance from image
+            candidates = []
+            
+            for block in blocks:
+                if block.get("type") != 0:  # Skip non-text blocks
+                    continue
+                
+                block_bbox = block.get("bbox", (0, 0, 0, 0))
+                bx0, by0, bx1, by1 = block_bbox
+                
+                # Check if text block is near the image (below or above)
+                # Below image
+                if by0 >= y1 and by0 <= y1 + search_distance:
+                    distance = by0 - y1
+                    # Check horizontal overlap
+                    if not (bx1 < x0 or bx0 > x1):
+                        text = ""
+                        for line in block.get("lines", []):
+                            for span in line.get("spans", []):
+                                text += span.get("text", "")
+                            text += " "
+                        text = text.strip()
+                        if text:
+                            candidates.append({"text": text, "distance": distance, "position": "below"})
+                
+                # Above image (less common but possible)
+                if by1 <= y0 and by1 >= y0 - search_distance:
+                    distance = y0 - by1
+                    if not (bx1 < x0 or bx0 > x1):
+                        text = ""
+                        for line in block.get("lines", []):
+                            for span in line.get("spans", []):
+                                text += span.get("text", "")
+                            text += " "
+                        text = text.strip()
+                        if text:
+                            candidates.append({"text": text, "distance": distance, "position": "above"})
+            
+            # Sort by distance (closest first), prefer below
+            candidates.sort(key=lambda c: (c["position"] != "below", c["distance"]))
+            
+            # Check each candidate for caption patterns
+            for candidate in candidates:
+                text = candidate["text"]
+                for pattern in caption_patterns:
+                    if re.match(pattern, text):
+                        # Clean up and return
+                        caption = text.strip()
+                        # Limit length
+                        if len(caption) > 300:
+                            caption = caption[:300] + "..."
+                        return caption
+            
+            # If no pattern matched, check for simple keyword presence in closest text
+            if candidates:
+                closest_text = candidates[0]["text"].lower()
+                keywords = ["figure", "fig.", "fig ", "table", "picture", "diagram", 
+                           "chart", "hình", "bảng", "biểu đồ"]
+                for kw in keywords:
+                    if kw in closest_text:
+                        caption = candidates[0]["text"].strip()
+                        if len(caption) > 300:
+                            caption = caption[:300] + "..."
+                        return caption
+            
+            return ""
+            
+        except Exception as e:
+            # Silently fail - caption detection is optional
+            return ""
     
     def _extract_pdf_with_pymupdf(self, pdf_path: Path) -> list[ExtractedImage]:
         """Extract images using PyMuPDF (fitz) - primary method."""
@@ -180,7 +556,7 @@ class ImageExtractor:
                         pix = fitz.Pixmap(doc, xref)
                         
                         # Check image size
-                        if pix.width < self.config.min_width or pix.height < self.config.min_height:
+                        if pix.width < self.min_width or pix.height < self.min_height:
                             pix = None
                             continue
                         
@@ -214,11 +590,25 @@ class ImageExtractor:
                         image_data = pix.tobytes("png")
                         image_id = hashlib.md5(image_data).hexdigest()[:8]
                         image_filename = f"{pdf_path.stem}_p{page_num + 1}_img{img_index}_{image_id}.png"
-                        image_path = self.config.output_dir / image_filename
+                        image_path = self.output_dir / image_filename
                         
                         # Save image
                         pix.save(str(image_path))
                         pix = None  # Free memory
+                        
+                        # Get image position on page for caption detection
+                        image_bbox = (0, 0, width, height)  # Default
+                        try:
+                            # Try to find where this image appears on the page
+                            img_rects = page.get_image_rects(xref)
+                            if img_rects:
+                                rect = img_rects[0]  # Take first occurrence
+                                image_bbox = (rect.x0, rect.y0, rect.x1, rect.y1)
+                        except:
+                            pass
+                        
+                        # Find caption near image
+                        caption = self._find_caption_near_image(page, image_bbox)
                         
                         # Get surrounding text
                         text = page.get_text()
@@ -228,10 +618,10 @@ class ImageExtractor:
                             image_path=str(image_path),
                             source_file=str(pdf_path),
                             page_number=page_num + 1,
-                            bbox=(0, 0, width, height),
+                            bbox=image_bbox,
                             region_type="figure",
-                            surrounding_text=text[:self.config.context_chars],
-                            caption="",
+                            surrounding_text=text[:self.context_chars],
+                            caption=caption,
                             description=f"Image from {pdf_path.name}, page {page_num + 1}"
                         ))
                         
@@ -290,10 +680,10 @@ class ImageExtractor:
                         # Check if rect is close to current cluster
                         # Expand current cluster by merge distance for check
                         expanded = fitz.Rect(current_cluster)
-                        expanded.x0 -= self.config.cluster_merge_distance
-                        expanded.y0 -= self.config.cluster_merge_distance
-                        expanded.x1 += self.config.cluster_merge_distance
-                        expanded.y1 += self.config.cluster_merge_distance
+                        expanded.x0 -= self.cluster_merge_distance
+                        expanded.y0 -= self.cluster_merge_distance
+                        expanded.x1 += self.cluster_merge_distance
+                        expanded.y1 += self.cluster_merge_distance
                         
                         if rect.intersects(expanded):
                             current_cluster.include_rect(rect)
@@ -308,7 +698,7 @@ class ImageExtractor:
                 # Process clusters
                 for i, rect in enumerate(clusters):
                     # Check if cluster is big enough to be a diagram
-                    if rect.width < self.config.min_diagram_size or rect.height < self.config.min_diagram_size:
+                    if rect.width < self.min_diagram_size or rect.height < self.min_diagram_size:
                         continue
                         
                     # Render the region
@@ -327,22 +717,26 @@ class ImageExtractor:
                         # Save
                         image_id = hashlib.md5(image_data).hexdigest()[:8]
                         image_filename = f"{pdf_path.stem}_p{page_num + 1}_drawing{i}_{image_id}.png"
-                        image_path = self.config.output_dir / image_filename
+                        image_path = self.output_dir / image_filename
                         
                         pix.save(str(image_path))
                         
-                        # Get text
+                        # Get text within drawing region
                         text = page.get_text(clip=rect)
+                        
+                        # Find caption near the drawing
+                        drawing_bbox = (rect.x0, rect.y0, rect.x1, rect.y1)
+                        caption = self._find_caption_near_image(page, drawing_bbox)
                         
                         extracted_drawings.append(ExtractedImage(
                             image_id=image_id,
                             image_path=str(image_path),
                             source_file=str(pdf_path),
                             page_number=page_num + 1,
-                            bbox=(rect.x0, rect.y0, rect.x1, rect.y1),
+                            bbox=drawing_bbox,
                             region_type="drawing",
-                            surrounding_text=text[:self.config.context_chars],
-                            caption="",
+                            surrounding_text=text[:self.context_chars],
+                            caption=caption,
                             description=f"Drawing from {pdf_path.name}, page {page_num + 1}"
                         ))
                         pix = None
@@ -370,7 +764,7 @@ class ImageExtractor:
                 print(f"  Processing page {page_num}/{len(pages)}...")
                 
                 # Save page as temporary image
-                temp_path = self.config.output_dir / f"_temp_page_{page_num}.png"
+                temp_path = self.output_dir / f"_temp_page_{page_num}.png"
                 page_image.save(str(temp_path))
                 
                 # Extract images from this page
@@ -444,10 +838,10 @@ class ImageExtractor:
                         
                         # Filter by region type
                         if region_type in ['figure', 'image', 'chart', 'picture']:
-                            if not self.config.extract_figures:
+                            if not self.extract_figures:
                                 continue
                         elif region_type == 'table':
-                            if not self.config.extract_tables:
+                            if not self.extract_tables:
                                 continue
                         else:
                             continue  # Skip text regions
@@ -461,8 +855,8 @@ class ImageExtractor:
                                     f"{source_file}_{page_number}_{box_idx}".encode()
                                 ).hexdigest()[:8]
                                 
-                                image_filename = f"{Path(source_file).stem}_p{page_number}_{region_type}_{image_id}.{self.config.image_format}"
-                                save_path = self.config.output_dir / image_filename
+                                image_filename = f"{Path(source_file).stem}_p{page_number}_{region_type}_{image_id}.{self.image_format}"
+                                save_path = self.output_dir / image_filename
                                 cropped.save(str(save_path))
                                 
                                 # Get nearby text as context
@@ -475,7 +869,7 @@ class ImageExtractor:
                                     page_number=page_number,
                                     bbox=tuple(bbox[:4]),
                                     region_type=region_type,
-                                    surrounding_text=nearby_text or all_text[:self.config.context_chars],
+                                    surrounding_text=nearby_text or all_text[:self.context_chars],
                                     caption=box.get('caption', ''),
                                     description=f"{region_type} from page {page_number}"
                                 ))
@@ -514,7 +908,7 @@ class ImageExtractor:
     
     def _is_valid_size(self, image) -> bool:
         """Check if image meets minimum size requirements."""
-        return image.width >= self.config.min_width and image.height >= self.config.min_height
+        return image.width >= self.min_width and image.height >= self.min_height
     
     def _extract_text_from_result(self, result) -> str:
         """Extract all text content from PP-Structure result."""
@@ -670,15 +1064,15 @@ class ImageExtractor:
             stats["dark_ratio"] = dark_ratio
             
             # Check brightness (avoid black images)
-            if mean_val < self.config.min_brightness:
+            if mean_val < self.min_brightness:
                 return False, f"Too dark (mean={mean_val:.2f})", stats
             
             # Check variance (avoid solid color images)
-            if std_val < self.config.min_std_dev:
+            if std_val < self.min_std_dev:
                 return False, f"Low variance (std={std_val:.2f})", stats
             
             # Check dark pixel ratio (avoid mostly black images)
-            if dark_ratio > self.config.max_dark_pixel_ratio:
+            if dark_ratio > self.max_dark_pixel_ratio:
                 return False, f"Too many dark pixels ({dark_ratio:.1%})", stats
                 
             return True, "OK", stats
@@ -713,12 +1107,12 @@ class ImageExtractor:
                 stats["std_dev"] = std_dev
                 
                 # Check brightness (avoid black images)
-                if mean_brightness < self.config.min_brightness:
-                    return False, f"Too dark (brightness={mean_brightness:.2f} < {self.config.min_brightness})", stats
+                if mean_brightness < self.min_brightness:
+                    return False, f"Too dark (brightness={mean_brightness:.2f} < {self.min_brightness})", stats
                 
                 # Check variance (avoid solid color images)
-                if std_dev < self.config.min_std_dev:
-                    return False, f"Low variance (std_dev={std_dev:.2f} < {self.config.min_std_dev})", stats
+                if std_dev < self.min_std_dev:
+                    return False, f"Low variance (std_dev={std_dev:.2f} < {self.min_std_dev})", stats
                     
                 return True, "OK", stats
         except Exception as e:

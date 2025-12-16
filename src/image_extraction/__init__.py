@@ -1,10 +1,12 @@
-"""Image Extraction module using PaddleOCR PP-Structure."""
+"""Image Extraction module using PyMuPDF and PaddleOCR PP-Structure."""
 from .extractor import (
     ImageExtractor,
     ExtractedImage,
-    ImageExtractionConfig,
     get_image_extractor,
 )
+
+# Import config from settings
+from config.settings import ImageExtractionConfig
 
 __all__ = [
     # Image extraction
@@ -13,4 +15,3 @@ __all__ = [
     "ImageExtractionConfig",
     "get_image_extractor",
 ]
-

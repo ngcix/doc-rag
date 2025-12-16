@@ -167,7 +167,146 @@ similarity(q, d) = q · d (inner product)
 
 ---
 
-## 4. SearchResult Structure
+## 4. Tìm kiếm trên Image Results (PaddleOCR/PyMuPDF)
+
+Khi `process` command chạy, hình ảnh được trích xuất bằng **PyMuPDF** và **PaddleOCR PP-Structure** sẽ được vectorize và lưu vào database. Khi search, query sẽ tìm kiếm trên cả text chunks và image contexts.
+
+### 4.1 Image Data Structure trong Vector Store
+
+```mermaid
+flowchart LR
+    subgraph EXTRACTION["Image Extraction (process command)"]
+        E1["PyMuPDF<br/>Embedded images"]
+        E2["PyMuPDF<br/>Vector drawings"]
+        E3["PP-Structure<br/>Layout regions"]
+    end
+    
+    subgraph VECTORIZE["Vectorization"]
+        V1["Image Context Text<br/>(caption, description,<br/>surrounding text)"]
+        V2["GTE Model Encode"]
+        V3["768-dim embedding"]
+    end
+    
+    subgraph STORE["Vector Store"]
+        S1["chunk_id: 'img_abc123'"]
+        S2["content: 'Figure 1: Login flow...'"]
+        S3["metadata: {type: 'extracted_image',<br/>region_type: 'figure',<br/>image_path: '...',<br/>source_file: '...',<br/>page_number: 1}"]
+    end
+    
+    EXTRACTION --> VECTORIZE --> STORE
+
+    style EXTRACTION fill:#E3F2FD
+    style VECTORIZE fill:#F3E5F5
+    style STORE fill:#E8F5E9
+```
+
+### 4.2 Image Search Flow
+
+```mermaid
+flowchart TD
+    QUERY["🔍 User Query:<br/>'authentication diagram'"] --> ENCODE["Encode query<br/>with GTE model"]
+    
+    ENCODE --> SEARCH["FAISS similarity search"]
+    
+    SEARCH --> RESULTS["Search Results"]
+    
+    subgraph RESULTS["Mixed Results"]
+        R1["Text Chunk<br/>similarity: 0.89<br/>type: 'text'"]
+        R2["Image Context<br/>similarity: 0.85<br/>type: 'extracted_image'<br/>region_type: 'drawing'"]
+        R3["Text Chunk<br/>similarity: 0.78<br/>type: 'text'"]
+    end
+    
+    RESULTS --> DISPLAY
+    
+    subgraph DISPLAY["Display Results"]
+        D1["Show text content"]
+        D2["Show image path + context<br/>📸 data/extracted_images/auth_p1_drawing0_abc123.png"]
+    end
+
+    style QUERY fill:#2196F3,color:#fff
+    style RESULTS fill:#FFF3E0
+    style DISPLAY fill:#E8F5E9
+```
+
+### 4.3 Cách image context được tạo
+
+Khi hình ảnh được trích xuất (bởi PyMuPDF hoặc PP-Structure), hệ thống tạo text để vectorize:
+
+```python
+# Trong ExtractedImage.get_vectorization_text():
+def get_vectorization_text(self) -> str:
+    parts = []
+    if self.caption:
+        parts.append(f"Caption: {self.caption}")
+    if self.description:
+        parts.append(f"Description: {self.description}")
+    if self.surrounding_text:
+        parts.append(f"Context: {self.surrounding_text}")
+    parts.append(f"Type: {self.region_type}")  # figure, table, drawing
+    parts.append(f"Source: {Path(self.source_file).name}, Page {self.page_number}")
+    return "\n".join(parts)
+```
+
+**Ví dụ text được vectorize cho một hình:**
+```
+Caption: Figure 3: Authentication Flow
+Description: Drawing from auth_guide.pdf, page 2
+Context: The authentication process begins when the user submits credentials...
+Type: drawing
+Source: auth_guide.pdf, Page 2
+```
+
+### 4.4 Image Metadata trong Search Result
+
+```mermaid
+classDiagram
+    class ImageSearchResult {
+        +str chunk_id: "img_abc123"
+        +str content: "Caption: Figure 1..."
+        +float similarity: 0.85
+        +dict metadata
+    }
+    
+    class ImageMetadata {
+        +str type: "extracted_image"
+        +str region_type: "figure|table|drawing"
+        +str image_path: "data/extracted_images/..."
+        +str source_file: "document.pdf"
+        +int page_number: 1
+        +str bbox: "(10, 20, 500, 400)"
+    }
+    
+    ImageSearchResult --> ImageMetadata
+```
+
+### 4.5 Ví dụ Search Output có Image
+
+```
+Searching for: 'login authentication diagram'
+Using backend: faiss
+--------------------------------------------------
+Found 5 results:
+
+[1] Score: 0.9123
+    Type: text
+    Source: data/documents/auth_spec.pdf
+    Content: The authentication flow begins when the user submits...
+
+[2] Score: 0.8756  📸 IMAGE RESULT
+    Type: extracted_image (drawing)
+    Source: data/documents/auth_spec.pdf, Page 2
+    Image: data/extracted_images/auth_spec_p2_drawing0_abc123.png
+    Context: Figure 3: OAuth 2.0 login flow diagram showing...
+
+[3] Score: 0.8234
+    Type: text
+    Source: data/documents/security_guide.md
+    Content: OAuth 2.0 authentication requires the following steps...
+```
+
+---
+
+## 5. SearchResult Structure
 
 ```mermaid
 classDiagram
@@ -210,7 +349,7 @@ classDiagram
 
 ---
 
-## 5. Output Formats
+## 6. Output Formats
 
 ```mermaid
 flowchart LR
@@ -260,7 +399,7 @@ Found 5 results:
 
 ---
 
-## 6. Process/Input JSON Structure
+## 7. Process/Input JSON Structure
 
 ```mermaid
 flowchart TD
@@ -278,7 +417,7 @@ flowchart TD
 
 ---
 
-## 7. Process/Output JSON Structure
+## 8. Process/Output JSON Structure
 
 ```mermaid
 flowchart TD
@@ -299,7 +438,7 @@ flowchart TD
 
 ---
 
-## 8. Configuration
+## 9. Configuration
 
 ```python
 # config/settings.py
@@ -311,7 +450,7 @@ class SearchConfig:
 
 ---
 
-## 9. Command Options
+## 10. Command Options
 
 ```bash
 # Basic search
@@ -326,7 +465,7 @@ python -m src.main search "API security" --no-save
 
 ---
 
-## 10. Search Performance
+## 11. Search Performance
 
 | Dataset Size | Index Type | Search Time |
 |--------------|------------|-------------|

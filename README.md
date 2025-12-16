@@ -10,7 +10,8 @@ A production-ready Retrieval-Augmented Generation (RAG) system with document chu
 | **Vectorization** | Convert text to embeddings using `Alibaba-NLP/gte-multilingual-base` (768-dim) |
 | **Semantic Search** | Fast similarity search with cosine distance |
 | **Dual Backend** | Choose between FAISS (fast) or ChromaDB (full-featured) |
-| **Image Extraction** | Extract embedded images and vector drawings from PDFs using PyMuPDF |
+| **Image Extraction** | Extract embedded images and vector drawings from PDFs using **PyMuPDF** |
+| **Layout Analysis** | Detect document regions (figure, table, text) using **PaddleOCR PP-Structure** |
 | **Sequence Charts** | Parse Mermaid diagrams, export images, and vectorize descriptions |
 
 ## 📁 Directory Structure
@@ -137,15 +138,34 @@ class VectorDBConfig:
 
 ### Image Extraction Configuration
 
-Located in `src/image_extraction/extractor.py`:
+Located in `config/settings.py`:
 
 ```python
-class ImageExtractionConfig:
+class ImageExtractionConfig(BaseModel):
+    # Size filters
     min_width: int = 50          # Minimum image width
     min_height: int = 50         # Minimum image height
+    
+    # Quality filters (avoid black/empty images)
     min_brightness: float = 30.0  # Filter dark images
     min_std_dev: float = 15.0    # Filter solid color images
     max_dark_pixel_ratio: float = 0.85  # Filter mostly black images
+    
+    # Extraction options
+    extract_tables: bool = True   # Extract table regions
+    extract_figures: bool = True  # Extract figure/image regions
+    context_chars: int = 500      # Characters to extract around image
+    
+    # PP-Structure settings (AI-based layout analysis)
+    use_ppstructure: bool = True  # Enable PP-Structure
+    ppstructure_max_pages: int = 20  # Max pages for analysis
+    
+    # PyMuPDF vector drawings clustering
+    cluster_merge_distance: int = 50  # Merge nearby drawings
+    min_diagram_size: int = 100  # Min size for diagrams
+    
+    # GPU settings
+    use_gpu: bool = False  # Use GPU for PP-Structure
 ```
 
 ## 🔧 Architecture
@@ -160,15 +180,174 @@ PDF/TXT/MD  LangChain   GTE-Base       FAISS      Cosine Similarity
 DOCX        Splitter    (768-dim)    or ChromaDB    Top-K Results
 ```
 
-### Image Extraction Pipeline
+### Image Extraction Pipeline (Integrated)
 
 ```
-PDF → PyMuPDF → Bitmap Extraction → Validation → Save PNG
-          │          │                   │
-          ▼          ▼                   ▼
-    Vector Drawing → Clustering → Filter Black/Invalid
-      Detection     (Merge nearby)    Images
+PDF File
+    │
+    ├── Step 1: PyMuPDF ──────────────────────────────────────────┐
+    │       ├── page.get_images() → Embedded bitmaps              │
+    │       └── page.get_drawings() → Vector diagrams → Cluster   │
+    │                                                              │
+    ├── Step 2: PP-Structure (Layout Analysis) ───────────────────┤
+    │       ├── Render page to image (150 DPI)                    │
+    │       ├── Detect regions: text, figure, table, title        │
+    │       └── Extract text content from each region             │
+    │                                                              │
+    └── Step 3: Context Enrichment ───────────────────────────────┤
+            ├── Match images with PP-Structure layout             │
+            ├── Add surrounding text context                      │
+            └── Detect captions (Figure X, Hình X, etc.)          │
+                                                                   │
+                                                                   ▼
+                                             Validation → Save PNG
+                                             + Vectorize for search
 ```
+
+## 🖼️ Image Extraction Technologies
+
+Dự án sử dụng **hai công nghệ chính** để trích xuất hình ảnh từ documents:
+
+### 1. PyMuPDF (fitz) - Phương pháp chính
+
+**PyMuPDF** là thư viện Python binding cho MuPDF, được sử dụng làm phương pháp **chính** để trích xuất hình ảnh từ PDF.
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **Embedded Images** | Trích xuất trực tiếp các hình ảnh nhúng (PNG, JPEG) trong PDF |
+| **Vector Drawings** | Phát hiện và render các đường vẽ vector (diagrams, flowcharts) |
+| **Clustering** | Gom nhóm các đường vẽ gần nhau thành 1 diagram hoàn chỉnh |
+| **Alpha Handling** | Xử lý transparency, composite lên nền trắng |
+
+**Cách hoạt động:**
+
+```python
+import fitz  # PyMuPDF
+
+doc = fitz.open("document.pdf")
+for page_num in range(len(doc)):
+    page = doc[page_num]
+    
+    # 1. Trích xuất embedded images
+    image_list = page.get_images(full=True)
+    for img in image_list:
+        xref = img[0]
+        pix = fitz.Pixmap(doc, xref)  # Chuyển thành Pixmap
+        pix.save("output.png")
+    
+    # 2. Trích xuất vector drawings  
+    drawings = page.get_drawings()  # Lấy tất cả vector paths
+    # Cluster nearby paths thành diagram
+    # Render với page.get_pixmap(clip=region, dpi=150)
+```
+
+**Ưu điểm:**
+- ⚡ **Rất nhanh** - không cần render toàn trang
+- 🎯 **Chính xác** - lấy đúng ảnh gốc từ PDF
+- 📐 **Vector support** - capture cả diagrams, flowcharts
+- 💻 **Không cần GPU**
+
+---
+
+### 2. PaddleOCR PP-Structure - Layout Analysis
+
+**PP-Structure V3** là module thuộc [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), sử dụng deep learning để phân tích layout tài liệu.
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **Layout Detection** | Phát hiện vùng: figure, table, text, title, chart |
+| **Region Classification** | Phân loại loại nội dung trong từng vùng |
+| **Text Context** | Trích xuất text xung quanh hình ảnh |
+| **OCR Integration** | Có thể OCR text trong hình nếu cần |
+
+**Khi nào PP-Structure được sử dụng:**
+- Xử lý file **ảnh** (PNG, JPG) - không phải PDF
+- Làm **fallback** khi PyMuPDF gặp lỗi
+- Khi cần phân tích **layout phức tạp**
+
+**Cách hoạt động:**
+
+```python
+from paddleocr import PPStructureV3
+
+# Khởi tạo engine (lazy loading)
+engine = PPStructureV3(
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+)
+
+# Phân tích layout
+results = engine.predict(input="page_image.png")
+
+for result in results:
+    layout = result.layout_parsing_result
+    for box in layout.get('boxes', []):
+        region_type = box.get('type')  # 'figure', 'table', 'text'
+        bbox = box.get('bbox')  # (x1, y1, x2, y2)
+        # Crop vùng và lưu...
+```
+
+**Ưu điểm:**
+- 🧠 **AI-powered** - deep learning model
+- 📊 **Multi-region** - phân biệt được nhiều loại vùng
+- 📖 **Context aware** - lấy được text context
+- 🌐 **Works on any image** - không giới hạn PDF
+
+---
+
+### 3. So sánh hai phương pháp
+
+| Tiêu chí | PyMuPDF | PP-Structure |
+|----------|---------|--------------|
+| **Vai trò** | Phương pháp chính | Bổ sung / Fallback |
+| **Input** | Chỉ PDF | Mọi định dạng ảnh |
+| **Tốc độ** | ⚡ Rất nhanh | 🐢 Chậm hơn (AI) |
+| **GPU** | Không cần | Optional (tăng tốc) |
+| **Output** | Raw images | Classified regions |
+
+### 4. Luồng xử lý thực tế
+
+```
+Input File
+    │
+    ├── PDF ──────────────────────────────────────┐
+    │       │                                      │
+    │       ├── PyMuPDF: get_images()             │
+    │       │       → Embedded bitmaps            │
+    │       │                                      │
+    │       └── PyMuPDF: get_drawings()           │
+    │               → Vector diagrams              │
+    │               → Cluster & render             │
+    │                                              │
+    │   (On error) ──── Fallback ────────────────►│
+    │                                              │
+    └── Image (PNG/JPG) ──► PP-Structure ─────────┤
+                                │                  │
+                                ├─ Detect regions  │
+                                ├─ Classify        │
+                                └─ Crop & save     │
+                                                   │
+                                                   ▼
+                              Validation Filter
+                              (brightness, std_dev, dark_ratio)
+                                                   │
+                                                   ▼
+                              ✅ Save valid images
+                              + Extract text context
+                              + Vectorize for search
+```
+
+### 5. Image Validation
+
+Trước khi lưu, mỗi hình ảnh được kiểm tra:
+
+| Check | Threshold | Mục đích |
+|-------|-----------|----------|
+| `min_width` | ≥ 50px | Loại bỏ ảnh quá nhỏ |
+| `min_height` | ≥ 50px | Loại bỏ ảnh quá nhỏ |
+| `min_brightness` | ≥ 30 | Loại bỏ ảnh đen |
+| `min_std_dev` | ≥ 15 | Loại bỏ ảnh solid color |
+| `max_dark_pixel_ratio` | ≤ 85% | Loại bỏ ảnh mostly black |
 
 ## 📊 Vector Store Backends
 
