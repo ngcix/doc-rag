@@ -81,8 +81,8 @@ class ImageExtractionConfig(BaseModel):
     image_format: str = "png"
     
     # Size filters
-    min_width: int = 50  # Minimum width to consider as valid image
-    min_height: int = 50  # Minimum height
+    min_width: int = 150  # Minimum width to consider as valid image
+    min_height: int = 150  # Minimum height
     
     # Quality filters (to avoid black/empty images)
     min_brightness: float = 30.0  # Minimum mean brightness (0-255)

@@ -565,18 +565,7 @@ class ImageExtractor:
                         if pix.n - pix.alpha < 3:  # Grayscale or CMYK
                             pix = fitz.Pixmap(fitz.csRGB, pix)
                         
-                        # If image has alpha channel, composite onto white background
-                        if pix.alpha:
-                            # Create white background pixmap
-                            white_bg = fitz.Pixmap(fitz.csRGB, pix, 0)  # 0 = drop alpha
-                            # The above creates RGB without alpha, but we need to handle transparency
-                            # Better approach: create a white rect and paint over it
-                            pix_rgb = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, pix.width, pix.height), 1)
-                            pix_rgb.set_rect(pix_rgb.irect, (255, 255, 255))  # Fill with white
-                            pix_rgb.copy(pix, (-1, -1, -1, -1))  # Copy with alpha blending (negative = use source alpha)
-                            pix = pix_rgb
-                        
-                        # Store dimensions before clearing pix
+                        # Saving as PNG handles alpha transparency correctly, so we just keep it.
                         width = pix.width
                         height = pix.height
                             
