@@ -1,0 +1,59 @@
+# Environment
+.env
+.venv
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific - Downloaded models (~1.5GB)
+models/*
+!models/.gitkeep
+
+# Data directories - Vector stores
+data/vectordb/*
+!data/vectordb/.gitkeep
+data/faiss_index/*
+!data/faiss_index/.gitkeep
+
+# Data directories - Documents (user input)
+data/documents/*
+!data/documents/.gitkeep
+
+# Data directories - Extracted images (generated output)
+data/extracted_images/*
+!data/extracted_images/.gitkeep
+
+# Process directories (search logs)
+process/input/*
+!process/input/.gitkeep
+process/output/*
+!process/output/.gitkeep
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
