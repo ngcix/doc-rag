@@ -59,8 +59,21 @@ Run the all-in-one processing pipeline. This will:
 4. Vectorize everything in a single optimized batch.
 
 ```bash
+# General usage
+python -m src.main process --input data/documents
+
+# [RECOMMENDED] Full-Page Mode (Best for RAG)
+# This captures entire PDF pages as images, ideal for preserving layout context.
 python -m src.main process --input data/documents --fullpage --no-charts
 ```
+
+**How `process --fullpage` works:**
+
+1. **Iterate**: Opens every PDF page using PyMuPDF.
+2. **Detect & Render**: Checks for images/diagrams. If found, renders the **whole page** as a high-res PNG.
+3. **Context**: Extracts the full text of that page to use as search context.
+4. **Auto-Tag**: Scans text for patterns like `Figure 1.2`, `Table 3` and adds them as tags.
+5. **Vector Boost**: Tags are repeated 3x in the embedding content to ensure high retrieval priority.
 
 ### 4. Search
 
@@ -126,9 +139,9 @@ The system doesn't just treat images as files. It understands them:
 
 Customize the core engines in `config/settings.py`:
 
-* **Model**: Change embedding models (`gte-multilingual`, `all-MiniLM-L6-v2`, etc.).
-* **VectorDB**: Switch between `faiss` (default) and `chromadb`.
-* **Chunking**: Adjust `chunk_size` (default: 512) and `overlap`.
+- **Model**: Change embedding models (`gte-multilingual`, `all-MiniLM-L6-v2`, etc.).
+- **VectorDB**: Switch between `faiss` (default) and `chromadb`.
+- **Chunking**: Adjust `chunk_size` (default: 512) and `overlap`.
 
 ## 📁 Project Structure
 

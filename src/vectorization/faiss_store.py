@@ -37,6 +37,8 @@ class FaissVectorStore:
         self._index = None
         self._metadata = {}  # Store metadata separately
         self._documents = {}  # Store document content
+        # Store embeddings map: doc_id -> list[float]
+        self._embeddings = {}
         self._id_to_idx = {}  # Map string IDs to FAISS indices
         self._idx_to_id = {}  # Map FAISS indices to string IDs
         self._dimension = None
@@ -57,31 +59,41 @@ class FaissVectorStore:
     
     def _load_if_exists(self):
         """Load existing index and metadata if available."""
-        if self.index_path.exists() and self.metadata_path.exists():
+        if self.metadata_path.exists():
             try:
                 import faiss
-                self._index = faiss.read_index(str(self.index_path))
                 
                 with open(self.metadata_path, 'rb') as f:
                     data = pickle.load(f)
                     self._metadata = data.get('metadata', {})
                     self._documents = data.get('documents', {})
-                    self._id_to_idx = data.get('id_to_idx', {})
-                    self._idx_to_id = data.get('idx_to_id', {})
+                    # Load embeddings if they exist (for perfect rebuilds)
+                    self._embeddings = data.get('embeddings', {})
                     self._dimension = data.get('dimension')
                 
-                print(f"Loaded FAISS index with {self._index.ntotal} vectors")
+                # Rebuild index from embeddings to ensure consistency
+                if self._embeddings:
+                    self._rebuild_index()
+                    print(f"Loaded and rebuilt FAISS index with {self._index.ntotal} vectors")
+                elif self.index_path.exists():
+                    # Fallback to loading raw index if embeddings missing (legacy)
+                    self._index = faiss.read_index(str(self.index_path))
+                    # Attempt to reconstruct id_to_idx/idx_to_id if possible, though it's not perfect without embeddings
+                    # This part is tricky without stored embeddings, so we'll assume it's a legacy index without full rebuild capability
+                    # and rely on the _embeddings for future operations.
+                    print(f"Loaded legacy FAISS index with {self._index.ntotal} vectors (embeddings not found for rebuild)")
+                    
             except Exception as e:
                 print(f"Failed to load existing index: {e}")
+                import traceback
+                traceback.print_exc()
     
     def _create_index(self, dimension: int):
-        """Create a new FAISS index."""
+        """Create a new FAISS index instance."""
         try:
             import faiss
         except ImportError:
-            raise ImportError(
-                "faiss-cpu is required. Install with: pip install faiss-cpu"
-            )
+            raise ImportError("faiss-cpu is required.")
         
         self._dimension = dimension
         index_type = self.config.faiss_index_type
@@ -96,7 +108,7 @@ class FaissVectorStore:
         elif index_type == "IVF":
             # Inverted file index for large datasets
             quantizer = faiss.IndexFlatL2(dimension)
-            nlist = min(100, max(1, len(self._id_to_idx) // 10))
+            nlist = min(100, max(1, len(self._embeddings) // 10))
             self._index = faiss.IndexIVFFlat(quantizer, dimension, max(nlist, 1))
         elif index_type == "HNSW":
             # Hierarchical Navigable Small World graph
@@ -108,21 +120,25 @@ class FaissVectorStore:
         print(f"Created FAISS index: {index_type}, dimension: {dimension}")
     
     def _save(self):
-        """Save index and metadata to disk."""
+        """Save metadata and embeddings to disk."""
         import faiss
         
         self.config.faiss_index_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save FAISS index
-        faiss.write_index(self._index, str(self.index_path))
+        # We don't necessarily need to save the .index file anymore 
+        # since we rebuild from embeddings, but we keep it for backup
+        if self._index:
+            try:
+                faiss.write_index(self._index, str(self.index_path))
+            except Exception as e:
+                print(f"Warning: Could not save FAISS index file: {e}")
         
-        # Save metadata
+        # Save metadata AND embeddings
         with open(self.metadata_path, 'wb') as f:
             pickle.dump({
                 'metadata': self._metadata,
                 'documents': self._documents,
-                'id_to_idx': self._id_to_idx,
-                'idx_to_id': self._idx_to_id,
+                'embeddings': self._embeddings, # Persist embeddings
                 'dimension': self._dimension,
             }, f)
     
@@ -135,9 +151,7 @@ class FaissVectorStore:
             new_metadata: Dictionary of metadata to merge.
         """
         if doc_id in self._metadata:
-            # Update existing metadata
-            current = self._metadata[doc_id]
-            current.update(new_metadata)
+            self._metadata[doc_id].update(new_metadata)
             self._save()
             print(f"Updated metadata for {doc_id}")
         else:
@@ -161,7 +175,7 @@ class FaissVectorStore:
         metadatas: Optional[list[dict]] = None
     ):
         """
-        Add vectors to the store.
+        Add or update vectors.
         
         Args:
             ids: Unique identifiers for each vector.
@@ -171,36 +185,22 @@ class FaissVectorStore:
         """
         if not embeddings:
             return
-        
-        embeddings_np = np.array(embeddings, dtype=np.float32)
-        
-        # Normalize for cosine similarity
-        if self.config.distance_metric == "cosine":
-            import faiss
-            faiss.normalize_L2(embeddings_np)
-        
-        # Create index if not exists
-        if self._index is None:
-            self._create_index(embeddings_np.shape[1])
-        
-        # Add vectors to index
-        start_idx = self._index.ntotal
-        self._index.add(embeddings_np)
-        
-        # Store metadata and documents
-        for i, doc_id in enumerate(ids):
-            idx = start_idx + i
-            self._id_to_idx[doc_id] = idx
-            self._idx_to_id[idx] = doc_id
             
+        dim = len(embeddings[0])
+        self._dimension = dim
+        
+        # Update in-memory storage
+        for i, doc_id in enumerate(ids):
+            self._embeddings[doc_id] = embeddings[i]
             if documents:
                 self._documents[doc_id] = documents[i]
             if metadatas:
                 self._metadata[doc_id] = metadatas[i]
         
-        # Save to disk
+        # FULL REBUILD - This guarantees "perfect" state
+        self._rebuild_index()
         self._save()
-        print(f"Added {len(ids)} vectors to FAISS index")
+        print(f"Added/Updated {len(ids)} vectors to FAISS index")
     
     def add_chunks(self, vectorized_chunks: list[dict]):
         """
@@ -261,8 +261,10 @@ class FaissVectorStore:
             faiss.normalize_L2(query_np)
         
         # Search
-        k = min(top_k, self._index.ntotal)
-        distances, indices = self._index.search(query_np, k)
+        # We fetch more candidates (k * 4) to handle "ghost" vectors 
+        # that persist in the index after deletion (since we only remove their ID mapping)
+        search_k = min(top_k * 4, self._index.ntotal)
+        distances, indices = self._index.search(query_np, search_k)
         
         # Format results
         results = []
@@ -272,7 +274,12 @@ class FaissVectorStore:
             
             doc_id = self._idx_to_id.get(idx)
             if not doc_id:
+                # This is a ghost vector (deleted but still in index)
                 continue
+            
+            # Stop if we have enough results
+            if len(results) >= top_k:
+                break
             
             # Convert distance to similarity score
             if self.config.distance_metric == "cosine":
@@ -297,40 +304,54 @@ class FaissVectorStore:
         return results
     
     def delete(self, ids: list[str]):
-        """
-        Delete vectors by ID.
-        
-        Note: FAISS doesn't support direct deletion. We rebuild the index
-        without the deleted vectors.
-        """
-        if not ids or self._index is None:
+        """Delete vectors by ID and rebuild index."""
+        if not ids:
             return
-        
-        # Remove from metadata
+            
+        # Remove from storage
+        deleted_count = 0
         for doc_id in ids:
-            self._documents.pop(doc_id, None)
-            self._metadata.pop(doc_id, None)
-            idx = self._id_to_idx.pop(doc_id, None)
-            if idx is not None:
-                self._idx_to_id.pop(idx, None)
+            if doc_id in self._embeddings:
+                del self._embeddings[doc_id]
+                self._documents.pop(doc_id, None)
+                self._metadata.pop(doc_id, None)
+                deleted_count += 1
+                
+        if deleted_count > 0:
+            # FULL REBUILD
+            self._rebuild_index()
+            self._save()
+            print(f"Deleted {deleted_count} vectors and rebuilt index")
         
-        # Rebuild index with remaining vectors
-        # This is expensive but FAISS doesn't support direct deletion
-        self._rebuild_index()
-        print(f"Deleted {len(ids)} vectors")
-    
     def _rebuild_index(self):
-        """Rebuild the index from remaining data."""
-        if not self._documents:
+        """Rebuild the FAISS index from scratch using stored embeddings."""
+        if not self._embeddings:
             self._index = None
             self._id_to_idx = {}
             self._idx_to_id = {}
-            self._save()
             return
+
+        # 1. Prepare data
+        ids = list(self._embeddings.keys())
+        # Convert list of lists to numpy array
+        matrix = np.array(list(self._embeddings.values()), dtype=np.float32)
         
-        # This would require re-computing embeddings, so we skip for now
-        # In a real implementation, you'd store embeddings alongside documents
-        print("Warning: Index rebuild would require re-computing embeddings")
+        # 2. Normalize if Cosine
+        if self.config.distance_metric == "cosine":
+            import faiss
+            faiss.normalize_L2(matrix)
+            
+        # 3. Create fresh index
+        self._create_index(self._dimension)
+        
+        # 4. Add all vectors
+        self._index.add(matrix)
+        
+        # 5. Rebuild ID mappings
+        self._id_to_idx = {doc_id: i for i, doc_id in enumerate(ids)}
+        self._idx_to_id = {i: doc_id for i, doc_id in enumerate(ids)}
+        
+        print(f"Index rebuilt with {self._index.ntotal} vectors.")
     
     def clear(self):
         """Clear all vectors from the index."""
