@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import hashlib
 import os
 import sys
+import re
 
 # LangChain compatibility shim for PaddleOCR
 # PaddleOCR uses old langchain imports that no longer exist in langchain >= 1.0
@@ -57,6 +58,7 @@ class ExtractedImage:
     surrounding_text: str = ""
     caption: str = ""
     description: str = ""
+    tags: str = ""  # Keywords extracted from context
     
     def to_dict(self) -> dict:
         return {
@@ -76,6 +78,9 @@ class ExtractedImage:
         parts = []
         if self.caption:
             parts.append(f"Caption: {self.caption}")
+        if self.tags:
+            # Repeat tags to boost importance in vector
+            parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}") 
         if self.description:
             parts.append(f"Description: {self.description}")
         if self.surrounding_text:
@@ -193,6 +198,143 @@ class ImageExtractor:
                 "Install with: pip install paddleocr[all]"
             )
     
+    def extract_from_file(self, file_path: Path, fullpage_mode: bool = False) -> list[ExtractedImage]:
+        """
+        Extract images from a file (PDF or Image).
+        
+        Args:
+            file_path: Path to the file.
+            fullpage_mode: If True, extract full page as image instead of cropping.
+            
+        Returns:
+            List of ExtractedImage objects.
+        """
+        file_path = Path(file_path)
+        suffix = file_path.suffix.lower()
+        
+        if suffix == ".pdf":
+            if fullpage_mode:
+                return self._extract_fullpage_from_pdf(file_path)
+            else:
+                return self.extract_from_pdf(file_path)
+        elif suffix in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
+            return self._extract_from_image(file_path, str(file_path))
+        else:
+            print(f"Unsupported file type: {suffix}")
+            return []
+
+    def _extract_tags_from_text(self, text: str) -> str:
+        """
+        Extract tags from text using regex patterns.
+        Looks for 'Figure X.Y: ...' or 'Table X.Y: ...'
+        """
+        tags = []
+        # Pattern: Figure/Table/Fig. followed by number and some text up to newline or period
+        # Example: "Figure 4.2: Media payload format"
+        patterns = [
+            r"(Figure\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Table\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Fig\.\s*\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Hình\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Bảng\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)"
+        ]
+        
+        for p in patterns:
+            matches = re.finditer(p, text, re.IGNORECASE)
+            for m in matches:
+                # Clean up the tag
+                tag = m.group(1).strip()
+                # Limit length to avoid grabbing whole paragraphs
+                if len(tag) > 5 and len(tag) < 100:
+                    tags.append(tag)
+        
+        # Unique tags
+        return ",".join(list(set(tags)))
+
+    def _extract_fullpage_from_pdf(self, pdf_path: Path) -> list[ExtractedImage]:
+        """
+        Extract full pages as images from PDF.
+        """
+        extracted_images = []
+        try:
+            import fitz
+            doc = fitz.open(str(pdf_path))
+            
+            print(f"Extracting full pages from: {pdf_path.name}")
+            
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                
+                # Check if page has images
+                has_images = False
+                headers_detected = False
+                
+                # Check for embedded images
+                image_list = page.get_images(full=True)
+                for img in image_list:
+                    try:
+                        xref = img[0]
+                        pix_check = fitz.Pixmap(doc, xref)
+                        if pix_check.width >= self.min_width and pix_check.height >= self.min_height:
+                            has_images = True
+                            pix_check = None
+                            break
+                        pix_check = None
+                    except:
+                        continue
+                
+                # If no embedded images, check for drawings if configured
+                if not has_images and self.extract_figures:
+                    drawings = page.get_drawings()
+                    for d in drawings:
+                        rect = d["rect"]
+                        if rect.width > self.min_drawing_size and rect.height > self.min_drawing_size:
+                            has_images = True
+                            break
+                
+                if not has_images:
+                    continue
+                
+                # Render full page
+                pix = page.get_pixmap(dpi=150)
+                image_data = pix.tobytes("png")
+                
+                # Generate ID
+                # Use deterministic ID based on filename and page: docname_p{pagenum}
+                image_id = f"{pdf_path.name}_p{page_num + 1}"
+                image_filename = f"{image_id}.png"
+                image_path = self.output_dir / image_filename
+                
+                # Save image
+                pix.save(str(image_path))
+                
+                # Get text content as context
+                text = page.get_text()
+                
+                # Auto-generate tags from text
+                extracted_tags = self._extract_tags_from_text(text)
+                
+                extracted_images.append(ExtractedImage(
+                    image_id=image_id,
+                    image_path=str(image_path),
+                    source_file=str(pdf_path),
+                    page_number=page_num + 1,
+                    bbox=(0, 0, pix.width, pix.height),
+                    region_type="fullpage",
+                    surrounding_text=text[:self.context_chars],
+                    caption=f"Full page {page_num + 1} of {pdf_path.name}",
+                    description=f"Full page capture of {pdf_path.name}, page {page_num + 1}",
+                    tags=extracted_tags
+                ))
+                print(f"  Captured full page {page_num + 1}")
+                
+            doc.close()
+            return extracted_images
+            
+        except Exception as e:
+            print(f"Error extracting full pages: {e}")
+            return []
+
     def extract_from_pdf(self, pdf_path: Path) -> list[ExtractedImage]:
         """
         Extract images from a PDF file.
@@ -949,30 +1091,6 @@ class ImageExtractor:
         
         return " ".join(nearby_texts[:3])  # Limit to 3 nearby text blocks
     
-    def extract_from_file(self, file_path: Path) -> list[ExtractedImage]:
-        """
-        Extract images from a file (PDF or image).
-        
-        Args:
-            file_path: Path to the file.
-            
-        Returns:
-            List of ExtractedImage objects.
-        """
-        file_path = Path(file_path)
-        suffix = file_path.suffix.lower()
-        
-        if suffix == '.pdf':
-            return self.extract_from_pdf(file_path)
-        elif suffix in ['.png', '.jpg', '.jpeg', '.bmp', '.tiff']:
-            return self._extract_from_image(
-                file_path,
-                source_file=str(file_path),
-                page_number=1
-            )
-        else:
-            print(f"Unsupported file type: {suffix}")
-            return []
     
     def extract_from_directory(
         self,
@@ -1120,7 +1238,7 @@ class ImageExtractor:
         data = []
         for img in images:
             data.append({
-                "chunk_id": f"img_{img.image_id}",
+                "chunk_id": img.image_id,
                 "content": img.get_vectorization_text(),
                 "metadata": {
                     "type": "extracted_image",
@@ -1129,6 +1247,7 @@ class ImageExtractor:
                     "source_file": img.source_file,
                     "page_number": img.page_number,
                     "bbox": str(img.bbox),
+                    "tags": img.tags
                 },
                 "source_file": img.source_file
             })

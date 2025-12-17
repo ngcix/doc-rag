@@ -169,18 +169,18 @@ class DocumentChunker:
                 raise ValueError(f"Unsupported file type: {suffix}")
     
     def _read_pdf(self, file_path: Path) -> str:
-        """Read PDF file content."""
+        """Read PDF file content using PyMuPDF (fitz)."""
         try:
-            from PyPDF2 import PdfReader
-            reader = PdfReader(str(file_path))
+            import fitz
+            doc = fitz.open(str(file_path))
             text_parts = []
-            for page in reader.pages:
-                text = page.extract_text()
+            for page in doc:
+                text = page.get_text()
                 if text:
                     text_parts.append(text)
             return "\n\n".join(text_parts)
         except ImportError:
-            raise ImportError("PyPDF2 is required for PDF processing")
+            raise ImportError("PyMuPDF (fitz) is required for PDF processing. Install with: pip install pymupdf")
     
     def _read_docx(self, file_path: Path) -> str:
         """Read DOCX file content."""

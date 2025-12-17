@@ -126,6 +126,33 @@ class FaissVectorStore:
                 'dimension': self._dimension,
             }, f)
     
+    def update_metadata(self, doc_id: str, new_metadata: dict):
+        """
+        Update metadata for a document.
+        
+        Args:
+            doc_id: Document ID to update.
+            new_metadata: Dictionary of metadata to merge.
+        """
+        if doc_id in self._metadata:
+            # Update existing metadata
+            current = self._metadata[doc_id]
+            current.update(new_metadata)
+            self._save()
+            print(f"Updated metadata for {doc_id}")
+        else:
+            print(f"Warning: Document {doc_id} not found, cannot update metadata")
+    
+    def get_metadata(self, doc_id: str) -> dict:
+        """
+        Get metadata for a document.
+        """
+        return self._metadata.get(doc_id, {})
+    
+    def get_content(self, doc_id: str) -> Optional[str]:
+        """Get the text content of a document."""
+        return self._documents.get(doc_id)
+    
     def add(
         self,
         ids: list[str],
@@ -334,7 +361,20 @@ class FaissVectorStore:
             "index_type": self.config.faiss_index_type,
             "dimension": self._dimension,
             "index_directory": str(self.config.faiss_index_dir),
+            "index_directory": str(self.config.faiss_index_dir),
             "distance_metric": self.config.distance_metric
+        }
+    
+    def list_documents(self) -> dict[str, str]:
+        """
+        List all documents in the store.
+        
+        Returns:
+            Dict mapping ID to source file.
+        """
+        return {
+            doc_id: self._metadata.get(doc_id, {}).get("source_file", "Unknown")
+            for doc_id in self._id_to_idx.keys()
         }
 
 

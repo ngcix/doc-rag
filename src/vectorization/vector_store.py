@@ -141,6 +141,53 @@ class VectorStore:
         
         self.add(ids, embeddings, documents, metadatas)
     
+    def update_metadata(self, doc_id: str, new_metadata: dict):
+        """
+        Update metadata for a document.
+        
+        Args:
+            doc_id: Document ID to update.
+            new_metadata: Dictionary of metadata to merge.
+        """
+        # Fetch existing data to get current metadata
+        result = self.collection.get(ids=[doc_id], include=["metadatas"])
+        
+        if result["ids"]:
+            current_metadata = result["metadatas"][0] or {}
+            
+            # Merge new metadata
+            # Ensure values are strings if needed (Chroma limitation on types)
+            for k, v in new_metadata.items():
+                if not isinstance(v, (str, int, float, bool)):
+                    new_metadata[k] = str(v)
+            
+            current_metadata.update(new_metadata)
+            
+            # Update in Chroma
+            self.collection.update(
+                ids=[doc_id],
+                metadatas=[current_metadata]
+            )
+            print(f"Updated metadata for {doc_id}")
+        else:
+            print(f"Warning: Document {doc_id} not found, cannot update metadata")
+    
+    def get_metadata(self, doc_id: str) -> dict:
+        """
+        Get metadata for a document.
+        """
+        result = self.collection.get(ids=[doc_id], include=["metadatas"])
+        if result["ids"] and result["metadatas"][0]:
+            return result["metadatas"][0]
+        return {}
+    
+    def get_content(self, doc_id: str) -> Optional[str]:
+        """Get the text content of a document."""
+        result = self.collection.get(ids=[doc_id], include=["documents"])
+        if result["ids"] and result["documents"] and result["documents"][0]:
+            return result["documents"][0]
+        return None
+    
     def query(
         self,
         query_embeddings: list[list[float]],
@@ -238,8 +285,26 @@ class VectorStore:
             "collection_name": self.config.collection_name,
             "count": self.count(),
             "persist_directory": str(self.config.persist_directory),
+            "persist_directory": str(self.config.persist_directory),
             "distance_metric": self.config.distance_metric
         }
+    
+    def list_documents(self) -> dict[str, str]:
+        """
+        List all documents in the store.
+        
+        Returns:
+            Dict mapping ID to source file.
+        """
+        result = self.collection.get(include=["metadatas"])
+        
+        docs = {}
+        if result["ids"]:
+            ids = result["ids"]
+            metadatas = result["metadatas"]
+            for doc_id, meta in zip(ids, metadatas):
+                docs[doc_id] = meta.get("source_file", "Unknown") if meta else "Unknown"
+        return docs
 
 
 # Global vector store instance

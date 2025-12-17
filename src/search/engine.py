@@ -239,6 +239,7 @@ class SearchEngine:
             lines = [f"Found {len(results)} results:\n"]
             for r in results:
                 lines.append(f"[{r.rank}] Score: {r.similarity:.4f}")
+                lines.append(f"    ID: {r.chunk_id}")
                 lines.append(f"    Source: {r.metadata.get('source_file', 'Unknown')}")
                 lines.append(f"    Content: {r.document[:200]}...")
                 lines.append("")

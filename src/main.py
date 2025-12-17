@@ -23,7 +23,8 @@ from src.image_extraction import get_image_extractor
 def process_documents(
     input_dir: Optional[Path] = None,
     include_charts: bool = True,
-    include_images: bool = True
+    include_images: bool = True,
+    fullpage_mode: bool = False
 ):
     """
     Process all documents in the input directory.
@@ -56,58 +57,82 @@ def process_documents(
     all_vectorized = []
     total_images = 0
     
-    # 1. Process regular documents (text)
-    print("\n[1/4] Chunking documents (text)...")
-    chunks = chunker.chunk_directory(input_dir)
-    print(f"Total text chunks: {len(chunks)}")
     
-    if chunks:
-        print("\n[2/4] Vectorizing text chunks...")
-        vectorized_chunks = vectorizer.vectorize_chunks(chunks)
-        all_vectorized.extend(vectorized_chunks)
+    # Collect all items to vectorize
+    items_to_vectorize = []
+    
+    # 1. Process regular documents (text)
+    print("\n[1/3] Processing documents...")
+    chunks = chunker.chunk_directory(input_dir)
+    print(f"  Extracted {len(chunks)} text chunks")
+    
+    # Prepare text chunks for vectorization
+    for chunk in chunks:
+        items_to_vectorize.append({
+            "chunk_id": chunk.chunk_id,
+            "content": chunk.content,
+            "metadata": chunk.metadata,
+            "source_file": chunk.source_file,
+            "type": "text"
+        })
     
     # 2. Extract images from PDFs
     if include_images:
-        print("\n[3/4] Extracting images from PDFs...")
+        print("\n[2/3] Extracting images from PDFs...")
         for pdf_file in input_dir.glob("**/*.pdf"):
             try:
-                extracted = image_extractor.extract_from_file(pdf_file)
+                extracted = image_extractor.extract_from_file(
+                    pdf_file, 
+                    fullpage_mode=fullpage_mode
+                )
                 if extracted:
                     total_images += len(extracted)
-                    # Vectorize image descriptions
+                    # Get image data
                     image_data = image_extractor.get_vectorization_data(extracted)
                     for data in image_data:
-                        embedding = vectorizer.vectorize(data["content"])[0].tolist()
-                        data["embedding"] = embedding
-                    all_vectorized.extend(image_data)
+                        data["type"] = "image"
+                        items_to_vectorize.append(data)
+                        
                     print(f"  Extracted {len(extracted)} images from {pdf_file.name}")
             except Exception as e:
                 print(f"  Error extracting images from {pdf_file}: {e}")
-        print(f"Total images extracted: {total_images}")
+        print(f"  Total images processed: {total_images}")
     
     # 3. Process sequence charts
     if include_charts:
-        print("\n[3b/4] Processing sequence charts...")
+        print("\n[3/3] Processing sequence charts...")
         for md_file in input_dir.glob("**/*.md"):
             try:
                 charts = chart_processor.process_file(md_file, export_images=True)
                 if charts:
                     chart_data = chart_processor.get_vectorization_data(charts)
-                    
-                    # Vectorize chart descriptions
                     for data in chart_data:
-                        embedding = vectorizer.vectorize(data["content"])[0].tolist()
-                        data["embedding"] = embedding
-                    
-                    all_vectorized.extend(chart_data)
+                        data["type"] = "chart"
+                        items_to_vectorize.append(data)
+                        
                     print(f"  Added {len(charts)} charts from {md_file.name}")
             except Exception as e:
                 print(f"  Error processing {md_file}: {e}")
     
-    # 4. Store in vector database
-    if all_vectorized:
-        print(f"\n[4/4] Storing {len(all_vectorized)} items in vector database...")
-        vector_store.add_chunks(all_vectorized)
+    # 4. Vectorize and Store
+    if items_to_vectorize:
+        print(f"\n[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
+        
+        # Extract contents for batch vectorization
+        texts = [item["content"] for item in items_to_vectorize]
+        
+        # Vectorize in one go
+        embeddings = vectorizer.vectorize(texts)
+        
+        # Attach embeddings back to items
+        for item, embedding in zip(items_to_vectorize, embeddings):
+            item["embedding"] = embedding.tolist()
+            # Ensure metadata doesn't have 'type' conflict if it already exists
+            if "metadata" not in item:
+                item["metadata"] = {}
+            item["metadata"]["content_type"] = item["type"]
+            
+        vector_store.add_chunks(items_to_vectorize)
     
     print("\n" + "=" * 50)
     print("Processing complete!")
@@ -215,6 +240,104 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
     print("\nClean completed!")
 
 
+def add_tag(doc_id: str, tag: str):
+    """
+    Add a tag to a document's metadata AND update its vector embedding.
+    """
+    vector_store = get_vector_store()
+    
+    try:
+        # 1. Get current data
+        current_metadata = vector_store.get_metadata(doc_id)
+        if not current_metadata:
+            print(f"Error: Document {doc_id} not found.")
+            return
+
+        current_content = vector_store.get_content(doc_id)
+        if current_content is None:
+            print(f"Error: Could not retrieve content for {doc_id}")
+            return
+
+        # 2. Update Metadata Tags
+        current_tags = current_metadata.get("tags", "")
+        if current_tags:
+            new_tags = f"{current_tags},{tag}"
+        else:
+            new_tags = tag
+        
+        # 3. Update Content for Vectorization (Boost the tag)
+        # We append the tag multiple times to boost its semantic weight
+        tag_boost = f"\nTags: {tag}, {tag}, {tag}"
+        new_content = current_content + tag_boost
+        
+        print("Re-calculating vector embedding...")
+        
+        # 4. Generate New Embedding
+        # Lazy import to avoid circular dependency issues at top level if any
+        from src.vectorization.vectorizer import vectorize_text
+        new_embedding = vectorize_text(new_content)[0].tolist()
+        
+        # 5. Atomic-ish Update (Delete then Add)
+        # Note: This effectively replaces the document
+        vector_store.delete([doc_id])
+        
+        # Prepare metadata (ensure no type conflict)
+        updated_metadata = current_metadata.copy()
+        updated_metadata["tags"] = new_tags
+        
+        vector_store.add(
+            ids=[doc_id],
+            embeddings=[new_embedding],
+            documents=[new_content],
+            metadatas=[updated_metadata]
+        )
+            
+        print(f"Successfully added tag '{tag}' to document '{doc_id}'")
+        print(f"Updated Tags: {new_tags}")
+        print("Vector embedding updated to include new tag.")
+        
+    except Exception as e:
+        print(f"Error adding tag: {e}")
+
+
+def list_tags(doc_id: str):
+    """
+    List tags for a document.
+    """
+    vector_store = get_vector_store()
+    
+    try:
+        metadata = vector_store.get_metadata(doc_id)
+        if not metadata:
+            print(f"Document {doc_id} not found.")
+            return
+
+        tags = metadata.get("tags", "No tags found")
+        print(f"Tags for {doc_id}: {tags}")
+        
+    except Exception as e:
+        print(f"Error listing tags: {e}")
+
+
+def list_docs():
+    """List all documents in the vector store."""
+    vector_store = get_vector_store()
+    try:
+        documents = vector_store.list_documents()
+        print(f"Found {len(documents)} documents:")
+        print("-" * 50)
+        # Limit output if too many
+        count = 0
+        for doc_id, source in documents.items():
+            print(f"ID: {doc_id} | Source: {source}")
+            count += 1
+            if count >= 10000:
+                print(f"... and {len(documents) - 10000} more.")
+                break
+    except Exception as e:
+        print(f"Error listing documents: {e}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -243,6 +366,11 @@ def main():
         "--no-images",
         action="store_true",
         help="Skip image extraction from PDFs"
+    )
+    process_parser.add_argument(
+        "--fullpage", "-fp",
+        action="store_true",
+        help="Capture full pages as images instead of extracting figures"
     )
     
     # Search command
@@ -279,6 +407,12 @@ def main():
         help="Initialize directory structure"
     )
     
+    # List command
+    subparsers.add_parser(
+        "list",
+        help="List all documents in the database"
+    )
+    
     # Clean command
     clean_parser = subparsers.add_parser(
         "clean",
@@ -295,6 +429,33 @@ def main():
         help="Skip confirmation prompt"
     )
     
+    # Add Tag command
+    tag_parser = subparsers.add_parser(
+        "addtag",
+        help="Add a tag to a document"
+    )
+    tag_parser.add_argument(
+        "doc_id",
+        type=str,
+        help="Document ID"
+    )
+    tag_parser.add_argument(
+        "tag",
+        type=str,
+        help="Tag to add"
+    )
+    
+    # List Tag command
+    list_tag_parser = subparsers.add_parser(
+        "listtag",
+        help="List tags for a document"
+    )
+    list_tag_parser.add_argument(
+        "doc_id",
+        type=str,
+        help="Document ID"
+    )
+    
     
     args = parser.parse_args()
     
@@ -305,7 +466,8 @@ def main():
         process_documents(
             input_dir=args.input,
             include_charts=not args.no_charts,
-            include_images=not args.no_images
+            include_images=not args.no_images,
+            fullpage_mode=args.fullpage
         )
     
     elif args.command == "search":
@@ -325,11 +487,20 @@ def main():
         print(f"  Process Input: {PROCESS_INPUT_DIR}")
         print(f"  Process Output: {PROCESS_OUTPUT_DIR}")
     
+    elif args.command == "list":
+        list_docs()
+    
     elif args.command == "clean":
         clean_data(
             include_models=args.all,
             skip_confirm=args.yes
         )
+    
+    elif args.command == "addtag":
+        add_tag(args.doc_id, args.tag)
+        
+    elif args.command == "listtag":
+        list_tags(args.doc_id)
     
     else:
         parser.print_help()
