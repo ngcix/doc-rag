@@ -89,6 +89,34 @@ python -m src.main search "Figure 4.1"
 
 ---
 
+---
+
+## 🏃 Workflow Example
+
+A typical "Basic Cycle" for a new user:
+
+```bash
+# 1. Process documents (extract full-page images)
+python -m src.main process -fp
+
+# 2. Search for something
+python -m src.main search "system architecture"
+
+# 3. Check tags of an image found (e.g., A2DP_v1.4.pdf_p18)
+python -m src.main listtag A2DP_v1.4.pdf_p18
+
+# 4. Add a manual tag (system automatically re-embeds!)
+python -m src.main addtag A2DP_v1.4.pdf_p18 "security-diagram"
+
+# 5. Verify the tag
+python -m src.main listtag A2DP_v1.4.pdf_p18
+
+# 6. Search again with the new tag
+python -m src.main search "security diagram"
+```
+
+---
+
 ## 🛠️ CLI Command Reference
 
 | Command | Action | Example |
