@@ -57,6 +57,11 @@ class TextVectorizer:
                 "Install with: pip install sentence-transformers"
             )
         
+        # Force offline mode to prevent SSL errors when model is already downloaded
+        import os
+        os.environ['HF_HUB_OFFLINE'] = '1'
+        os.environ['TRANSFORMERS_OFFLINE'] = '1'
+        
         print(f"Loading model: {self.config.model_name}")
         print(f"Cache directory: {self.config.model_cache_dir}")
         print(f"Device: {self.config.device}")
