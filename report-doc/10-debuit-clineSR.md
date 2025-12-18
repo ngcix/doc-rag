@@ -413,71 +413,77 @@ new_content = original_content + tag_boost
 Sơ đồ dưới đây mô tả **toàn bộ hệ thống** với các bước chi tiết:
 
 ```mermaid
-flowchart LR
-    %% Data Sources
-    PDF[📄 PDF Documents]
-    MD[📝 Markdown Files]
-    
-    %% Processing Components
-    Chunker[🔪 Text Chunker<br/>LangChain<br/>~500 tokens]
-    ImgExt[🖼️ Image Extractor<br/>PyMuPDF<br/>--fullpage OR --pymupdf]
-    PPStruct[🤖 PP-Structure<br/>Optional Enrichment]
-    
-    Embed[🧠 Embedding Model<br/>gte-multilingual-base<br/>384 dimensions]
-    
-    %% Storage
-    FAISS[(💾 FAISS Database<br/>Vector Index<br/>Inner Product)]
-    
-    %% Query Flow
+flowchart TB
+    %% Left Side: User & Query
     User[👤 User<br/>Developer/Lead]
-    Cline[🌟 Cline<br/>LLM Agent<br/>Vision Capability]
-    CLI[⚙️ Simple RAG CLI<br/>search command]
+    Query[📧 Query<br/>Natural Language]
     
-    Response[💬 Response<br/>Text + Images]
+    %% Center Top: Documents & Processing
+    Docs[📄 Additional Documents<br/>PDF/Markdown]
+    
+    %% Processing Layer
+    Chunker[🔪 Text Chunker<br/>①<br/>LangChain ~500 tokens]
+    ImgExt[🖼️ Image Extractor<br/>①<br/>PyMuPDF]
+    
+    %% Embedding
+    Embed[🧠 Embedding Model<br/>②<br/>gte-multilingual-base<br/>384 dimensions]
+    
+    %% Database
+    FAISS[(💾 Vector Database<br/>③④⑤<br/>FAISS Index<br/>Inner Product)]
+    
+    %% Cline Agent
+    Cline[🌟 Cline LLM Agent<br/>⑥⑦<br/>Vision + Text Capability]
+    
+    %% Search
+    Search[🔍 Similarity Search<br/>⑤<br/>Top-K Retrieval]
+    
+    %% Response
+    Response[💬 Response<br/>⑦<br/>Text + Images]
     
     %% Feedback
-    AddTag[🏷️ addtag CLI<br/>Re-embedding]
+    AddTag[🏷️ Feedback Loop<br/>⑧<br/>addtag + Re-embed]
     
-    %% INGESTION FLOW (Steps 1-3)
-    PDF -->|①| Chunker
-    MD -->|①| Chunker
-    PDF -->|①| ImgExt
+    %% FLOW: Ingestion (1-3)
+    Docs -->|Extract| Chunker
+    Docs -->|Extract| ImgExt
+    Chunker -->|N chunks| Embed
+    ImgExt -->|M images + OCR| Embed
+    Embed -->|Vectorize<br/>N+M embeddings| FAISS
     
-    Chunker -->|② N chunks| Embed
-    ImgExt -->|② M images<br/>+ OCR text| PPStruct
-    PPStruct -->|Enhanced<br/>metadata| Embed
-    
-    Embed -->|③ Vectorize<br/>N+M embeddings| FAISS
-    
-    %% QUERY FLOW (Steps 4-7)
-    User -->|④ Question| Cline
-    Cline -->|⑤ Call CLI<br/>search query| CLI
-    CLI -->|⑥ Similarity<br/>Search| FAISS
-    FAISS -->|⑥ Top-K Results<br/>Text + Image Paths| CLI
-    CLI -->|Return Context| Cline
-    Cline -->|⑦ Vision Analysis<br/>+ Text Processing| Response
+    %% FLOW: Query (4-7)
+    User -->|④ Ask| Query
+    Query -.->|Encode| Embed
+    Embed -.->|Query Vector| Search
+    FAISS <-->|⑤ Search| Search
+    Search -->|Context<br/>Text + Image Paths| Cline
+    Query -->|User Intent| Cline
+    Cline -->|Generate| Response
     Response -->|Answer| User
     
-    %% FEEDBACK FLOW (Step 8)
-    Cline -.->|⑧ addtag CLI<br/>Tag Boost| AddTag
-    AddTag -.->|Re-embed<br/>Update Index| FAISS
+    %% FLOW: Feedback (8)
+    Cline -.->|⑧ Tag Decision<br/>Based on Vision| AddTag
+    AddTag -.->|Update Vectors| FAISS
     
     %% Styling
-    classDef sourceStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef userStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef docStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef processStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef modelStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
-    classDef storageStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
-    classDef userStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef agentStyle fill:#fce4ec,stroke:#c2185b,stroke-width:3px
-    classDef feedbackStyle fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef dbStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:4px
+    classDef agentStyle fill:#fce4ec,stroke:#c2185b,stroke-width:4px
+    classDef searchStyle fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef responseStyle fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef feedbackStyle fill:#ffebee,stroke:#c62828,stroke-width:2px,stroke-dasharray: 5 5
     
-    class PDF,MD sourceStyle
-    class Chunker,ImgExt,PPStruct,CLI processStyle
-    class Embed modelStyle
-    class FAISS storageStyle
     class User userStyle
+    class Query,Docs docStyle
+    class Chunker,ImgExt processStyle
+    class Embed modelStyle
+    class FAISS dbStyle
     class Cline agentStyle
-    class Response,AddTag feedbackStyle
+    class Search searchStyle
+    class Response responseStyle
+    class AddTag feedbackStyle
 ```
 
 ### Chi tiết từng bước (Complete Flow)
