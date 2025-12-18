@@ -27,7 +27,8 @@ sequenceDiagram
     
     box Processing Layer
         participant Chunker as Text Chunker
-        participant ImgExt as Image Extractor: PP-Structure
+        participant ImgExt as Image Extractor: PyMuPDF
+        participant PPStruct as PP-Structure (Optional)
     end
     
     participant Embed as Embedding: gte-multilingual-base
@@ -51,10 +52,17 @@ sequenceDiagram
     %% Image Processing Path
     CLI->>ImgExt: Detect & Extract Images
     activate ImgExt
-    Note over ImgExt: PP-Structure detects: tables, diagrams, charts
-    ImgExt->>ImgExt: Full-page mode: Save entire page as image
+    Note over ImgExt: PyMuPDF: Extract embedded images + vector drawings
+    ImgExt->>ImgExt: Choose strategy: --fullpage OR --pymupdf
     ImgExt-->>CLI: M Images + Metadata (e.g., 5 from 10-page doc)
     deactivate ImgExt
+    
+    %% Optional PP-Structure Enrichment
+    CLI->>PPStruct: Enrich with layout context (optional)
+    activate PPStruct
+    Note over PPStruct: Detect: tables, figures, titles for better context
+    PPStruct-->>CLI: Enhanced metadata + captions
+    deactivate PPStruct
     
     %% Embedding Both
     CLI->>Embed: Vectorize: N text chunks + M image OCR texts
@@ -89,22 +97,58 @@ sequenceDiagram
 > **Note**: Với document 10 trang thông thường → ~30-50 chunks. Document 100 trang → ~300-500 chunks.
 
 #### 2. Image Processing (Extraction & Detection)
+
 - **Input**: PDF pages
-- **Tool**: PP-Structure (PaddleOCR)
-- **Detection Logic**:
-  ```python
-  # Detect image regions using PP-Structure
-  results = structure_engine.detect(page_image)
-  # Filter: tables, figures, diagrams
-  for region in results:
-      if region.type in ['table', 'figure']:
-          extract_and_save(region)
-  ```
-- **Full-Page Mode (`-fp`)**:
-  - Lưu toàn bộ trang PDF dưới dạng ảnh
-  - Tránh mất context khi cắt nhỏ
-  - Phù hợp cho: flowcharts, architecture diagrams
-- **Output**: Image files + OCR text + metadata
+- **Primary Tool**: **PyMuPDF (fitz)** - Fast extraction engine
+- **Optional Tool**: **PP-Structure (PaddleOCR)** - Layout analysis for context enrichment
+
+**Extraction Strategies** (chọn 1 trong 2):
+
+##### Strategy 1: Full-Page Mode (`--fullpage` / `-fp`)
+
+```bash
+python -m src.main process -fp --input ./docs
+```
+
+- **Logic**:
+  - Render toàn bộ trang PDF thành ảnh (DPI 150)
+  - Chỉ capture trang có chứa hình ảnh hoặc drawings
+  - Giữ nguyên context đầy đủ của trang
+- **Phù hợp cho**: Architecture diagrams, flowcharts, complex layouts
+- **Output**: Ảnh full-page + toàn bộ text trong trang làm context
+
+##### Strategy 2: Individual Image Mode (`--pymupdf` / `-pymu`)
+
+```bash
+python -m src.main process -pymu --input ./docs
+```
+
+- **Logic**:
+  1. Extract embedded bitmaps từ PDF
+  2. Extract vector drawings (diagrams rendered from paths)
+  3. Filter: remove quá nhỏ, quá tối, hoặc empty images
+  4. Find caption gần image (search trong 100px radius)
+- **Phù hợp cho**: Product images, charts, screenshots
+- **Output**: Individual image files + caption + surrounding text
+
+**PP-Structure Enrichment** (tự động chạy nếu có images):
+
+```python
+# PP-Structure adds context to extracted images
+if use_ppstructure and extracted_images:
+    layout_info = analyze_layout_with_ppstructure(pdf_path)
+    # Detects: text regions, figure regions, table regions, titles
+    enriched_images = add_layout_context(images, layout_info)
+```
+
+**Detection & Validation**:
+
+- **Size filter**: width ≥ 50px, height ≥ 50px
+- **Content filter**: 
+  - Brightness ≥ 30.0
+  - Std deviation ≥ 15.0 (tránh blank images)
+  - Dark pixel ratio ≤ 85% (tránh all-black images)
+- **Caption detection**: Regex patterns for "Figure X.Y", "Table X", "Hình X", etc.
 
 #### 3. Embedding Strategy
 - **Text chunks**: Direct embedding với `gte-multilingual-base`
