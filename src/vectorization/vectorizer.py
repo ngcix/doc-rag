@@ -59,8 +59,14 @@ class TextVectorizer:
         
         # Force offline mode to prevent SSL errors when model is already downloaded
         import os
+        import ssl
+        
+        # Disable SSL verification (needed when model is local but library still tries to connect)
+        ssl._create_default_https_context = ssl._create_unverified_context
         os.environ['HF_HUB_OFFLINE'] = '1'
         os.environ['TRANSFORMERS_OFFLINE'] = '1'
+        os.environ['CURL_CA_BUNDLE'] = ''
+        os.environ['REQUESTS_CA_BUNDLE'] = ''
         
         print(f"Loading model: {self.config.model_name}")
         print(f"Cache directory: {self.config.model_cache_dir}")

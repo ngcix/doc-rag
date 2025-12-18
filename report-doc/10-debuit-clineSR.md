@@ -410,54 +410,190 @@ new_content = original_content + tag_boost
 
 ## 3. Kiến Trúc Kết Nối Module
 
-Sơ đồ dưới đây mô tả kiến trúc hệ thống với **7 bước numbered** và phân chia theo **layers**:
+Sơ đồ dưới đây mô tả **toàn bộ hệ thống** với các bước chi tiết:
 
 ```mermaid
-graph TB
-    subgraph UserLayer [👤 User Layer]
-        User[User: Developer/Lead]
-        Cline[Cline: LLM Agent with Vision]
-    end
+flowchart LR
+    %% Data Sources
+    PDF[📄 PDF Documents]
+    MD[📝 Markdown Files]
     
-    subgraph DataLayer [📄 Data Layer]
-        Docs[Documents<br/>PDF/Markdown]
-    end
+    %% Processing Components
+    Chunker[🔪 Text Chunker<br/>LangChain<br/>~500 tokens]
+    ImgExt[🖼️ Image Extractor<br/>PyMuPDF<br/>--fullpage OR --pymupdf]
+    PPStruct[🤖 PP-Structure<br/>Optional Enrichment]
     
-    subgraph ProcessingLayer [⚙️ Processing Layer]
-        Chunker[Text Chunker]
-        ImgExt[Image Extractor<br/>PyMuPDF]
-        Embed[Embedding Model<br/>gte-multilingual-base]
-    end
+    Embed[🧠 Embedding Model<br/>gte-multilingual-base<br/>384 dimensions]
     
-    subgraph StorageLayer [💾 Storage Layer]
-        DB[(FAISS Vector DB<br/>384-dim vectors)]
-    end
+    %% Storage
+    FAISS[(💾 FAISS Database<br/>Vector Index<br/>Inner Product)]
     
-    %% Numbered Flow
-    Docs -->|①| Chunker
-    Docs -->|①| ImgExt
-    Chunker -->|② Text Chunks| Embed
-    ImgExt -->|② Images + OCR| Embed
-    Embed -->|③ Vectorize| DB
+    %% Query Flow
+    User[👤 User<br/>Developer/Lead]
+    Cline[🌟 Cline<br/>LLM Agent<br/>Vision Capability]
+    CLI[⚙️ Simple RAG CLI<br/>search command]
     
-    User -->|④ Query| Cline
-    Cline -->|⑤ Search CLI| DB
-    DB -->|⑥ Context: Text + Images| Cline
-    Cline -->|⑦ Response| User
+    Response[💬 Response<br/>Text + Images]
     
-    Cline -.->|⑧ FEEDBACK<br/>addtag CLI| DB
+    %% Feedback
+    AddTag[🏷️ addtag CLI<br/>Re-embedding]
+    
+    %% INGESTION FLOW (Steps 1-3)
+    PDF -->|①| Chunker
+    MD -->|①| Chunker
+    PDF -->|①| ImgExt
+    
+    Chunker -->|② N chunks| Embed
+    ImgExt -->|② M images<br/>+ OCR text| PPStruct
+    PPStruct -->|Enhanced<br/>metadata| Embed
+    
+    Embed -->|③ Vectorize<br/>N+M embeddings| FAISS
+    
+    %% QUERY FLOW (Steps 4-7)
+    User -->|④ Question| Cline
+    Cline -->|⑤ Call CLI<br/>search query| CLI
+    CLI -->|⑥ Similarity<br/>Search| FAISS
+    FAISS -->|⑥ Top-K Results<br/>Text + Image Paths| CLI
+    CLI -->|Return Context| Cline
+    Cline -->|⑦ Vision Analysis<br/>+ Text Processing| Response
+    Response -->|Answer| User
+    
+    %% FEEDBACK FLOW (Step 8)
+    Cline -.->|⑧ addtag CLI<br/>Tag Boost| AddTag
+    AddTag -.->|Re-embed<br/>Update Index| FAISS
     
     %% Styling
-    classDef userStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef dataStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef sourceStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef processStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef modelStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
     classDef storageStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
+    classDef userStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef agentStyle fill:#fce4ec,stroke:#c2185b,stroke-width:3px
+    classDef feedbackStyle fill:#fff9c4,stroke:#f9a825,stroke-width:2px
     
-    class User,Cline userStyle
-    class Docs dataStyle
-    class Chunker,ImgExt,Embed processStyle
-    class DB storageStyle
+    class PDF,MD sourceStyle
+    class Chunker,ImgExt,PPStruct,CLI processStyle
+    class Embed modelStyle
+    class FAISS storageStyle
+    class User userStyle
+    class Cline agentStyle
+    class Response,AddTag feedbackStyle
 ```
+
+### Chi tiết từng bước (Complete Flow)
+
+#### 🔵 **INGESTION PIPELINE** (Nạp dữ liệu - Steps ①②③)
+
+```
+📄 Documents
+    ↓ ①
+┌───────────────────┬────────────────────┐
+│                   │                    │
+🔪 Text Chunker    🖼️ Image Extractor
+~500 tokens         PyMuPDF
+    │                   │
+    │ ② N chunks        │ ② M images + OCR
+    │                   ↓
+    │              🤖 PP-Structure
+    │              (Layout Context)
+    │                   │
+    └─────────┬─────────┘
+              ↓ ② All Content
+        🧠 Embedding Model
+        gte-multilingual-base
+              │
+              │ ③ Vectorize
+              ↓
+        💾 FAISS Database
+        (N+M vectors stored)
+```
+
+**Kết quả**: Vector database chứa embeddings cho text chunks và images
+
+#### 🟢 **QUERY PIPELINE** (Tìm kiếm - Steps ④⑤⑥⑦)
+
+```
+👤 User
+    │ ④ "Show me OAuth diagram"
+    ↓
+🌟 Cline (LLM Agent)
+    │ ⑤ Call CLI
+    ↓
+⚙️ Simple RAG CLI
+    │ ⑥ Similarity Search
+    ↓
+💾 FAISS Database
+    │ ⑥ Top-K Results
+    │ (Text chunks + Image paths)
+    ↓
+⚙️ CLI → 🌟 Cline
+           │
+           │ ⑦ Vision Processing:
+           │ - Read image files
+           │ - Analyze visual content
+           │ - Combine with text context
+           ↓
+       💬 Response
+           │
+           ↓
+       👤 User receives answer
+```
+
+**Kết quả**: User nhận được câu trả lời với text + hình ảnh minh họa
+
+#### 🟡 **FEEDBACK LOOP** (Cải thiện - Step ⑧)
+
+```
+🌟 Cline (After Vision Analysis)
+    │
+    │ Decision: Image relevant,
+    │           should improve searchability
+    │
+    │ ⑧ Call: addtag "doc_id" "oauth, sequence-diagram"
+    ↓
+🏷️ addtag CLI
+    │
+    │ Process:
+    │ 1. Retrieve current content
+    │ 2. Boost: content + "Tags: oauth, oauth, oauth, ..."
+    │ 3. Re-embed with gte-multilingual-base
+    │ 4. DELETE old entry
+    │ 5. ADD new entry
+    │
+    ↓
+💾 FAISS Database UPDATED
+    │
+    │ Next search for "oauth" will
+    │ rank this document higher!
+    └─→ Improved searchability ✨
+```
+
+**Kết quả**: Database tự động cải thiện cho lần search sau
+
+### Tổng quan Data Flow (8 Steps)
+
+| Step | Component | Action | Input | Output |
+|------|-----------|--------|-------|--------|
+| **①** | Chunker & ImgExt | Extract content | PDF/MD files | N text chunks + M images |
+| **②** | Embedding Model | Prepare data | Text + Images (OCR) | Ready for vectorization |
+| **③** | FAISS DB | Index vectors | N+M embeddings | Indexed database |
+| **④** | User | Ask question | Natural language | Query to Cline |
+| **⑤** | Cline → CLI | Execute search | Search command | CLI processes |
+| **⑥** | FAISS DB | Retrieve | Similarity search | Top-K results |
+| **⑦** | Cline | Generate answer | Context + Vision | Response with images |
+| **⑧** | Cline → addtag | Improve DB | Tag + re-embed | Updated vectors |
+
+### 🎯 Key Highlights
+
+1. **①②③ = Static Pipeline**: Chạy một lần khi nạp document mới
+2. **④⑤⑥⑦ = Dynamic Pipeline**: Chạy mỗi lần user query
+3. **⑧ = Improvement Loop**: Optional, chạy khi Cline quyết định tag
+
+**Điểm đặc biệt**:
+- **Step ②**: PP-Structure là optional enhancement, không bắt buộc
+- **Step ⑥**: FAISS trả về **paths** đến images, không phải image data
+- **Step ⑦**: Cline sử dụng **vision model** để "xem" images
+- **Step ⑧**: Re-embedding với **tag boost 3x** để tăng semantic weight
 
 ### Giải thích 8 bước (Numbered Flow)
 
