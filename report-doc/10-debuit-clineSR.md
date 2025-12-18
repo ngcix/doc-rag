@@ -44,8 +44,8 @@ sequenceDiagram
     %% Text Processing Path
     CLI->>Chunker: Extract Text Content
     activate Chunker
-    Chunker->>Chunker: Split into chunks (500 tokens)
-    Chunker-->>CLI: 50 Text Chunks
+    Chunker->>Chunker: Split into chunks (~500 tokens, configurable)
+    Chunker-->>CLI: N Text Chunks (e.g., 50 for 10-page doc)
     deactivate Chunker
     
     %% Image Processing Path
@@ -53,14 +53,14 @@ sequenceDiagram
     activate ImgExt
     Note over ImgExt: PP-Structure detects: tables, diagrams, charts
     ImgExt->>ImgExt: Full-page mode: Save entire page as image
-    ImgExt-->>CLI: 5 Full-Page Images + Metadata
+    ImgExt-->>CLI: M Images + Metadata (e.g., 5 from 10-page doc)
     deactivate ImgExt
     
     %% Embedding Both
-    CLI->>Embed: Vectorize: 50 texts + 5 image OCR texts
+    CLI->>Embed: Vectorize: N text chunks + M image OCR texts
     activate Embed
     Note over Embed: Text: direct embedding | Images: OCR text then embed
-    Embed-->>CLI: 55 Embeddings Ready
+    Embed-->>CLI: N+M Embeddings Ready (e.g., 55 total)
     deactivate Embed
     
     CLI->>DB: Store: Embeddings + Metadata + Image Paths
@@ -68,7 +68,7 @@ sequenceDiagram
     DB-->>CLI: Index Updated
     deactivate DB
     
-    CLI-->>Cline: Success: 50 Text Chunks, 5 Document Images
+    CLI-->>Cline: Success: N Text Chunks, M Document Images
     deactivate CLI
     
     Cline-->>User: Ingested. I can now search text and see document pages.
@@ -82,9 +82,11 @@ sequenceDiagram
 - **Tool**: LangChain RecursiveCharacterTextSplitter
 - **Logic**: 
   - Split by paragraphs, sentences
-  - Chunk size: ~500 tokens
-  - Overlap: 50 tokens (để giữ context)
-- **Output**: List of text chunks với metadata (source, page number)
+  - Chunk size: **~500 tokens (configurable)** - phụ thuộc use case
+  - Overlap: **50 tokens (default)** - để giữ context liên tục
+- **Output**: **N text chunks** (số lượng phụ thuộc vào document size) với metadata (source, page number)
+
+> **Note**: Với document 10 trang thông thường → ~30-50 chunks. Document 100 trang → ~300-500 chunks.
 
 #### 2. Image Processing (Extraction & Detection)
 - **Input**: PDF pages
