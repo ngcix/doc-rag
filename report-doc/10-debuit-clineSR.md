@@ -24,7 +24,13 @@ sequenceDiagram
     actor User
     participant Cline as Cline (LMM Agent)
     participant CLI as Simple RAG CLI
-    participant Embed as Embedding Model: gte-multilingual-base
+    
+    box Processing Layer
+        participant Chunker as Text Chunker
+        participant ImgExt as Image Extractor: PP-Structure
+    end
+    
+    participant Embed as Embedding: gte-multilingual-base
     participant DB as FAISS Database
     
     User->>Cline: Learn this new document: specs.pdf
@@ -33,29 +39,84 @@ sequenceDiagram
     Cline->>CLI: python -m src.main process -fp --input ./docs
     activate CLI
     
-    CLI->>CLI: Extract: Chunk Text + Full-Page Images
-    CLI->>Embed: Vectorize Content
+    Note over CLI,ImgExt: PARALLEL PROCESSING: Text + Images
+    
+    %% Text Processing Path
+    CLI->>Chunker: Extract Text Content
+    activate Chunker
+    Chunker->>Chunker: Split into chunks (500 tokens)
+    Chunker-->>CLI: 50 Text Chunks
+    deactivate Chunker
+    
+    %% Image Processing Path
+    CLI->>ImgExt: Detect & Extract Images
+    activate ImgExt
+    Note over ImgExt: PP-Structure detects: tables, diagrams, charts
+    ImgExt->>ImgExt: Full-page mode: Save entire page as image
+    ImgExt-->>CLI: 5 Full-Page Images + Metadata
+    deactivate ImgExt
+    
+    %% Embedding Both
+    CLI->>Embed: Vectorize: 50 texts + 5 image OCR texts
     activate Embed
-    Embed-->>CLI: Embeddings Ready
+    Note over Embed: Text: direct embedding | Images: OCR text then embed
+    Embed-->>CLI: 55 Embeddings Ready
     deactivate Embed
     
-    CLI->>DB: Add Embeddings to FAISS Index
+    CLI->>DB: Store: Embeddings + Metadata + Image Paths
     activate DB
     DB-->>CLI: Index Updated
     deactivate DB
     
-    CLI-->>Cline: Processed: 50 Text Chunks, 5 Document Images
+    CLI-->>Cline: Success: 50 Text Chunks, 5 Document Images
     deactivate CLI
     
     Cline-->>User: Ingested. I can now search text and see document pages.
     deactivate Cline
 ```
 
+**Chi tiết kỹ thuật xử lý**:
+
+#### 1. Text Processing (Chunking)
+- **Input**: PDF text content, Markdown files
+- **Tool**: LangChain RecursiveCharacterTextSplitter
+- **Logic**: 
+  - Split by paragraphs, sentences
+  - Chunk size: ~500 tokens
+  - Overlap: 50 tokens (để giữ context)
+- **Output**: List of text chunks với metadata (source, page number)
+
+#### 2. Image Processing (Extraction & Detection)
+- **Input**: PDF pages
+- **Tool**: PP-Structure (PaddleOCR)
+- **Detection Logic**:
+  ```python
+  # Detect image regions using PP-Structure
+  results = structure_engine.detect(page_image)
+  # Filter: tables, figures, diagrams
+  for region in results:
+      if region.type in ['table', 'figure']:
+          extract_and_save(region)
+  ```
+- **Full-Page Mode (`-fp`)**:
+  - Lưu toàn bộ trang PDF dưới dạng ảnh
+  - Tránh mất context khi cắt nhỏ
+  - Phù hợp cho: flowcharts, architecture diagrams
+- **Output**: Image files + OCR text + metadata
+
+#### 3. Embedding Strategy
+- **Text chunks**: Direct embedding với `gte-multilingual-base`
+- **Images**: 
+  1. OCR để extract text trong ảnh
+  2. Embed OCR text (không embed pixel data)
+  3. Store image path trong metadata
+- **Kết quả**: Cả text và image đều có embedding vector trong FAISS
+
 **Đặc điểm kỹ thuật**:
 
-- **Embedding Model**: `gte-multilingual-base`
-- **Vector Database**: FAISS Index
-- **Image Extraction**: Full-page mode (`-fp`) để giữ nguyên context đầy đủ
+- **Embedding Model**: `gte-multilingual-base` (384 dimensions)
+- **Vector Database**: FAISS Index (IndexFlatIP - Inner Product)
+- **Image Extraction**: PP-Structure với full-page mode (`-fp`)
 
 ### Phase 2: RETRIEVAL - Tìm kiếm & Vision Processing
 
