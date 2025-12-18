@@ -17,17 +17,42 @@ Simple RAG không chỉ là một công cụ tìm kiếm văn bản thông thư�
 
 **Mục đích**: Nạp tài liệu mới vào hệ thống để Cline có thể tra cứu sau này.
 
-```
-User → Cline: "Learn this new document: specs.pdf"
-Cline → Simple RAG CLI: python -m src.main process -fp --input ./docs
-Simple RAG:
-  ├─ Chunk Text & Extract Full-Page Images
-  ├─ Embed với gte-multilingual-base
-  └─ Add to FAISS Index
-Cline → User: "Ingested. I can now search text and see document pages."
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    actor User
+    participant Cline as Cline (LMM Agent)
+    participant CLI as Simple RAG CLI
+    participant Embed as Embedding Model: gte-multilingual-base
+    participant DB as FAISS Database
+    
+    User->>Cline: Learn this new document: specs.pdf
+    activate Cline
+    
+    Cline->>CLI: python -m src.main process -fp --input ./docs
+    activate CLI
+    
+    CLI->>CLI: Extract: Chunk Text + Full-Page Images
+    CLI->>Embed: Vectorize Content
+    activate Embed
+    Embed-->>CLI: Embeddings Ready
+    deactivate Embed
+    
+    CLI->>DB: Add Embeddings to FAISS Index
+    activate DB
+    DB-->>CLI: Index Updated
+    deactivate DB
+    
+    CLI-->>Cline: Processed: 50 Text Chunks, 5 Document Images
+    deactivate CLI
+    
+    Cline-->>User: Ingested. I can now search text and see document pages.
+    deactivate Cline
 ```
 
 **Đặc điểm kỹ thuật**:
+
 - **Embedding Model**: `gte-multilingual-base`
 - **Vector Database**: FAISS Index
 - **Image Extraction**: Full-page mode (`-fp`) để giữ nguyên context đầy đủ
