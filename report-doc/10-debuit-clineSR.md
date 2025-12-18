@@ -410,43 +410,131 @@ new_content = original_content + tag_boost
 
 ## 3. Kiến Trúc Kết Nối Module
 
-Sơ đồ high-level cho thấy mối quan hệ giữa các thành phần:
+Sơ đồ dưới đây mô tả kiến trúc hệ thống với **7 bước numbered** và phân chia theo **layers**:
 
 ```mermaid
-flowchart TD
-    Docs[Documents: PDF/Markdown]
-    Embed[Embedding Model: gte-multilingual-base]
-    DB[(Vector Database: FAISS)]
-    Query[User Query]
-    Cline[Cline - LLM Agent - Vision + Text]
-    Response[Response]
-
-    %% Flow 1: Ingestion
-    Docs -->|1. Encode & Chunk| Embed
-    Embed -->|2. Index| DB
-
-    %% Flow 2: Retrieval
-    Query -->|3. Search| DB
-    DB -->|4. Return Context: Text + Images| Cline
+graph TB
+    subgraph UserLayer [👤 User Layer]
+        User[User: Developer/Lead]
+        Cline[Cline: LLM Agent with Vision]
+    end
     
-    %% Flow 3: Generation
-    Query -->|User Intent| Cline
-    Cline -->|Vision Processing + Context Analysis| Response
-
-    %% Flow 4: Feedback Loop
-    Cline -.->|5. IMPROVEMENT LOOP: addtag based on vision| DB
+    subgraph DataLayer [📄 Data Layer]
+        Docs[Documents<br/>PDF/Markdown]
+    end
+    
+    subgraph ProcessingLayer [⚙️ Processing Layer]
+        Chunker[Text Chunker]
+        ImgExt[Image Extractor<br/>PyMuPDF]
+        Embed[Embedding Model<br/>gte-multilingual-base]
+    end
+    
+    subgraph StorageLayer [💾 Storage Layer]
+        DB[(FAISS Vector DB<br/>384-dim vectors)]
+    end
+    
+    %% Numbered Flow
+    Docs -->|①| Chunker
+    Docs -->|①| ImgExt
+    Chunker -->|② Text Chunks| Embed
+    ImgExt -->|② Images + OCR| Embed
+    Embed -->|③ Vectorize| DB
+    
+    User -->|④ Query| Cline
+    Cline -->|⑤ Search CLI| DB
+    DB -->|⑥ Context: Text + Images| Cline
+    Cline -->|⑦ Response| User
+    
+    Cline -.->|⑧ FEEDBACK<br/>addtag CLI| DB
     
     %% Styling
-    classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef agent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef userStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef dataStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef processStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef storageStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
     
-    class DB storage
-    class Cline agent
+    class User,Cline userStyle
+    class Docs dataStyle
+    class Chunker,ImgExt,Embed processStyle
+    class DB storageStyle
 ```
 
+### Giải thích 8 bước (Numbered Flow)
+
+#### **Phase 1: Ingestion (Bước ①②③)**
+
+| Bước | Tên | Mô tả |
+|------|-----|-------|
+| **①** | **Extract** | Documents → Chunker (text) & Image Extractor (images) |
+| **②** | **Prepare** | Text chunks + Images (with OCR) → Ready for embedding |
+| **③** | **Index** | Embedding Model vectorizes all content → Store in FAISS DB |
+
+**Output**: Vector database với N+M entries (N text chunks + M images)
+
+#### **Phase 2: Retrieval (Bước ④⑤⑥)**
+
+| Bước | Tên | Mô tả |
+|------|-----|-------|
+| **④** | **Query** | User gửi câu hỏi đến Cline |
+| **⑤** | **Search** | Cline gọi Simple RAG CLI để search trong FAISS |
+| **⑥** | **Retrieve** | FAISS trả về top-K results (text + image paths) → Cline |
+
+**Output**: Cline nhận được context (text chunks + image files) để phân tích
+
+#### **Phase 3: Generation (Bước ⑦)**
+
+| Bước | Tên | Mô tả |
+|------|-----|-------|
+| **⑦** | **Respond** | Cline kết hợp: Query + Text context + Vision analysis → Generate answer |
+
+**Output**: User nhận được câu trả lời với cả text và hình ảnh minh họa
+
+#### **Phase 4: Feedback Loop (Bước ⑧ - Optional)**
+
+| Bước | Tên | Mô tả |
+|------|-----|-------|
+| **⑧** | **Improve** | Cline gọi `addtag` CLI → Re-embed với tag boost → Update FAISS |
+
+**Output**: Database được cải thiện cho lần search sau
+
+### Kiến trúc theo Layers (4 tầng)
+
+```
+┌────────────────────────────────────────┐
+│  👤 User Layer                         │  ← User & Cline (LMM Agent)
+├────────────────────────────────────────┤
+│  📄 Data Layer                         │  ← Documents (PDF/Markdown)
+├────────────────────────────────────────┤
+│  ⚙️ Processing Layer                  │  ← Chunker, ImgExt, Embedding
+├────────────────────────────────────────┤
+│  💾 Storage Layer                      │  ← FAISS Vector Database
+└────────────────────────────────────────┘
+```
+
+**Ưu điểm của kiến trúc này**:
+
+1. **Separation of Concerns**: Mỗi layer có trách nhiệm riêng biệt
+2. **Scalability**: Dễ dàng thay đổi một layer mà không ảnh hưởng các layer khác
+3. **Clarity**: Numbered steps giúp dễ theo dõi data flow
+4. **Feedback Loop**: Bước ⑧ cho thấy hệ thống self-improving
+
+### So sánh với RAG truyền thống
+
+| Đặc điểm | RAG Truyền thống | **Vision-Enhanced RAG (Cline + SimpleRAG)** |
+|----------|------------------|---------------------------------------------|
+| **Data Flow** | Linear: ①②③④⑤⑥⑦ (one-way) | **Cyclic**: ①②③④⑤⑥⑦**⑧** (feedback loop) |
+| **User Layer** | User only | User + **Cline (LMM Agent)** |
+| **Processing** | Text chunking only | Text chunking + **Image extraction** |
+| **Embedding** | Text embedding | Text + **OCR-based image embedding** |
+| **Retrieval** | Text results | Text + **Image paths for vision** |
+| **Generation** | Text-only LLM | **Multimodal LLM** (vision + text) |
+| **Improvement** | Manual or none | **Automated feedback loop (⑧)** |
+
 **Điểm nổi bật**:
-- **Flow 4 (Dotted Line)**: Đây là vòng lặp cải tiến, giúp hệ thống RAG "thông minh hơn" theo thời gian
+
+- **Bước ⑧ (Feedback Loop)**: Đây là điểm khác biệt chính, giúp hệ thống RAG "thông minh hơn" theo thời gian
 - **Vision Icon (🧠)**: Nhấn mạnh khả năng multimodal của Cline
+- **4 Layers**: Rõ ràng về vai trò từng thành phần
 
 ## 4. Vai Trò Của Các Thành Phần
 
