@@ -63,6 +63,9 @@ def process_documents(
     
     # 1. Process regular documents (text)
     print("\n[1/3] Processing documents...")
+    # Hybrid Mode: Process ALL files (including PDFs) as text chunks.
+    # This ensures granular text search works (finding specific sentences),
+    # while the Image Extractor adds the visual/contextual layer.
     chunks = chunker.chunk_directory(input_dir)
     print(f"  Extracted {len(chunks)} text chunks")
     

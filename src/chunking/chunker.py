@@ -196,6 +196,7 @@ class DocumentChunker:
         self,
         directory: Path,
         extensions: Optional[list[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
         recursive: bool = True
     ) -> list[DocumentChunk]:
         """
@@ -204,6 +205,7 @@ class DocumentChunker:
         Args:
             directory: Path to the directory.
             extensions: List of file extensions to process. Default: all supported.
+            exclude_patterns: List of glob patterns to exclude (e.g. ["**/*.pdf"]).
             recursive: Whether to process subdirectories.
             
         Returns:
@@ -216,11 +218,16 @@ class DocumentChunker:
         
         extensions = extensions or ['.txt', '.md', '.pdf', '.docx', '.markdown']
         pattern = '**/*' if recursive else '*'
+        exclude_patterns = exclude_patterns or []
         
         all_chunks = []
         
         for file_path in directory.glob(pattern):
             if file_path.is_file() and file_path.suffix.lower() in extensions:
+                # Check exclusions
+                if any(file_path.match(p) for p in exclude_patterns):
+                    continue
+                    
                 try:
                     chunks = self.chunk_file(file_path)
                     all_chunks.extend(chunks)

@@ -324,7 +324,7 @@ class ImageExtractor:
                     # For fullpage mode, we use the entire page text as context
                     # The vectorizer (GTE) handles long context (8192 tokens), strict truncation is less critical
                     # but we still guard against massive dumps if needed.
-                    surrounding_text=text[:5000], 
+                    surrounding_text=text[:10000], 
                     caption=f"Full page {page_num + 1} of {pdf_path.name}",
                     description=f"Full page capture of {pdf_path.name}, page {page_num + 1}",
                     tags=extracted_tags
