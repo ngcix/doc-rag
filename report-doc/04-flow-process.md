@@ -540,12 +540,12 @@ Sơ đồ dưới đây mô tả mối quan hệ giữa các thành phần, đ�
 
 ```mermaid
 graph TD
-    %% Nodes Definitions
+    %% Nodes
     Docs[Documents<br/>PDF/Markdown]
     Embed[Embedding Model<br/>gte-multilingual-base]
     DB[(Vector Database<br/>FAISS Index)]
     
-    subgraph "Query Process"
+    subgraph QueryProcess [Query Process]
         Query[User Query]
         Cline[Cline<br/>(LLM Agent)]
         Response[Response]
@@ -563,21 +563,20 @@ graph TD
     Query --> Cline
     Cline --> Response
 
-    %% Flow 4: Feedback Loop (The "Strengthening" Cycle)
+    %% Flow 4: Feedback Loop
     Cline -.->|5. IMPROVEMENT LOOP<br/>CLI: addtag| DB
     
     %% Styling
     classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef agent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
-    classDef feedback stroke:#ff5722,stroke-width:3px,color:#d84315;
-
+    
     class DB storage;
     class Cline agent;
-    
-    %% Highlight the Feedback link
-    linkStyle 5 stroke:#ff5722,stroke-width:3px,color:#d84315;
 ```
 
+### Điểm nổi bật:
+*   **Vòng lặp số 5 (Improvement Loop)**: Đây là điểm khác biệt chính. Cline không chỉ "đọc" dữ liệu mà còn có quyền **"ghi chú"** lại vào Database thông qua lệnh `addtag`.
+*   Điều này giúp hệ thống RAG không còn là luồng một chiều (Static) mà trở nên **Dynamic**, "thông minh" hơn theo thời gian sử dụng.
 ### Điểm nổi bật:
 *   **Vòng lặp số 5 (Improvement Loop)**: Đây là điểm khác biệt chính. Cline không chỉ "đọc" dữ liệu mà còn có quyền **"ghi chú"** lại vào Database thông qua lệnh `addtag`.
 *   Điều này giúp hệ thống RAG không còn là luồng một chiều (Static) mà trở nên **Dynamic**, "thông minh" hơn theo thời gian sử dụng.
