@@ -265,7 +265,7 @@ def process_search_results(results):
     return generate_answer(user_query, combined_context)
 ```
 
-### Phase 3: FEEDBACK - Vision-to-Tagging
+### Phase 3: FEEDBACK - Vision-to-Tagging với Re-Embedding
 
 Sau khi Cline "hiểu" được nội dung hình ảnh, nó có thể **chủ động gắn tag** để cải thiện database.
 
@@ -274,6 +274,7 @@ sequenceDiagram
     actor User
     participant Cline as Cline (LMM Agent)
     participant CLI as Simple RAG CLI
+    participant Embed as Embedding: gte-multilingual-base
     participant DB as FAISS Database
     
     User->>Cline: Yes, that image is the detailed OAuth flow
@@ -284,13 +285,35 @@ sequenceDiagram
     Cline->>CLI: python -m src.main addtag auth_flow_diagram.png oauth, authentication
     activate CLI
     
-    CLI->>CLI: Update Metadata
-    Note over CLI: Original: source specs.pdf | New: add tags oauth, authentication, sequence-diagram
-    
-    CLI->>CLI: Re-Embed with Boosted Tags
-    CLI->>DB: Update FAISS Entry
+    %% Step 1: Retrieve current data
+    CLI->>DB: Get current: metadata + content + embedding
     activate DB
-    DB-->>CLI: Success
+    DB-->>CLI: Current doc: content=C1, tags=empty, embedding=E1
+    deactivate DB
+    
+    %% Step 2: Update metadata
+    CLI->>CLI: Update Metadata: tags = oauth, authentication
+    Note over CLI: Old: {source: specs.pdf} | New: add tags field
+    
+    %% Step 3: Tag Boosting
+    CLI->>CLI: Create boosted content
+    Note over CLI: C2 = C1 + Tags: oauth, oauth, oauth, authentication, authentication, authentication
+    
+    %% Step 4: Re-Embedding
+    CLI->>Embed: Vectorize new content C2
+    activate Embed
+    Note over Embed: Same model but content now includes repeated tags for semantic boost
+    Embed-->>CLI: New embedding E2 (closer to oauth queries)
+    deactivate Embed
+    
+    %% Step 5: Atomic Update (Delete + Add)
+    CLI->>DB: DELETE old entry (doc_id)
+    activate DB
+    deactivate DB
+    
+    CLI->>DB: ADD new entry: embedding=E2, content=C2, metadata=updated
+    activate DB
+    DB-->>CLI: Success: Index updated
     deactivate DB
     
     CLI-->>Cline: Tag added successfully
@@ -300,10 +323,90 @@ sequenceDiagram
     deactivate Cline
 ```
 
+**Chi tiết kỹ thuật về Re-Embedding**:
+
+#### Tag Boosting Strategy
+
+```python
+# Before: Original content
+original_content = "Image showing authentication flow between client and server..."
+
+# After: Boosted content for embedding
+tag = "oauth, authentication"
+tag_boost = f"\nTags: {tag}, {tag}, {tag}"  # Repeat 3x
+new_content = original_content + tag_boost
+
+# Result:
+# "Image showing authentication flow between client and server...
+#  Tags: oauth, authentication, oauth, authentication, oauth, authentication"
+```
+
+**Tại sao lặp lại 3 lần?**
+- 🎯 **Semantic Weight**: Embedding model sẽ "chú ý" nhiều hơn đến từ khóa xuất hiện nhiều lần
+- 🔍 **Search Boost**: Khi user search "oauth", embedding của document này sẽ có cosine similarity cao hơn
+- ⚖️ **Balance**: 3 lần là đủ để boost mà không làm overwhelm context gốc
+
+#### Re-Embedding Process (5 Steps)
+
+1. **Retrieve Current Data**
+   ```python
+   current_metadata = vector_store.get_metadata(doc_id)
+   current_content = vector_store.get_content(doc_id)
+   # Current embedding E1 is already in FAISS
+   ```
+
+2. **Update Metadata**
+   ```python
+   current_tags = current_metadata.get("tags", "")
+   new_tags = f"{current_tags},{tag}" if current_tags else tag
+   updated_metadata = {**current_metadata, "tags": new_tags}
+   ```
+
+3. **Create Boosted Content**
+   ```python
+   tag_boost = f"\nTags: {tag}, {tag}, {tag}"
+   new_content = current_content + tag_boost
+   ```
+
+4. **Generate New Embedding**
+   ```python
+   from src.vectorization.vectorizer import vectorize_text
+   new_embedding = vectorize_text(new_content)[0]  # Shape: (384,) for gte-multilingual-base
+   
+   # Embedding difference visualization:
+   # E1 (before): [0.12, 0.45, -0.23, ...]  # Without tag semantic
+   # E2 (after):  [0.18, 0.52, -0.19, ...]  # With tag semantic boost
+   # Cosine(E2, "oauth") > Cosine(E1, "oauth")
+   ```
+
+5. **Atomic Update (Delete + Add)**
+   ```python
+   # Delete old entry to avoid duplicates
+   vector_store.delete([doc_id])
+   
+   # Add new entry with updated embedding
+   vector_store.add(
+       ids=[doc_id],
+       embeddings=[new_embedding],
+       documents=[new_content],
+       metadatas=[updated_metadata]
+   )
+   # FAISS index is automatically rebuilt with new embedding
+   ```
+
+**Ví dụ so sánh**:
+
+| Stage | Content Sample | Tags | Embedding Vector | Similarity to "oauth" query |
+|-------|---------------|------|------------------|----------------------------|
+| **Before** | "Auth flow diagram..." | (empty) | E1: [0.12, 0.45, ...] | Score: 0.65 |
+| **After** | "Auth flow diagram...<br/>Tags: oauth, oauth, oauth,<br/>authentication, authentication,<br/>authentication" | "oauth, authentication" | E2: [0.18, 0.52, ...] | Score: **0.89** ↑ |
+
 **Lợi ích của Feedback Loop**:
+
 - **Self-Improving Database**: Càng sử dụng, database càng chính xác
 - **Semantic Enrichment**: Tags được gắn dựa trên "hiểu biết" thực sự của LLM, không chỉ keyword matching
 - **Better Future Searches**: Lần tìm sau với từ khóa tương tự sẽ có độ chính xác cao hơn
+- **No Model Retraining**: Chỉ cần re-embed, không cần train lại embedding model
 
 ## 3. Kiến Trúc Kết Nối Module
 
