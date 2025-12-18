@@ -60,11 +60,13 @@ Run the all-in-one processing pipeline. This will:
 
 ```bash
 # General usage
-python -m src.main process --input data/documents
-
 # [RECOMMENDED] Full-Page Mode (Best for RAG)
-# This captures entire PDF pages as images, ideal for preserving layout context.
-python -m src.main process --input data/documents --fullpage --no-charts
+# Captures context + images. Best for semantic search.
+python -m src.main process -fp
+
+# [ALTERNATIVE] PyMuPDF Extraction Mode
+# Extracts individual images only. Precision focus.
+python -m src.main process -pymu
 ```
 
 **How `process --fullpage` works:**
@@ -97,6 +99,7 @@ A typical "Basic Cycle" for a new user:
 
 ```bash
 # 1. Process documents (extract full-page images)
+# MUST specify either -fp (Full Page) or -pymu (PyMuPDF images)
 python -m src.main process -fp
 
 # 2. Search for something
@@ -121,7 +124,7 @@ python -m src.main search "security diagram"
 
 | Command | Action | Example |
 | :--- | :--- | :--- |
-| **`process`** | Ingest & Index documents | `python -m src.main process -fp` |
+| **`process`** | Ingest & Index documents | `python -m src.main process -fp` (or `-pymu`) |
 | **`search`** | Query the database | `python -m src.main search "query"` |
 | **`list`** | Show all indexed Docs | `python -m src.main list` |
 | **`listtag`** | View tags for a pic | `python -m src.main listtag picname` |

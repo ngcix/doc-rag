@@ -367,10 +367,19 @@ def main():
         action="store_true",
         help="Skip image extraction from PDFs"
     )
-    process_parser.add_argument(
+    # Image Extraction Strategy
+    # We want to force choice unless --no-images is used.
+    # Since argparse required=True is too strict, we validate manually.
+    strategy_group = process_parser.add_mutually_exclusive_group(required=False)
+    strategy_group.add_argument(
         "--fullpage", "-fp",
         action="store_true",
-        help="Capture full pages as images instead of extracting figures"
+        help="Capture full pages as images (Context-rich, best for RAG)"
+    )
+    strategy_group.add_argument(
+        "--pymupdf", "-pymu",
+        action="store_true",
+        help="Extract individual images using PyMuPDF (Precise, best for assets)"
     )
     
     # Search command
@@ -463,6 +472,11 @@ def main():
     ensure_directories()
     
     if args.command == "process":
+        # Manual Validation for Strategy
+        if not args.no_images:
+            if not (args.fullpage or args.pymupdf):
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu)")
+        
         process_documents(
             input_dir=args.input,
             include_charts=not args.no_charts,
