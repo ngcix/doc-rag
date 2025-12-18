@@ -58,7 +58,7 @@ class VectorDBConfig(BaseModel):
 class SearchConfig(BaseModel):
     """Configuration for search."""
     top_k: int = 5
-    score_threshold: float = 0.5
+    score_threshold: float = 0.7
     include_metadata: bool = True
 
 
