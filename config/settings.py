@@ -92,7 +92,7 @@ class ImageExtractionConfig(BaseModel):
     # Extraction options
     extract_tables: bool = True  # Extract table regions
     extract_figures: bool = True  # Extract figure/image regions
-    context_chars: int = 500  # Number of characters to extract around image
+    context_chars: int = 2000  # Number of characters to extract around image (increased for better context)
     
     # PP-Structure settings
     use_ppstructure: bool = False  # Enable PP-Structure for layout analysis
