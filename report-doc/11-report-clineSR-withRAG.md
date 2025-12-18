@@ -67,54 +67,66 @@ sequenceDiagram
 ## 4. Kiến Trúc Kết Nối Module
 
 ```mermaid
-flowchart TB
-    User[👤 User]
-    Query[📧 Query]
-    Docs[📄 Documents]
-    Chunker[🔪 Chunker ①]
-    ImgExt[🖼️ ImgExt ①]
-    Embed[🧠 Embedding ②]
-    FAISS[(💾 FAISS ③④⑤)]
-    Search[🔍 Search ⑤]
-    Cline[🌟 Cline ⑥⑦]
-    Response[💬 Response ⑦]
-    AddTag[🏷️ Feedback ⑧]
+flowchart LR
+    subgraph INPUT [� Input Layer]
+        User[� User]
+        Docs[📄 Documents]
+    end
 
-    Docs -->|Extract| Chunker
-    Docs -->|Extract| ImgExt
-    Chunker --> Embed
-    ImgExt --> Embed
-    Embed -->|Index| FAISS
+    subgraph PROCESS [⚙️ Processing Layer]
+        Chunker[🔪 Chunker]
+        ImgExt[🖼️ ImgExt]
+        Embed[🧠 Embedding]
+    end
 
-    User -->|④| Query
-    Query -.->|Encode| Embed
-    Embed -.-> Search
-    FAISS <--> Search
-    Search --> Cline
-    Query --> Cline
-    Cline --> Response
+    subgraph STORAGE [💾 Storage Layer]
+        FAISS[(FAISS DB)]
+    end
+
+    subgraph AGENT [🤖 Agent Layer]
+        Cline[🌟 Cline]
+    end
+
+    subgraph OUTPUT [📤 Output Layer]
+        Response[💬 Response]
+    end
+
+    %% Ingestion Flow (①②③)
+    Docs -->|①| Chunker
+    Docs -->|①| ImgExt
+    Chunker -->|②| Embed
+    ImgExt -->|②| Embed
+    Embed -->|③| FAISS
+
+    %% Query Flow (④⑤⑥⑦)
+    User -->|④ Query| Cline
+    Cline -->|⑤ Search| FAISS
+    FAISS -->|⑥ Context| Cline
+    Cline -->|⑦| Response
     Response --> User
 
-    Cline -.->|⑧| AddTag
-    AddTag -.-> FAISS
+    %% Feedback Flow (⑧)
+    Cline -.->|⑧ Tag| FAISS
 
-    classDef user fill:#e3f2fd,stroke:#1565c0
-    classDef doc fill:#fff3e0,stroke:#f57c00
-    classDef process fill:#f3e5f5,stroke:#7b1fa2
-    classDef model fill:#e8f5e9,stroke:#2e7d32
-    classDef db fill:#e1f5fe,stroke:#0277bd
-    classDef agent fill:#fce4ec,stroke:#c2185b
-    classDef feedback fill:#ffebee,stroke:#c62828,stroke-dasharray: 5 5
+    classDef inputStyle fill:#e3f2fd,stroke:#1565c0
+    classDef processStyle fill:#f3e5f5,stroke:#7b1fa2
+    classDef storageStyle fill:#e1f5fe,stroke:#0277bd
+    classDef agentStyle fill:#fce4ec,stroke:#c2185b
+    classDef outputStyle fill:#e8f5e9,stroke:#2e7d32
 
-    class User user
-    class Query,Docs doc
-    class Chunker,ImgExt process
-    class Embed model
-    class FAISS db
-    class Cline agent
-    class Search,Response doc
-    class AddTag feedback
+    class User,Docs inputStyle
+    class Chunker,ImgExt,Embed processStyle
+    class FAISS storageStyle
+    class Cline agentStyle
+    class Response outputStyle
 ```
+
+**Flow Legend:**
+- **Solid arrows (→)**: Main data flow
+- **Dotted arrow (⇢)**: Feedback loop
+- **① → ③**: Ingestion pipeline
+- **④ → ⑦**: Query pipeline  
+- **⑧**: Improvement loop
 
 ---
 
