@@ -539,45 +539,38 @@ sequenceDiagram
 Sơ đồ dưới đây mô tả mối quan hệ giữa các thành phần, đặc biệt nhấn mạnh vào **Feedback Loop** - cơ chế giúp Cline tự củng cố cơ sở dữ liệu.
 
 ```mermaid
-graph TD
-    %% Nodes
-    Docs[Documents<br/>PDF/Markdown]
-    Embed[Embedding Model<br/>gte-multilingual-base]
-    DB[(Vector Database<br/>FAISS Index)]
-    
-    subgraph QueryProcess [Query Process]
-        Query[User Query]
-        Cline[Cline<br/>(LLM Agent)]
-        Response[Response]
-    end
+flowchart TD
+    Docs[Documents: PDF/Markdown]
+    Embed[Embedding Model: gte-multilingual-base]
+    DB[(Vector Database: FAISS)]
+    Query[User Query]
+    Cline[Cline - LLM Agent]
+    Response[Response]
 
     %% Flow 1: Ingestion
     Docs -->|1. Encode & Chunk| Embed
     Embed -->|2. Index| DB
 
     %% Flow 2: Retrieval
-    Query -->|3. Similarity Search| DB
-    DB -->|4. Return Context<br/>(Text + Images)| Cline
+    Query -->|3. Search| DB
+    DB -->|4. Return Context| Cline
     
     %% Flow 3: Generation
-    Query --> Cline
-    Cline --> Response
+    Query -->|Query| Cline
+    Cline -->|Answer| Response
 
-    %% Flow 4: Feedback Loop
-    Cline -.->|5. IMPROVEMENT LOOP<br/>CLI: addtag| DB
+    %% Flow 4: Feedback Loop - Strengthening Database
+    Cline -.->|5. IMPROVEMENT LOOP: addtag| DB
     
     %% Styling
-    classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef agent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef agent fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     
-    class DB storage;
-    class Cline agent;
+    class DB storage
+    class Cline agent
 ```
 
-### Điểm nổi bật:
-*   **Vòng lặp số 5 (Improvement Loop)**: Đây là điểm khác biệt chính. Cline không chỉ "đọc" dữ liệu mà còn có quyền **"ghi chú"** lại vào Database thông qua lệnh `addtag`.
-*   Điều này giúp hệ thống RAG không còn là luồng một chiều (Static) mà trở nên **Dynamic**, "thông minh" hơn theo thời gian sử dụng.
-### Điểm nổi bật:
-*   **Vòng lặp số 5 (Improvement Loop)**: Đây là điểm khác biệt chính. Cline không chỉ "đọc" dữ liệu mà còn có quyền **"ghi chú"** lại vào Database thông qua lệnh `addtag`.
-*   Điều này giúp hệ thống RAG không còn là luồng một chiều (Static) mà trở nên **Dynamic**, "thông minh" hơn theo thời gian sử dụng.
+### Điểm nổi bật
 
+- **Vòng lặp số 5 (Improvement Loop)**: Đây là điểm khác biệt chính. Cline không chỉ "đọc" dữ liệu mà còn có quyền **"ghi chú"** lại vào Database thông qua lệnh `addtag`.
+- Điều này giúp hệ thống RAG không còn là luồng một chiều (Static) mà trở nên **Dynamic**, "thông minh" hơn theo thời gian sử dụng.
