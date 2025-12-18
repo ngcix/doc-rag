@@ -38,7 +38,7 @@
 ┌───────────────┐              ┌───────────────┐              ┌───────────────┐
 │    INPUT      │              │   PROCESSING  │              │    OUTPUT     │
 │               │              │               │              │               │
-│ • PDF         │     ───▶     │ • Chunking    │     ───▶     │ • FAISS Index │
+│ • PDF         │     ───▶     │ • Chunking    │     ───▶    │ • FAISS Index │
 │ • DOCX        │              │ • Extraction  │              │ • Search API  │
 │ • Markdown    │              │ • Vectorize   │              │ • CLI Results │
 └───────────────┘              └───────────────┘              └───────────────┘
