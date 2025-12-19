@@ -67,71 +67,79 @@ sequenceDiagram
 ## 4. Kiến Trúc Kết Nối Module
 
 ```mermaid
-flowchart TB
-    subgraph INPUT [📥 Input Layer]
+flowchart LR
+    subgraph INPUT [📥 Input]
+        direction TB
         User[👤 User]
         Docs[📄 Documents]
-        QueryInput[📧 Query: Text + Image]
     end
 
-    subgraph PROCESS [⚙️ Processing Layer]
+    subgraph PROCESS [⚙️ Processing]
+        direction TB
         Chunker[🔪 Chunker]
         ImgExt[🖼️ ImgExt]
         Embed[🧠 Embedding]
     end
 
-    subgraph STORAGE [💾 Storage Layer]
+    subgraph STORAGE [💾 Storage]
         FAISS[(FAISS DB)]
     end
 
-    subgraph AGENT [🤖 Agent Layer: ClineSR / GaussO MM]
+    subgraph AGENT [🤖 ClineSR / GaussO MM]
         direction TB
-        VisionProc[👁️ Vision Processing]
-        TextProc[📝 Text Processing]
-        Reasoning[🧠 Reasoning & Generation]
+        VisionProc[👁️ Vision]
+        TextProc[📝 Text]
+        Reasoning[🧠 Reasoning]
     end
 
-    subgraph OUTPUT [📤 Output Layer]
-        Response[💬 Response: Text + Images]
+    subgraph OUTPUT [📤 Output]
+        Response[💬 Response]
     end
 
-    %% Ingestion Flow (①②③)
-    Docs -->|① Extract| Chunker
-    Docs -->|① Extract| ImgExt
-    Chunker -->|② N chunks| Embed
-    ImgExt -->|② M images + OCR| Embed
-    Embed -->|③ Vectorize| FAISS
+    %% Ingestion: Docs → Process → Storage
+    Docs --> Chunker
+    Docs --> ImgExt
+    Chunker --> Embed
+    ImgExt --> Embed
+    Embed --> FAISS
 
-    %% Query Flow (④⑤⑥⑦)
-    User -->|④ Multimodal Query| QueryInput
-    QueryInput -->|Image Input| VisionProc
-    QueryInput -->|Text Input| TextProc
+    %% Query: User → Agent → Process → Storage → Agent → Output
+    User --> VisionProc
+    User --> TextProc
     VisionProc --> Reasoning
     TextProc --> Reasoning
-    Reasoning -->|⑤ Encode Query| Embed
-    Embed -->|⑤ Query Vector| FAISS
-    FAISS -->|⑥ Top-K Context| Reasoning
-    Reasoning -->|⑦ Generate| Response
+    Reasoning --> Embed
+    FAISS --> Reasoning
+    Reasoning --> Response
 
-    %% Feedback Flow (⑧)
-    Reasoning -.->|⑧ Tag + Re-embed| Embed
-    Embed -.->|⑧ Update Index| FAISS
+    %% Feedback: Agent → Process → Storage
+    Reasoning -.-> Embed
 
-    %% Output to User
+    %% Output back to User
     Response --> User
 
-    classDef inputStyle fill:#e3f2fd,stroke:#1565c0
-    classDef processStyle fill:#f3e5f5,stroke:#7b1fa2
-    classDef storageStyle fill:#e1f5fe,stroke:#0277bd
-    classDef agentStyle fill:#fce4ec,stroke:#c2185b
-    classDef outputStyle fill:#e8f5e9,stroke:#2e7d32
+    classDef inputStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef processStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef storageStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
+    classDef agentStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef outputStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 
-    class User,Docs,QueryInput inputStyle
+    class User,Docs inputStyle
     class Chunker,ImgExt,Embed processStyle
     class FAISS storageStyle
     class VisionProc,TextProc,Reasoning agentStyle
     class Response outputStyle
 ```
+
+**Flow Summary:**
+
+| Flow | Path | Steps |
+|------|------|-------|
+| **Ingestion** | `Docs → Chunker/ImgExt → Embed → FAISS` | ①②③ |
+| **Query** | `User → Vision/Text → Reasoning → Embed → FAISS → Reasoning → Response` | ④⑤⑥⑦ |
+| **Feedback** | `Reasoning ⇢ Embed → FAISS` (dotted) | ⑧ |
+| **Return** | `Response → User` | - |
+
 
 ---
 
