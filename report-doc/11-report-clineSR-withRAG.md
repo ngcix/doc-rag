@@ -68,8 +68,8 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph INPUT [� Input Layer]
-        User[� User]
+    subgraph INPUT [📥 Input Layer]
+        User[👤 User]
         Docs[📄 Documents]
     end
 
@@ -100,13 +100,15 @@ flowchart LR
 
     %% Query Flow (④⑤⑥⑦)
     User -->|④ Query| Cline
-    Cline -->|⑤ Search| FAISS
+    Cline -->|⑤ Encode Query| Embed
+    Embed -->|⑤ Vector| FAISS
     FAISS -->|⑥ Context| Cline
     Cline -->|⑦| Response
     Response --> User
 
     %% Feedback Flow (⑧)
-    Cline -.->|⑧ Tag| FAISS
+    Cline -.->|⑧ Re-embed| Embed
+    Embed -.->|⑧ Update| FAISS
 
     classDef inputStyle fill:#e3f2fd,stroke:#1565c0
     classDef processStyle fill:#f3e5f5,stroke:#7b1fa2
@@ -124,9 +126,9 @@ flowchart LR
 **Flow Legend:**
 - **Solid arrows (→)**: Main data flow
 - **Dotted arrow (⇢)**: Feedback loop
-- **① → ③**: Ingestion pipeline
-- **④ → ⑦**: Query pipeline  
-- **⑧**: Improvement loop
+- **① → ③**: Ingestion pipeline (Docs → Embed → FAISS)
+- **④ → ⑦**: Query pipeline (User → Cline → **Embed** → FAISS → Cline → Response)
+- **⑧**: Feedback loop (Cline → **Embed** → FAISS update)
 
 ---
 
