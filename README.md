@@ -14,11 +14,27 @@ It handles **End-to-End** flow: from raw documents (PDF, DOCX, MD) to intelligen
 | Feature | Description |
 |---------|-------------|
 | **🧠 Intelligent Chunking** | Optimized recursive splitting for text (TXT, MD, PDF, DOCX) to preserve context. |
-| **⚡ High-Perf Vectorization** | Uses `Alibaba-NLP/gte-multilingual-base` (768-dim) for SOTA multilingual embedding quality. |
+| **⚡ High-Perf Vectorization** | Uses `gte-multilingual-base` (384-dim) for SOTA multilingual embedding quality. |
 | **🔍 Hybrid Search** | **Semantic Search** (Vector) + **Keyword Boosting** (Tags) for maximum accuracy. |
-| **🖼️ Smart Image Extraction** | Converts full PDF pages to images, analyzes layout, and automatically **extracts tags** (e.g., `Figure 4.1`, `Table 2`) to boost retrieval. |
-| **📊 Dual Backend** | Flexible support for **FAISS** (Speed) or **ChromaDB** (Features). |
-| **📈 Sequence Charts** | Special support for **Mermaid** diagrams: parsing, rendering, and vectorizing process flows. |
+| **🖼️ Smart Image Extraction** | Extracts full PDF pages or individual images, auto-tags (e.g., `Figure 4.1`, `Table 2`). |
+| **🤖 Agent Integration** | Designed for **ClineSR / GaussO MM** multimodal agent with vision capability. |
+| **📈 Self-Improving** | Feedback loop with **Tag Boosting** (3x repeat) for automatic re-embedding. |
+
+---
+
+## 📊 Technical Specifications
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Embedding Model** | `gte-multilingual-base` | Alibaba-NLP, multilingual support |
+| **Vector Dimensions** | 384 | Optimized for speed & quality |
+| **Vector Database** | FAISS | IndexFlatIP (Inner Product) |
+| **Chunk Size** | ~500 tokens | Configurable via settings |
+| **Chunk Overlap** | 50 tokens | Preserves context boundaries |
+| **Image Extraction** | PyMuPDF (fitz) | Full-page or individual mode |
+| **OCR Engine** | PP-Structure (Optional) | Layout analysis & enrichment |
+
+---
 
 ## 🚀 Quick Start
 
@@ -49,37 +65,21 @@ data/documents/
   └── research_paper.docx
 ```
 
-### 3. Process Everything (The Magic Command)
-
-Run the all-in-one processing pipeline. This will:
-
-1. Chunk text from documents.
-2. Extract full-page images from PDFs (if they contain figures).
-3. Auto-generate tags for images (e.g., "Figure 1.1").
-4. Vectorize everything in a single optimized batch.
+### 3. Process Documents (MUST specify extraction mode)
 
 ```bash
-# General usage
-# [RECOMMENDED] Full-Page Mode (Best for RAG)
-# Captures context + images. Best for semantic search.
+# [RECOMMENDED] Full-Page Mode (-fp)
+# Captures entire page context + images. Best for RAG with diagrams.
 python -m src.main process -fp
 
-# [ALTERNATIVE] PyMuPDF Extraction Mode
-# Extracts individual images only. Precision focus.
+# [ALTERNATIVE] PyMuPDF Mode (-pymu)
+# Extracts individual embedded images. Precision focus.
 python -m src.main process -pymu
 ```
 
-**How `process --fullpage` works:**
-
-1. **Iterate**: Opens every PDF page using PyMuPDF.
-2. **Detect & Render**: Checks for images/diagrams. If found, renders the **whole page** as a high-res PNG.
-3. **Context**: Extracts the full text of that page to use as search context.
-4. **Auto-Tag**: Scans text for patterns like `Figure 1.2`, `Table 3` and adds them as tags.
-5. **Vector Boost**: Tags are repeated 3x in the embedding content to ensure high retrieval priority.
+> ⚠️ **Note**: You MUST specify either `-fp` or `-pymu`. The system will error if neither is provided.
 
 ### 4. Search
-
-Query your knowledge base. The system matches both semantic meaning and specific tags.
 
 ```bash
 # General question
@@ -87,9 +87,10 @@ python -m src.main search "what is the system architecture?"
 
 # Specific target (High precision due to auto-tagging)
 python -m src.main search "Figure 4.1"
-```
 
----
+# With top-k parameter
+python -m src.main search "OAuth flow" --top-k 10
+```
 
 ---
 
@@ -98,8 +99,7 @@ python -m src.main search "Figure 4.1"
 A typical "Basic Cycle" for a new user:
 
 ```bash
-# 1. Process documents (extract full-page images)
-# MUST specify either -fp (Full Page) or -pymu (PyMuPDF images)
+# 1. Process documents (MUST choose -fp or -pymu)
 python -m src.main process -fp
 
 # 2. Search for something
@@ -111,10 +111,7 @@ python -m src.main listtag A2DP_v1.4.pdf_p18
 # 4. Add a manual tag (system automatically re-embeds!)
 python -m src.main addtag A2DP_v1.4.pdf_p18 "security-diagram"
 
-# 5. Verify the tag
-python -m src.main listtag A2DP_v1.4.pdf_p18
-
-# 6. Search again with the new tag
+# 5. Search again with the new tag
 python -m src.main search "security diagram"
 ```
 
@@ -123,15 +120,72 @@ python -m src.main search "security diagram"
 ## 🛠️ CLI Command Reference
 
 | Command | Action | Example |
-| :--- | :--- | :--- |
-| **`process`** | Ingest & Index documents | `python -m src.main process -fp` (or `-pymu`) |
+|---------|--------|---------|
+| **`process -fp`** | Full-page image extraction | `python -m src.main process -fp` |
+| **`process -pymu`** | Individual image extraction | `python -m src.main process -pymu` |
 | **`search`** | Query the database | `python -m src.main search "query"` |
 | **`list`** | Show all indexed Docs | `python -m src.main list` |
-| **`listtag`** | View tags for a pic | `python -m src.main listtag picname` |
-| **`addtag`** | Add tag & **Re-embed** | `python -m src.main addtag picname "new-tag"` |
+| **`listtag`** | View tags for a doc | `python -m src.main listtag doc_id` |
+| **`addtag`** | Add tag & **Re-embed** | `python -m src.main addtag doc_id "new-tag"` |
 | **`stats`** | View DB size/status | `python -m src.main stats` |
 | **`clean`** | Reset database | `python -m src.main clean --yes` |
 | **`init`** | Setup folder structure | `python -m src.main init` |
+
+---
+
+## 🤖 ClineSR / GaussO MM Integration
+
+This RAG system is designed to work with multimodal AI agents:
+
+### Architecture Flow
+
+```
+User (Text + Image Query)
+         ↓
+    ClineSR / GaussO MM
+    ├── 👁️ Vision Processing
+    └── 📝 Text Processing
+         ↓
+    🧠 Embedding (gte-multilingual-base)
+         ↓
+    💾 FAISS Search
+         ↓
+    📑 Top-K Context (text + image paths)
+         ↓
+    🧠 Reasoning & Generation
+         ↓
+    💬 Response (Text + Images)
+```
+
+### 8-Step Data Flow
+
+| Step | Component | Action |
+|------|-----------|--------|
+| **①** | Chunker & ImgExt | Extract content from documents |
+| **②** | Embedding Model | Vectorize text + images (OCR) |
+| **③** | FAISS | Index vectors (N+M embeddings) |
+| **④** | User | Send multimodal query (text + image) |
+| **⑤** | Agent → Embed | Encode query → Vector |
+| **⑥** | FAISS | Similarity search → Top-K results |
+| **⑦** | Agent | Generate response with vision |
+| **⑧** | Feedback | Tag + Re-embed to improve search |
+
+### Feedback Loop (Tag Boosting)
+
+When adding a tag:
+
+```python
+# Original content
+content = "Image showing authentication flow..."
+
+# After tag boost (3x repeat for semantic weight)
+boosted = content + "\nTags: oauth, oauth, oauth, auth-flow, auth-flow, auth-flow"
+
+# Re-embed and update FAISS
+new_vector = embed(boosted)  # Higher similarity to "oauth" queries
+```
+
+> 📖 **Detailed Report**: [report-doc/11-report-clineSR-withRAG.md](report-doc/11-report-clineSR-withRAG.md)
 
 ---
 
@@ -148,46 +202,74 @@ graph LR
     C --> F[Batch Collector];
     E --> F;
     F --> G[Vectorization];
-    G --> H[(Vector DB)];
+    G --> H[(FAISS DB)];
 ```
 
-### Image Intelligence
+### Image Extraction Strategies
 
-The system doesn't just treat images as files. It understands them:
+| Strategy | Flag | Description | Best For |
+|----------|------|-------------|----------|
+| **Full-Page** | `-fp` | Render entire page as image (DPI 150) | Diagrams, flowcharts, complex layouts |
+| **PyMuPDF** | `-pymu` | Extract individual embedded images | Product images, charts, screenshots |
 
-1. **Detection**: Scans PDF pages for embedded images or vector drawings.
-2. **Extraction**: Captures the *entire page* context (`--fullpage` mode).
-3. **Tagging**: Regex scans the page text for patterns like `Figure X.Y`, `Table Z`.
-4. **Boosting**: These tags are repeated in the vector embedding to ensure `search "Figure 4.1"` hits exactly that image.
-5. **Dynamic Re-embedding**: When you use `addtag`, the system:
-    - Appends the new tag to the content.
-    - **Re-calculates** the vector embedding immediately.
-    - Updates the database, making the new tag searchable via semantic search (not just metadata filter).
+### Auto-Tagging
+
+The system scans page text for patterns:
+
+- `Figure X.Y`, `Diagram X`, `Chart X`
+- `Table X.Y`, `Hình X.Y` (Vietnamese)
+- Custom regex patterns in settings
+
+Tags are repeated 3x in embedding content for **boosted retrieval priority**.
 
 ---
 
 ## ⚙️ Configuration
 
-Customize the core engines in `config/settings.py`:
+Customize in `config/settings.py`:
 
-- **Model**: Change embedding models (`gte-multilingual`, `all-MiniLM-L6-v2`, etc.).
-- **VectorDB**: Switch between `faiss` (default) and `chromadb`.
-- **Chunking**: Adjust `chunk_size` (default: 512) and `overlap`.
+| Setting | Default | Options |
+|---------|---------|---------|
+| `EMBEDDING_MODEL` | `gte-multilingual-base` | Any SentenceTransformer model |
+| `VECTOR_DIMENSION` | `384` | Model-dependent |
+| `CHUNK_SIZE` | `500` | Tokens per chunk |
+| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
+| `CONTEXT_SIZE` | `10000` | Characters for image context |
+| `TOP_K` | `5` | Default search results |
+
+---
 
 ## 📁 Project Structure
 
 ```text
 simple-rag/
-├── config/             # Settings & Global configs
-├── data/               # Your Data (Docs, DBs, Images)
+├── config/                 # Settings & Global configs
+├── data/                   # Your Data (Docs, DBs, Images)
+│   ├── documents/          # Input documents
+│   ├── embeddings/         # FAISS index files
+│   └── images/             # Extracted images
 ├── src/
-│   ├── chunking/       # Text splitters (LangChain based)
-│   ├── image_extraction/ # PDF/Image processing (PyMuPDF)
-│   ├── search/         # Search Algo & Ranking
-│   ├── vectorization/  # Embedding Engines
-│   └── main.py         # CLI Entry point
-└── tests/              # Pytest suite
+│   ├── chunking/           # Text splitters (LangChain based)
+│   ├── image_extraction/   # PDF/Image processing (PyMuPDF)
+│   ├── search/             # Search Algo & Ranking
+│   ├── vectorization/      # Embedding Engines
+│   └── main.py             # CLI Entry point
+├── report-doc/             # Architecture & Integration docs
+└── tests/                  # Pytest suite
 ```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [04-flow-process.md](report-doc/04-flow-process.md) | Detailed processing flow |
+| [05-flow-image-extraction.md](report-doc/05-flow-image-extraction.md) | Image extraction guide |
+| [10-debuit-clineSR.md](report-doc/10-debuit-clineSR.md) | ClineSR integration (detailed) |
+| [11-report-clineSR-withRAG.md](report-doc/11-report-clineSR-withRAG.md) | Summary report with diagrams |
+
+---
 
 ## 📄 License
 
