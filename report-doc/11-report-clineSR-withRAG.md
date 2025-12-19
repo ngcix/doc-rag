@@ -67,10 +67,11 @@ sequenceDiagram
 ## 4. Kiến Trúc Kết Nối Module
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph INPUT [📥 Input Layer]
         User[👤 User]
         Docs[📄 Documents]
+        QueryInput[📧 Query: Text + Image]
     end
 
     subgraph PROCESS [⚙️ Processing Layer]
@@ -83,12 +84,15 @@ flowchart LR
         FAISS[(FAISS DB)]
     end
 
-    subgraph AGENT [🤖 Agent Layer]
-        Cline[🌟 Cline]
+    subgraph AGENT [🤖 Agent Layer: ClineSR / GaussO MM]
+        direction TB
+        VisionProc[👁️ Vision Processing]
+        TextProc[📝 Text Processing]
+        Reasoning[🧠 Reasoning & Generation]
     end
 
     subgraph OUTPUT [📤 Output Layer]
-        Response[💬 Response]
+        Response[💬 Response: Text + Images]
     end
 
     %% Ingestion Flow (①②③)
@@ -99,16 +103,22 @@ flowchart LR
     Embed -->|③| FAISS
 
     %% Query Flow (④⑤⑥⑦)
-    User -->|④ Query| Cline
-    Cline -->|⑤ Encode Query| Embed
+    User -->|④| QueryInput
+    QueryInput -->|Image| VisionProc
+    QueryInput -->|Text| TextProc
+    VisionProc --> Reasoning
+    TextProc --> Reasoning
+    Reasoning -->|⑤ Encode| Embed
     Embed -->|⑤ Vector| FAISS
-    FAISS -->|⑥ Context| Cline
-    Cline -->|⑦| Response
-    Response --> User
+    FAISS -->|⑥ Context| Reasoning
+    Reasoning -->|⑦| Response
 
     %% Feedback Flow (⑧)
-    Cline -.->|⑧ Re-embed| Embed
+    Reasoning -.->|⑧ Re-embed| Embed
     Embed -.->|⑧ Update| FAISS
+
+    %% Output to User
+    Response --> User
 
     classDef inputStyle fill:#e3f2fd,stroke:#1565c0
     classDef processStyle fill:#f3e5f5,stroke:#7b1fa2
@@ -116,10 +126,10 @@ flowchart LR
     classDef agentStyle fill:#fce4ec,stroke:#c2185b
     classDef outputStyle fill:#e8f5e9,stroke:#2e7d32
 
-    class User,Docs inputStyle
+    class User,Docs,QueryInput inputStyle
     class Chunker,ImgExt,Embed processStyle
     class FAISS storageStyle
-    class Cline agentStyle
+    class VisionProc,TextProc,Reasoning agentStyle
     class Response outputStyle
 ```
 
@@ -127,8 +137,13 @@ flowchart LR
 - **Solid arrows (→)**: Main data flow
 - **Dotted arrow (⇢)**: Feedback loop
 - **① → ③**: Ingestion pipeline (Docs → Embed → FAISS)
-- **④ → ⑦**: Query pipeline (User → Cline → **Embed** → FAISS → Cline → Response)
-- **⑧**: Feedback loop (Cline → **Embed** → FAISS update)
+- **④ → ⑦**: Query pipeline (User → **Text+Image** → Agent → Embed → FAISS → Agent → Response)
+- **⑧**: Feedback loop (Agent → **Embed** → FAISS update)
+
+**Agent Layer Details (ClineSR / GaussO MM):**
+- **👁️ Vision Processing**: Phân tích hình ảnh đầu vào từ user
+- **📝 Text Processing**: Xử lý câu hỏi text
+- **🧠 Reasoning & Generation**: Kết hợp context + multimodal input → tạo response
 
 ---
 
