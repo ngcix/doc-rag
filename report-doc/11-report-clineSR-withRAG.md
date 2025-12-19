@@ -96,26 +96,26 @@ flowchart TB
     end
 
     %% Ingestion Flow (①②③)
-    Docs -->|①| Chunker
-    Docs -->|①| ImgExt
-    Chunker -->|②| Embed
-    ImgExt -->|②| Embed
-    Embed -->|③| FAISS
+    Docs -->|① Extract| Chunker
+    Docs -->|① Extract| ImgExt
+    Chunker -->|② N chunks| Embed
+    ImgExt -->|② M images + OCR| Embed
+    Embed -->|③ Vectorize| FAISS
 
     %% Query Flow (④⑤⑥⑦)
-    User -->|④| QueryInput
-    QueryInput -->|Image| VisionProc
-    QueryInput -->|Text| TextProc
+    User -->|④ Multimodal Query| QueryInput
+    QueryInput -->|Image Input| VisionProc
+    QueryInput -->|Text Input| TextProc
     VisionProc --> Reasoning
     TextProc --> Reasoning
-    Reasoning -->|⑤ Encode| Embed
-    Embed -->|⑤ Vector| FAISS
-    FAISS -->|⑥ Context| Reasoning
-    Reasoning -->|⑦| Response
+    Reasoning -->|⑤ Encode Query| Embed
+    Embed -->|⑤ Query Vector| FAISS
+    FAISS -->|⑥ Top-K Context| Reasoning
+    Reasoning -->|⑦ Generate| Response
 
     %% Feedback Flow (⑧)
-    Reasoning -.->|⑧ Re-embed| Embed
-    Embed -.->|⑧ Update| FAISS
+    Reasoning -.->|⑧ Tag + Re-embed| Embed
+    Embed -.->|⑧ Update Index| FAISS
 
     %% Output to User
     Response --> User
@@ -133,38 +133,126 @@ flowchart TB
     class Response outputStyle
 ```
 
-**Flow Legend:**
-- **Solid arrows (→)**: Main data flow
-- **Dotted arrow (⇢)**: Feedback loop
-- **① → ③**: Ingestion pipeline (Docs → Embed → FAISS)
-- **④ → ⑦**: Query pipeline (User → **Text+Image** → Agent → Embed → FAISS → Agent → Response)
-- **⑧**: Feedback loop (Agent → **Embed** → FAISS update)
+---
 
-**Agent Layer Details (ClineSR / GaussO MM):**
-- **👁️ Vision Processing**: Phân tích hình ảnh đầu vào từ user
-- **📝 Text Processing**: Xử lý câu hỏi text
-- **🧠 Reasoning & Generation**: Kết hợp context + multimodal input → tạo response
+### 🔵 INGESTION PIPELINE (Steps ①②③)
+
+```
+📄 Documents (PDF/Markdown)
+         ↓ ①
+   ┌─────┴──────┐
+   ↓            ↓
+🔪 Chunker   🖼️ ImgExt
+(~500 tokens)  (PyMuPDF)
+   ↓            ↓
+   N chunks     M images + OCR
+   └─────┬──────┘
+         ↓ ②
+   🧠 Embedding Model
+   (gte-multilingual-base)
+         ↓ ③
+   💾 FAISS Database
+   (N+M vectors indexed)
+```
+
+| Step | Component | Input | Output |
+|------|-----------|-------|--------|
+| **①** | Chunker & ImgExt | PDF/MD files | N text chunks (~500 tokens each) + M images |
+| **②** | Embedding Model | Text + OCR content | 384-dim vectors for each chunk/image |
+| **③** | FAISS Index | N+M embeddings | Indexed vector database |
 
 ---
 
-## 5. Tổng quan 8 bước
+### 🟢 QUERY PIPELINE (Steps ④⑤⑥⑦)
 
-| Step | Component | Action |
-|------|-----------|--------|
-| **①** | Chunker & ImgExt | Extract content từ documents |
-| **②** | Embedding Model | Vectorize text + images (OCR) |
-| **③** | FAISS | Index vectors |
-| **④** | User | Gửi câu hỏi |
-| **⑤** | Search | Similarity search trong FAISS |
-| **⑥** | Cline | Nhận context + vision analysis |
-| **⑦** | Cline | Generate response |
-| **⑧** | Feedback | Tag + Re-embed để cải thiện |
+```
+👤 User
+   ↓ ④ Multimodal Query
+📧 Query (Text + Image)
+   ├──→ 📝 Text Processing
+   └──→ 👁️ Vision Processing
+         ↓
+   🧠 Reasoning (ClineSR/GaussO MM)
+         ↓ ⑤
+   🧠 Embed → Query Vector
+         ↓
+   💾 FAISS Similarity Search
+         ↓ ⑥
+   📑 Top-K Results (text + image paths)
+         ↓
+   🧠 Reasoning + Vision Analysis
+         ↓ ⑦
+   💬 Response (Text + Images)
+         ↓
+   👤 User receives answer
+```
+
+| Step | Component | Input | Output |
+|------|-----------|-------|--------|
+| **④** | User → Agent | Text query + optional image | Multimodal input to Agent |
+| **⑤** | Agent → Embed → FAISS | Query content | Query vector → Similarity search |
+| **⑥** | FAISS → Agent | Query vector | Top-K relevant chunks + image paths |
+| **⑦** | Agent (Vision + Reasoning) | Context + original query | Generated response with images |
 
 ---
 
-## Key Highlights
+### � FEEDBACK LOOP (Step ⑧)
 
-- **Vision-Enhanced RAG**: Cline có khả năng "xem" và phân tích hình ảnh
-- **Hybrid Search**: Text chunks + Full-page images trong cùng database
-- **Self-Improving**: Feedback loop (⑧) giúp database chính xác hơn theo thời gian
-- **Tag Boosting**: Lặp lại tag 3x để tăng semantic weight khi re-embed
+```
+🧠 Agent (After generating response)
+   ↓
+   Decision: Tag this content for better search
+   ↓ ⑧
+🏷️ addtag CLI
+   ├── 1. Retrieve current content
+   ├── 2. Boost: content + "Tags: oauth, oauth, oauth, ..."
+   ├── 3. Re-embed with gte-multilingual-base
+   ├── 4. DELETE old FAISS entry
+   └── 5. ADD new entry with boosted vector
+   ↓
+💾 FAISS Database UPDATED
+   ↓
+✨ Next search ranks this document higher!
+```
+
+| Step | Action | Description |
+|------|--------|-------------|
+| **⑧.1** | Retrieve | Lấy content và metadata hiện tại từ FAISS |
+| **⑧.2** | Tag Boost | Append tag lặp lại 3x để tăng semantic weight |
+| **⑧.3** | Re-embed | Tạo embedding mới với boosted content |
+| **⑧.4** | Delete | Xóa entry cũ khỏi index |
+| **⑧.5** | Add | Thêm entry mới với vector cập nhật |
+
+---
+
+## 5. Agent Layer Details (ClineSR / GaussO MM)
+
+| Component | Description |
+|-----------|-------------|
+| **👁️ Vision Processing** | Phân tích hình ảnh đầu vào từ user (screenshot, diagram, photo) |
+| **📝 Text Processing** | Xử lý câu hỏi dạng text, extract intent và keywords |
+| **🧠 Reasoning & Generation** | Kết hợp: query + retrieved context + vision analysis → generate response |
+
+**Capabilities:**
+
+- Multimodal input: Nhận cả text và image từ user
+- Vision analysis: "Xem" và hiểu nội dung hình ảnh
+- Context fusion: Kết hợp retrieved text chunks với image OCR
+- Self-improvement: Tự động tag để cải thiện search quality
+
+---
+
+## 6. Key Highlights
+
+| Feature | Description |
+|---------|-------------|
+| **Vision-Enhanced RAG** | Agent có khả năng "xem" và phân tích hình ảnh |
+| **Multimodal Query** | User có thể query bằng text + image |
+| **Hybrid Search** | Text chunks + Full-page images trong cùng database |
+| **Self-Improving** | Feedback loop (⑧) giúp database chính xác hơn theo thời gian |
+| **Tag Boosting** | Lặp lại tag 3x để tăng semantic weight khi re-embed |
+
+---
+
+> 📖 **Chi tiết đầy đủ**: [10-debuit-clineSR.md](./10-debuit-clineSR.md)
+
