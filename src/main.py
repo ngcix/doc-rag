@@ -21,6 +21,7 @@ from src.image_extraction import get_image_extractor
 
 
 def process_documents(
+    mode = "",
     input_dir: Optional[Path] = None,
     include_charts: bool = True,
     include_images: bool = True,
@@ -52,7 +53,7 @@ def process_documents(
     vectorizer = get_vectorizer()
     vector_store = get_vector_store()
     chart_processor = get_chart_processor()
-    image_extractor = get_image_extractor()
+    image_extractor = get_image_extractor(mode)
     
     all_vectorized = []
     total_images = 0
@@ -384,6 +385,11 @@ def main():
         action="store_true",
         help="Extract individual images using PyMuPDF (Precise, best for assets)"
     )
+    strategy_group.add_argument(
+        "--docling", "-dl",
+        action="store_true",
+        help="Extract individual images using Docling"
+    )
     
     # Search command
     search_parser = subparsers.add_parser(
@@ -477,10 +483,15 @@ def main():
     if args.command == "process":
         # Manual Validation for Strategy
         if not args.no_images:
-            if not (args.fullpage or args.pymupdf):
+            if not (args.fullpage or args.pymupdf or args.dl):
                 parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu)")
+                
+        mode = "fp"
+        if args.dl:
+            mode = "dl"
         
         process_documents(
+            mode,
             input_dir=args.input,
             include_charts=not args.no_charts,
             include_images=not args.no_images,
