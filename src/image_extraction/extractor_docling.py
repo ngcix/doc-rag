@@ -1,12 +1,17 @@
 import os
 import pypdfium2 as pdfium
 
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import PdfFormatOption
+from docling_core.types.doc import ImageRefMode, PictureItem, TableItem
+
+
+from image_info import ExtractedImage
 
 
 class ImageExtractor:
@@ -15,7 +20,7 @@ class ImageExtractor:
 
     def __init__(self):
         self.pipeline_options = PdfPipelineOptions()
-        self.pipeline_options.images_scale = 2.0
+        self.pipeline_options.images_scale = 4.0
         self.pipeline_options.generate_picture_images = True
         self.pipeline_options.generate_table_images = True
         self.pipeline_options.generate_page_images = True
@@ -34,11 +39,11 @@ class ImageExtractor:
             os.path.dirname(os.path.dirname(self.file_path))
         )
 
-        self.output_dir = os.path.join(self.file_dir, "data", "documents", "prediction")
+        self.output_dir = os.path.join(self.file_dir, "data")
         os.makedirs(self.output_dir, exist_ok=True)
 
-        self.pic_dir = os.path.join(self.file_dir, "data", "documents", "charts")
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.pic_dir = os.path.join(self.file_dir, "data", "extracted_images")
+        os.makedirs(self.pic_dir, exist_ok=True)
 
     def crop_and_save_pictures_from_page(
         self, page_image: Image.Image, elements_on_page, page_num: int
@@ -66,7 +71,8 @@ class ImageExtractor:
                 cropped = page_image.crop((left, top, right, bottom))
                 picture_counter += 1
                 picture_path = os.path.join(
-                    self.pic_dir, f"page_{page_num:03d}_picture_{picture_counter:03d}.png"
+                    self.pic_dir,
+                    f"page_{page_num:03d}_picture_{picture_counter:03d}.png",
                 )
                 cropped.save(picture_path)
                 print(
@@ -196,9 +202,9 @@ class ImageExtractor:
         pdf.close()
         print(f"🎉 Hoàn thành: Đã cắt và lưu {total_pictures_cropped} picture.")
 
-    def extract_from_file(
+    def extract_from_file_(
         self, file_path: str, fullpage_mode=None, save_pages_with_bbox: bool = False
-    ):
+    ) -> list[ExtractedImage]:
         file_path = os.path.join(os.getcwd(), file_path)
 
         result = self.converter.convert(file_path)
@@ -210,11 +216,42 @@ class ImageExtractor:
             file_path, result.document, save_pages_with_bbox=save_pages_with_bbox
         )
 
-    def get_vectorization_data(self):
+    def extract_from_file(
+        self, file_path: str, fullpage_mode=None, save_pages_with_bbox: bool = False
+    ) -> list[ExtractedImage]:
+        
+        result = self.converter.convert(file_path)
+
+        doc_filename = os.path.basename(file_path)
+        table_counter = 0
+        picture_counter = 0
+        result.document.save_as_json(f"{self.output_dir}/{doc_filename}.json")
+        
+        images = []
+
+        for element, _level in result.document.iterate_items():
+            if isinstance(element, PictureItem):
+                # image : ExtractedImage
+                
+                picture_counter += 1
+                element_image_filename = (
+                     Path(self.pic_dir) / f"{doc_filename}-picture-{picture_counter}.png"
+                )
+                with element_image_filename.open("wb") as fp:
+                    element.get_image(result.document).save(fp, "PNG")
+                    
+                    
+                # image.caption = element.captions
+                print(element.captions)
+                
+        return images
+
+    def get_vectorization_data(self, images: list[ExtractedImage]) -> list[dict]:
         return None
 
-_extractor: ImageExtractor
 
+_extractor: ImageExtractor
+_extractor = None
 
 def get_image_extractor() -> ImageExtractor:
     """Get or create the global image extractor instance."""
@@ -226,6 +263,8 @@ def get_image_extractor() -> ImageExtractor:
 
 if __name__ == "__main__":
     get_image_extractor()
-    pdf_file_path = "data/documents/HID_v1.1.1.pdf"
-    pdf_file_path_test = "data/documents/test.pdf"
-    _extractor.extract_from_file(pdf_file_path, save_pages_with_bbox=True)  # Hoặc False để chỉ cắt picture
+    pdf_file_path = os.path.join(os.getcwd(), "data/HID_v1.1.1.pdf")
+    pdf_file_path_test = os.path.join(os.getcwd(), "data/test.pdf")
+    _extractor.extract_from_file(
+        pdf_file_path_test, save_pages_with_bbox=True
+    )
