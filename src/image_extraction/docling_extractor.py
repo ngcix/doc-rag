@@ -54,7 +54,7 @@ class ImageExtractor:
         result = self.converter.convert(file_path)
         doc_filename = os.path.basename(file_path)
 
-        result.document.save_as_json(f"{self.output_dir}/{doc_filename}.json")
+        result.document.save_as_json(f"{self.output_dir}/documents/{doc_filename}.json")
 
         text_dict = {text.self_ref: text.text for text in result.document.texts}
         images = []

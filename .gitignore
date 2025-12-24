@@ -58,3 +58,9 @@ htmlcov/
 
 # Logs
 *.log
+
+# Output execute program
+*.exe
+
+# Pyinstaller
+*.spec
