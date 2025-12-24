@@ -7,8 +7,9 @@
 
 # Import config from settings
 from config.settings import ImageExtractionConfig
-import extractor
-import extractor_docling
+from src.image_extraction.image_info import ExtractedImage
+import src.image_extraction.extractor as paddle
+import src.image_extraction.docling_extractor as docling
 
 __all__ = [
     # Image extraction
@@ -20,7 +21,38 @@ __all__ = [
 
 def get_image_extractor(mode):
     if mode == "fp":
-        return extractor.get_image_extractor()
+        return paddle.get_image_extractor()
     if mode == "dl":
-        return extractor_docling.get_image_extractor()
-    return None # Should not happen
+        return docling.get_image_extractor()
+    return None  # Should not happen
+
+def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
+    """
+    Prepare extracted images for vectorization.
+
+    Args:
+        images: List of ExtractedImage objects.
+
+    Returns:
+        List of dicts ready for vectorization.
+    """
+    data = []
+    for img in images:
+        data.append(
+            {
+                "chunk_id": img.image_id,
+                "content": img.get_vectorization_text(),
+                "metadata": {
+                    "type": "extracted_image",
+                    "region_type": img.region_type,
+                    "image_path": img.image_path,
+                    "source_file": img.source_file,
+                    "page_number": img.page_number,
+                    "bbox": str(img.bbox),
+                    "tags": img.tags,
+                },
+                "source_file": img.source_file,
+            }
+        )
+    return data
+

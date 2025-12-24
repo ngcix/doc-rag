@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
+
 @dataclass
 class ExtractedImage:
     """Represents an extracted image region from a document."""
+
     image_id: str
     image_path: str
     source_file: str
@@ -14,7 +16,7 @@ class ExtractedImage:
     caption: str = ""
     description: str = ""
     tags: str = ""  # Keywords extracted from context
-    
+
     def to_dict(self) -> dict:
         return {
             "image_id": self.image_id,
@@ -27,7 +29,7 @@ class ExtractedImage:
             "caption": self.caption,
             "description": self.description,
         }
-    
+
     def get_vectorization_text(self) -> str:
         """Generate text for vectorization."""
         parts = []
@@ -35,7 +37,7 @@ class ExtractedImage:
             parts.append(f"Caption: {self.caption}")
         if self.tags:
             # Repeat tags to boost importance in vector
-            parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}") 
+            parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}")
         if self.description:
             parts.append(f"Description: {self.description}")
         if self.surrounding_text:
