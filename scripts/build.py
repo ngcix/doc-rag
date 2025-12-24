@@ -20,13 +20,16 @@ except:  # noqa: E722
 
 datas, binaries, hiddenimports = collect_all('docling')
 
+hiddenimports.append('docling_ibm_models')
+hiddenimports.append('docling_parse')
+
 # make the program
 PyInstaller.__main__.run([
     'src/main.py',
     '--onedir',
     '--name=simpleRAG',
 
-    *[f'--copy-metadata={pkg}' for pkg in ['docling', 'docling_core']], 
+    *[f'--copy-metadata={pkg}' for pkg in ['docling', 'docling_core', 'docling-ibm-models', 'docling-parse', ]], 
     *([f'--hiddenimport={h}' for h in hiddenimports]),
     *([f'--add-data={d[0]};{d[1]}' for d in datas]),
     *([f'--add-binary={b[0]};{b[1]}' for b in binaries]),

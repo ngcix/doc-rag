@@ -1,6 +1,7 @@
 import hashlib
 import io
 import os
+import sys
 from pathlib import Path
 
 from docling.document_converter import DocumentConverter
@@ -24,6 +25,9 @@ class ImageExtractor:
     """Extracts images from PDF documents using Docling."""
 
     def __init__(self):
+        if hasattr(sys, '_MEIPASS'):
+            res_path = os.path.join(sys._MEIPASS, "docling_parse", "pdf_resources_v2")
+            os.environ["DOCLING_PDF_RESOURCES_DIR"] = res_path
         self.converter = self._create_converter()
         self.output_dir = self._setup_directories()
         self.pic_dir = os.path.join(self.output_dir, "extracted_images")
@@ -33,7 +37,10 @@ class ImageExtractor:
     def _create_converter(self) -> DocumentConverter:
         """Create and configure document converter."""
         pipeline_options = PdfPipelineOptions()
-        pipeline_options.artifacts_path = os.path.join(os.getcwd(), "models")
+        if hasattr(sys, '_MEIPASS'):
+            pipeline_options.artifacts_path = os.path.join(sys._MEIPASS, "models")
+        else:
+            pipeline_options.artifacts_path = os.path.join(os.getcwd(), "models")
         pipeline_options.images_scale = 4.0
         pipeline_options.generate_picture_images = True
         pipeline_options.generate_table_images = True
