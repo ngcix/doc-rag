@@ -28,6 +28,7 @@ class ImageExtractor:
         self.output_dir = self._setup_directories()
         self.pic_dir = os.path.join(self.output_dir, "extracted_images")
         os.makedirs(self.pic_dir, exist_ok=True)
+        os.environ["HF_HUB_OFFLINE"] = "1"
 
     def _create_converter(self) -> DocumentConverter:
         """Create and configure document converter."""
