@@ -2,12 +2,13 @@
 
 ## 1. Tổng Quan
 
-Module `src/image_extraction/extractor.py` cung cấp 2 chế độ trích xuất:
+Module `src/image_extraction/` cung cấp 3 chế độ trích xuất:
 
-| Chế độ | Command | Mô tả |
-|--------|---------|-------|
-| **Full-page** | `-fp` | Capture toàn bộ trang chứa hình |
-| **PyMuPDF** | `-pymu` | Trích xuất từng ảnh riêng lẻ |
+| Chế độ | Command | Module | Mô tả |
+|--------|---------|--------|-------|
+| **Full-page** | `-fp` | `extractor.py` | Capture toàn bộ trang chứa hình |
+| **PyMuPDF Smart Crop** | `-pymu` | `pymu_extractor.py` | Smart detection & cropping |
+| **Docling** | `-dl` | `docling_extractor.py` | Trích xuất qua Docling |
 
 ## 2. Architecture Overview
 
@@ -198,7 +199,174 @@ ExtractedImage(
 )
 ```
 
-## 4. PyMuPDF Mode Flow (`-pymu`)
+## 4. PyMuPDF Smart Cropping Mode (`-pymu`) - NEW
+
+### 4.1 Tổng Quan
+
+Mode này sử dụng **smart detection** để tự động phát hiện và crop các vùng chứa hình ảnh/diagram.
+
+**File**: `src/image_extraction/pymu_extractor.py`
+
+```
+pdf_path
+    │
+    ▼
+extract_from_pdf(pdf_path)
+    │
+    ├── For each page:
+    │   │
+    │   ├── A. Get Embedded Bitmap Images
+    │   │   └── page.get_image_info() → List of image bboxes
+    │   │
+    │   ├── B. Get Vector Drawings (Clustered)
+    │   │   └── _cluster_drawings() → Merge nearby paths
+    │   │
+    │   ├── C. Merge Overlapping Regions
+    │   │   └── _merge_nearby_blocks() → Combine adjacent
+    │   │
+    │   └── D. Render & Save
+    │       ├── Render at 150 DPI
+    │       └── Capture context text (expanded window)
+    │
+    └── Return: List[ExtractedImage]
+```
+
+### 4.2 Smart Cropping Features
+
+| Feature | Mô tả |
+|---------|-------|
+| **Bitmap Detection** | Phát hiện ảnh bitmap nhúng trong PDF |
+| **Vector Clustering** | Gom nhóm các đường vẽ vector gần nhau thành diagram |
+| **Region Merging** | Merge các vùng chồng lấn hoặc cạnh nhau |
+| **Context Capture** | Lấy text xung quanh (150px dưới, 80px trên) |
+
+### 4.3 Chi Tiết Code
+
+```python
+# File: src/image_extraction/pymu_extractor.py
+
+def _extract_smart_crops(self, pdf_path: Path) -> list[ExtractedImage]:
+    doc = fitz.open(str(pdf_path))
+    extracted_images = []
+
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        page_images = []
+
+        # A. Get Bitmaps (Embedded Images)
+        img_infos = page.get_image_info(xrefs=True)
+        for img in img_infos:
+            bbox = fitz.Rect(img['bbox'])
+            if bbox.width >= self.min_width and bbox.height >= self.min_height:
+                page_images.append(bbox)
+
+        # B. Get Vector Drawings (Clustered)
+        drawing_clusters = self._cluster_drawings(page)
+        page_images.extend(drawing_clusters)
+
+        # C. Merge Overlapping/Nearby Regions
+        merged_regions = self._merge_nearby_blocks(page_images)
+
+        # D. Render and Save
+        for i, rect in enumerate(merged_regions):
+            pix = page.get_pixmap(clip=rect, dpi=150)
+            
+            # Get context text (EXPANDED WINDOW)
+            context_rect = fitz.Rect(rect)
+            context_rect.y1 += 150  # 150px below for caption
+            context_rect.y0 -= 80   # 80px above for title
+            context_rect.x0 -= 20   # Expand horizontally
+            context_rect.x1 += 20
+            text = page.get_text(clip=context_rect)
+
+            extracted_images.append(ExtractedImage(
+                image_id=image_id,
+                region_type="smart_crop",
+                surrounding_text=text[:self.context_chars],
+                ...
+            ))
+
+    return extracted_images
+```
+
+### 4.4 Vector Drawing Clustering
+
+```python
+def _cluster_drawings(self, page) -> list:
+    drawings = page.get_drawings()
+    
+    # Filter valid rects
+    valid_rects = [d["rect"] for d in drawings if d["rect"].width > 5]
+    valid_rects.sort(key=lambda r: (r.y0, r.x0))
+
+    clusters = []
+    current_cluster = fitz.Rect(valid_rects[0])
+
+    for rect in valid_rects[1:]:
+        # Expand for proximity check
+        expanded = fitz.Rect(current_cluster)
+        dist = self.cluster_merge_distance  # 50px
+        expanded.x0 -= dist
+        expanded.y0 -= dist
+        expanded.x1 += dist
+        expanded.y1 += dist
+
+        if rect.intersects(expanded):
+            current_cluster.include_rect(rect)  # Merge
+        else:
+            clusters.append(current_cluster)
+            current_cluster = fitz.Rect(rect)
+
+    clusters.append(current_cluster)
+    return [c for c in clusters if c.width >= self.min_diagram_size]
+```
+
+**Clustering Visualization:**
+
+```
+Original drawings (scattered):
+┌─────────────────────────────────────┐
+│  ┌───┐                              │
+│  │ A │    ┌───────┐                 │
+│  └───┘    │   B   │   ┌───┐         │
+│           └───────┘   │ C │         │
+│  ┌───────────────┐    └───┘         │
+│  │      D        │                  │
+│  └───────────────┘                  │
+└─────────────────────────────────────┘
+
+After clustering (merge distance = 50px):
+┌─────────────────────────────────────┐
+│  ┌─────────────────────┐            │
+│  │     Cluster 1       │  ┌───┐     │
+│  │   (A + B merged)    │  │ C │     │  ← C too far
+│  └─────────────────────┘  └───┘     │
+│  ┌───────────────┐                  │
+│  │   Cluster 2   │                  │
+│  │      (D)      │                  │
+│  └───────────────┘                  │
+└─────────────────────────────────────┘
+```
+
+### 4.5 Output Structure
+
+```python
+ExtractedImage(
+    image_id="abc12345",
+    image_path="data/extracted_images/HID_SPEC_V10_p4_crop_1.png",
+    source_file="data/documents/HID_SPEC_V10.pdf",
+    page_number=4,
+    bbox=(100.5, 200.3, 450.2, 600.8),
+    region_type="smart_crop",
+    surrounding_text="Figure 4.1: System Overview...",
+    caption="",
+    description="Smart crop from HID_SPEC_V10.pdf, page 4"
+)
+```
+
+**File naming:** `{pdf_stem}_p{page}_crop_{n}.png`
+
+## 5. PyMuPDF Individual Mode (Legacy)
 
 ### 4.1 Tổng quan
 

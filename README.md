@@ -4,7 +4,7 @@ A **production-ready** Retrieval-Augmented Generation (RAG) system engineered fo
 
 It handles **End-to-End** flow: from raw documents (PDF, DOCX, MD) to intelligent chunking, vectorization, and accurate semantic search.
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -210,7 +210,19 @@ graph LR
 | Strategy | Flag | Description | Best For |
 |----------|------|-------------|----------|
 | **Full-Page** | `-fp` | Render entire page as image (DPI 150) | Diagrams, flowcharts, complex layouts |
-| **PyMuPDF** | `-pymu` | Extract individual embedded images | Product images, charts, screenshots |
+| **PyMuPDF Smart Crop** | `-pymu` | Smart detection & cropping of figures | Individual images, vector drawings |
+| **Docling** | `-dl` | Extract using Docling library | Alternative extraction method |
+
+#### PyMuPDF Smart Cropping Features
+
+The `-pymu` mode uses intelligent detection to extract:
+
+| Feature | Description |
+|---------|-------------|
+| **Bitmap Detection** | Extracts embedded bitmap images from PDFs |
+| **Vector Clustering** | Groups nearby vector drawings into diagram regions |
+| **Region Merging** | Combines overlapping/adjacent elements |
+| **Context Capture** | Extracts surrounding text (150px below, 80px above) |
 
 ### Auto-Tagging
 

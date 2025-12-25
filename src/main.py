@@ -487,7 +487,9 @@ def main():
                 parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu)")
                 
         mode = "fp"
-        if args.docling:
+        if args.pymupdf:
+            mode = "pymu"
+        elif args.docling:
             mode = "dl"
         
         process_documents(
