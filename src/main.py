@@ -17,7 +17,7 @@ from src.chunking import DocumentChunker
 from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine
 from src.sequence_chart import get_chart_processor
-from src.image_extraction import get_image_extractor
+from src.image_extraction import get_image_extractor, get_vectorization_data
 
 
 def process_documents(
@@ -92,7 +92,7 @@ def process_documents(
                 if extracted:
                     total_images += len(extracted)
                     # Get image data
-                    image_data = image_extractor.get_vectorization_data(extracted)
+                    image_data = get_vectorization_data(extracted)
                     for data in image_data:
                         data["type"] = "image"
                         items_to_vectorize.append(data)
