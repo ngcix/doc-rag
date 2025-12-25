@@ -65,16 +65,12 @@ class ImageExtractor:
 
     def extract_from_file(self, file_path: str, **kwargs) -> list[ExtractedImage]:
         """Extract images from PDF file."""
-        # print(type(file_path_))
-        # print(file_path_)
-        # file_path = str(file_path_)
-
         result = self.converter.convert(file_path)
         doc_filename = os.path.basename(file_path)
 
         result.document.save_as_json(f"{self.output_dir}/documents/{doc_filename}.json")
 
-        text_dict = {text.self_ref: text.text for text in result.document.texts}
+        text_dict = {text.self_ref: text for text in result.document.texts}
         body_indices = {
             item.cref: i for i, item in enumerate(result.document.body.children)
         }
@@ -149,7 +145,7 @@ class ImageExtractor:
         if not hasattr(picture, "captions") or not picture.captions:
             return ""
 
-        caption_texts = [text_dict[cap.cref] for cap in picture.captions]
+        caption_texts = [text_dict[cap.cref].text for cap in picture.captions]
         return " ".join(caption_texts).strip()
 
     def _extract_surrounding_text(
@@ -163,25 +159,45 @@ class ImageExtractor:
         surrounding_texts = []
 
         # Get text from inside picture
-        # for child in picture.children:
-        #     surrounding_texts.append(text_dict[child.cref])
+        for child in picture.children:
+            surrounding_texts.append(text_dict[child.cref])
 
         # Find adjacent text elements
         item_list = document.body.children
         text_ref = ["text"]
+        text_stop = ["header", "picture", "table", "caption"]
+        """When searching text around this picture, skip if:
+            - Meet other picture/table's caption
+            - Meet other picture/table
+            - Searching up and meet a header, this can be added
+            - Searching down and meet a header, this can NOT be added"""
 
         pic_index = body_indices[picture.self_ref]
 
-        # Find next text element
-        for i in range(pic_index, len(item_list)):
-            if any(word in item_list[i].cref for word in text_ref):
-                surrounding_texts.append(text_dict[item_list[i].cref])
+        # Find text element in next section
+        for i in range(pic_index + 1, len(item_list)):
+            item = text_dict[item_list[i].cref]
+            if item is None:
+                continue
+
+            if any(word in item.label for word in text_stop):
                 break
 
-        # Find previous text element
-        for i in range(pic_index - 1, -1, -1):
             if any(word in item_list[i].cref for word in text_ref):
-                surrounding_texts.append(text_dict[item_list[i].cref])
+                surrounding_texts.append(item.text)
+                break
+
+        # Find text element in previous section
+        for i in range(pic_index - 1, -1, -1):
+            item = text_dict[item_list[i].cref]
+            if item is None:
+                continue
+
+            if any(word in item_list[i].cref for word in text_ref):
+                surrounding_texts.append(item.text)
+                break
+
+            if any(word in item.label for word in text_stop):
                 break
 
         return "\n".join(surrounding_texts)
