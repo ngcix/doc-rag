@@ -63,26 +63,31 @@ class ImageExtractor:
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
 
+    def extract_from_json(self, file_path: str):
+        doc = DoclingDocument.load_from_json(file_path)
+        self._document_processing(file_path, doc)
+
     def extract_from_file(self, file_path: str, **kwargs) -> list[ExtractedImage]:
         """Extract images from PDF file."""
         result = self.converter.convert(file_path)
         doc_filename = os.path.basename(file_path)
 
         result.document.save_as_json(f"{self.output_dir}/documents/{doc_filename}.json")
+        return self._document_processing(file_path, result)
 
-        text_dict = {text.self_ref: text for text in result.document.texts}
-        body_indices = {
-            item.cref: i for i, item in enumerate(result.document.body.children)
-        }
+    def _document_processing(
+        self, file_path: str, document: DoclingDocument
+    ) -> list[ExtractedImage]:
+        doc_filename = os.path.basename(file_path)
+        text_dict = {text.self_ref: text for text in document.texts}
+        body_indices = {item.cref: i for i, item in enumerate(document.body.children)}
         images = []
 
-        for idx, picture in enumerate(result.document.pictures, 1):
-            image_path = self._save_picture_image(
-                picture, result.document, doc_filename, idx
-            )
+        for idx, picture in enumerate(document.pictures, 1):
+            image_path = self._save_picture_image(picture, document, doc_filename, idx)
             page_num, bbox = self._extract_position_info(picture)
             surrounding_text = self._extract_surrounding_text(
-                picture, result.document, text_dict, body_indices
+                picture, document, text_dict, body_indices
             )
             caption = self._extract_caption(picture, text_dict)
 
@@ -176,11 +181,11 @@ class ImageExtractor:
 
         # Find text element in next section
         for i in range(pic_index + 1, len(item_list)):
-            item = text_dict[item_list[i].cref]
+            item = text_dict.get(item_list[i].cref)
             if item is None:
                 continue
 
-            if any(word in item.label for word in text_stop):
+            if any(word in item_list[i].cref for word in text_stop):
                 break
 
             if any(word in item_list[i].cref for word in text_ref):
@@ -189,7 +194,7 @@ class ImageExtractor:
 
         # Find text element in previous section
         for i in range(pic_index - 1, -1, -1):
-            item = text_dict[item_list[i].cref]
+            item = text_dict.get(item_list[i].cref)
             if item is None:
                 continue
 
@@ -197,7 +202,7 @@ class ImageExtractor:
                 surrounding_texts.append(item.text)
                 break
 
-            if any(word in item.label for word in text_stop):
+            if any(word in item_list[i].cref for word in text_stop):
                 break
 
         return "\n".join(surrounding_texts)
@@ -212,3 +217,8 @@ def get_image_extractor() -> ImageExtractor:
     if _extractor is None:
         _extractor = ImageExtractor()
     return _extractor
+
+
+# get_image_extractor().extract_from_json(
+#     os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
+# )
