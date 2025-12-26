@@ -10,7 +10,7 @@ from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import PdfFormatOption
 from docling_core.types.doc.document import PictureItem, DoclingDocument
 
-from src.image_extraction.image_info import ExtractedImage
+from image_info import ExtractedImage
 
 
 def get_image_hash(pil_image) -> str:
@@ -73,7 +73,7 @@ class ImageExtractor:
         doc_filename = os.path.basename(file_path)
 
         result.document.save_as_json(f"{self.output_dir}/documents/{doc_filename}.json")
-        return self._document_processing(file_path, result)
+        return self._document_processing(file_path, result.document)
 
     def _document_processing(
         self, file_path: str, document: DoclingDocument
@@ -84,12 +84,14 @@ class ImageExtractor:
         images = []
 
         for idx, picture in enumerate(document.pictures, 1):
-            image_path = self._save_picture_image(picture, document, doc_filename, idx)
-            page_num, bbox = self._extract_position_info(picture)
+            caption = self._extract_caption(picture, document, text_dict, body_indices)
+            if caption == "": # may not an image, this is a logo, etc...
+                continue
             surrounding_text = self._extract_surrounding_text(
                 picture, document, text_dict, body_indices
             )
-            caption = self._extract_caption(picture, text_dict)
+            image_path = self._save_picture_image(picture, document, doc_filename, idx)
+            page_num, bbox = self._extract_position_info(picture)
 
             extracted_image = ExtractedImage(
                 image_id=get_image_hash(picture.image.pil_image),
@@ -145,9 +147,23 @@ class ImageExtractor:
 
         return page_num, bbox_coords
 
-    def _extract_caption(self, picture: PictureItem, text_dict: dict) -> str:
+    def _extract_caption(
+        self, 
+        picture: PictureItem, 
+        document: DoclingDocument,
+        text_dict: dict,
+        body_indices: dict,) -> str:
         """Extract caption from picture."""
         if not hasattr(picture, "captions") or not picture.captions:
+            item_list = document.body.children
+            pic_index = body_indices[picture.self_ref]
+            if pic_index + 1 >= len(item_list):
+                return ""
+            item = text_dict.get(item_list[pic_index + 1].cref)
+            if item is None:
+                return ""
+            if "caption" in item.label:
+                return item.text
             return ""
 
         caption_texts = [text_dict[cap.cref].text for cap in picture.captions]
@@ -165,7 +181,7 @@ class ImageExtractor:
 
         # Get text from inside picture
         for child in picture.children:
-            surrounding_texts.append(text_dict[child.cref])
+            surrounding_texts.append(text_dict[child.cref].text)
 
         # Find adjacent text elements
         item_list = document.body.children
@@ -185,10 +201,10 @@ class ImageExtractor:
             if item is None:
                 continue
 
-            if any(word in item_list[i].cref for word in text_stop):
+            if any(word in item.label for word in text_stop):
                 break
 
-            if any(word in item_list[i].cref for word in text_ref):
+            if any(word in item.label for word in text_ref):
                 surrounding_texts.append(item.text)
                 break
 
@@ -198,11 +214,11 @@ class ImageExtractor:
             if item is None:
                 continue
 
-            if any(word in item_list[i].cref for word in text_ref):
+            if any(word in item.label for word in text_ref):
                 surrounding_texts.append(item.text)
                 break
 
-            if any(word in item_list[i].cref for word in text_stop):
+            if any(word in item.label for word in text_stop):
                 break
 
         return "\n".join(surrounding_texts)
@@ -219,6 +235,6 @@ def get_image_extractor() -> ImageExtractor:
     return _extractor
 
 
-# get_image_extractor().extract_from_json(
-#     os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
-# )
+get_image_extractor().extract_from_json(
+    os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
+)
