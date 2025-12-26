@@ -58,11 +58,13 @@ class FaissVectorStore:
         return self.config.faiss_index_dir / f"{self.config.collection_name}_metadata.pkl"
     
     def _load_if_exists(self):
-        """Load existing index and metadata if available."""
+        """Load existing index and metadata if available.
+        
+        Note: Index is NOT rebuilt here for performance. Use _ensure_index_ready()
+        before any search operation that requires the index.
+        """
         if self.metadata_path.exists():
             try:
-                import faiss
-                
                 with open(self.metadata_path, 'rb') as f:
                     data = pickle.load(f)
                     self._metadata = data.get('metadata', {})
@@ -71,22 +73,22 @@ class FaissVectorStore:
                     self._embeddings = data.get('embeddings', {})
                     self._dimension = data.get('dimension')
                 
-                # Rebuild index from embeddings to ensure consistency
+                # Mark index as needing rebuild (lazy load)
+                self._index_needs_rebuild = bool(self._embeddings)
                 if self._embeddings:
-                    self._rebuild_index()
-                    print(f"Loaded and rebuilt FAISS index with {self._index.ntotal} vectors")
-                elif self.index_path.exists():
-                    # Fallback to loading raw index if embeddings missing (legacy)
-                    self._index = faiss.read_index(str(self.index_path))
-                    # Attempt to reconstruct id_to_idx/idx_to_id if possible, though it's not perfect without embeddings
-                    # This part is tricky without stored embeddings, so we'll assume it's a legacy index without full rebuild capability
-                    # and rely on the _embeddings for future operations.
-                    print(f"Loaded legacy FAISS index with {self._index.ntotal} vectors (embeddings not found for rebuild)")
+                    print(f"Loaded metadata for {len(self._embeddings)} vectors (index will rebuild on first search)")
                     
             except Exception as e:
                 print(f"Failed to load existing index: {e}")
                 import traceback
                 traceback.print_exc()
+    
+    def _ensure_index_ready(self):
+        """Ensure FAISS index is built and ready for search."""
+        if getattr(self, '_index_needs_rebuild', False) and self._embeddings:
+            self._rebuild_index()
+            self._index_needs_rebuild = False
+            print(f"Rebuilt FAISS index with {self._index.ntotal} vectors")
     
     def _create_index(self, dimension: int):
         """Create a new FAISS index instance."""
@@ -249,6 +251,9 @@ class FaissVectorStore:
         Returns:
             List of search results with documents and scores.
         """
+        # Lazy rebuild: only build index when actually needed for search
+        self._ensure_index_ready()
+        
         if self._index is None or self._index.ntotal == 0:
             return []
         

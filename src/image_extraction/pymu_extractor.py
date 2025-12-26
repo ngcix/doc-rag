@@ -13,6 +13,7 @@ Features:
 from typing import Optional
 from pathlib import Path
 import hashlib
+import re
 
 from config import settings, ensure_directories, EXTRACTED_IMAGES_DIR
 from src.image_extraction.image_info import ExtractedImage
@@ -70,6 +71,29 @@ class PyMuImageExtractor:
         if fitz is None:
             print("Warning: PyMuPDF (fitz) is not installed. Image extraction will not work.")
             print("Install with: pip install pymupdf")
+
+    def _extract_tags_from_text(self, text: str) -> str:
+        """
+        Extract tags from text using regex patterns.
+        Looks for 'Figure X.Y: ...' or 'Table X.Y: ...'
+        """
+        tags = []
+        patterns = [
+            r"(Figure\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Table\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Fig\.\s*\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Hình\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+            r"(Bảng\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
+        ]
+
+        for p in patterns:
+            matches = re.finditer(p, text, re.IGNORECASE)
+            for m in matches:
+                tag = m.group(1).strip()
+                if 5 < len(tag) < 100:
+                    tags.append(tag)
+
+        return ",".join(list(set(tags)))
 
     def extract_from_file(
         self, 
@@ -159,9 +183,10 @@ class PyMuImageExtractor:
                             continue
 
                         image_data = pix.tobytes("png")
-                        image_id = hashlib.md5(image_data).hexdigest()[:8]
-                        # Format: filename_p{page}_crop_{number}.png
-                        image_filename = f"{pdf_path.stem}_p{page_num + 1}_crop_{i + 1}.png"
+                        # Use readable ID instead of hash for easier tagging
+                        # Format: filename_p{page}_crop_{number}
+                        image_id = f"{pdf_path.stem}_p{page_num + 1}_crop_{i + 1}"
+                        image_filename = f"{image_id}.png"
                         image_path = self.output_dir / image_filename
 
                         pix.save(str(image_path))
@@ -177,6 +202,9 @@ class PyMuImageExtractor:
                         # Truncate context text
                         text = text[:self.context_chars] if text else ""
 
+                        # Auto-extract tags from context text
+                        extracted_tags = self._extract_tags_from_text(text)
+
                         extracted_images.append(ExtractedImage(
                             image_id=image_id,
                             image_path=str(image_path),
@@ -186,7 +214,8 @@ class PyMuImageExtractor:
                             region_type="smart_crop",
                             surrounding_text=text,
                             caption="",
-                            description=f"Smart crop from {pdf_path.name}, page {page_num + 1}"
+                            description=f"Smart crop from {pdf_path.name}, page {page_num + 1}",
+                            tags=extracted_tags,
                         ))
 
                         print(f"    Page {page_num + 1}: crop {i + 1} ({int(rect.width)}x{int(rect.height)})")
