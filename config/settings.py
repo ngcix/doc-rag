@@ -6,26 +6,8 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
-def detect_device() -> str:
-    """
-    Detect available device for model inference.
-    
-    Returns:
-        "cuda" if NVIDIA GPU is available, otherwise "cpu".
-    """
-    try:
-        import torch
-        if torch.cuda.is_available():
-            device_name = torch.cuda.get_device_name(0)
-            print(f"🔥 GPU detected: {device_name}")
-            return "cuda"
-    except ImportError:
-        pass
-    except Exception:
-        pass
-    
-    print("💻 Using CPU for inference")
-    return "cpu"
+# Device detection removed - using CPU by default to avoid torch import overhead
+# To use GPU, change device in ModelConfig to "cuda"
 
 
 # Base paths
@@ -54,7 +36,7 @@ class ModelConfig(BaseModel):
 
     model_cache_dir: Path = MODELS_DIR
     max_seq_length: int = 8192
-    device: str = Field(default_factory=detect_device)  # Auto-detect: "cuda" if GPU available, else "cpu"
+    device: str = "cpu"  # Default CPU. Change to "cuda" manually if GPU needed.
     normalize_embeddings: bool = True
 
 
