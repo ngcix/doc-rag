@@ -8,9 +8,20 @@ from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import PdfFormatOption
-from docling_core.types.doc.document import PictureItem, DoclingDocument
+from docling_core.types.doc.document import (
+    PictureItem,
+    DoclingDocument,
+    GroupItem,
+)
 
-from image_info import ExtractedImage
+try:
+    from src.image_extraction.image_info import ExtractedImage
+except:
+    pass
+try:
+    from image_info import ExtractedImage
+except:
+    pass
 
 
 def get_image_hash(pil_image) -> str:
@@ -79,18 +90,29 @@ class ImageExtractor:
         self, file_path: str, document: DoclingDocument
     ) -> list[ExtractedImage]:
         doc_filename = os.path.basename(file_path)
-        text_dict = {text.self_ref: text for text in document.texts}
-        body_indices = {item.cref: i for i, item in enumerate(document.body.children)}
+
+        self.document = document
+        self.item_list = document.body.children
+        self.item_dict = {}
+        self.item_dict.update({item.self_ref: item for item in document.texts})
+        self.item_dict.update({item.self_ref: item for item in document.groups})
+        self.item_dict.update({item.self_ref: item for item in document.tables})
+        self.item_dict.update({item.self_ref: item for item in document.pictures})
+        self.indices = {item.cref: i for i, item in enumerate(document.body.children)}
         images = []
 
+        # preprocess to remove logo, etc...
         for idx, picture in enumerate(document.pictures, 1):
-            caption = self._extract_caption(picture, document, text_dict, body_indices)
-            if caption == "": # may not an image, this is a logo, etc...
+            caption = self._extract_caption(picture)
+            if caption == "":
+                self.item_dict.pop(picture.self_ref)
+
+        for idx, picture in enumerate(document.pictures, 1):
+            caption = self._extract_caption(picture)
+            if caption == "":  # may not an image, this is a logo, etc...
                 continue
-            surrounding_text = self._extract_surrounding_text(
-                picture, document, text_dict, body_indices
-            )
-            image_path = self._save_picture_image(picture, document, doc_filename, idx)
+            surrounding_text = self._extract_surrounding_text(picture)
+            image_path = self._save_picture_image(picture, doc_filename, idx)
             page_num, bbox = self._extract_position_info(picture)
 
             extracted_image = ExtractedImage(
@@ -107,6 +129,7 @@ class ImageExtractor:
 
             images.append(extracted_image)
 
+            print(picture.self_ref)
             print(extracted_image.to_dict())
             print(
                 "========================================================================"
@@ -117,14 +140,13 @@ class ImageExtractor:
     def _save_picture_image(
         self,
         picture: PictureItem,
-        document: DoclingDocument,
         doc_filename: str,
         idx: int,
     ) -> Path:
         """Save picture image to file."""
         image_path = Path(self.pic_dir) / f"{doc_filename}-picture-{idx}.png"
         with image_path.open("wb") as fp:
-            picture.get_image(document).save(fp, "PNG")
+            picture.get_image(self.document).save(fp, "PNG")
         return image_path
 
     def _extract_position_info(self, picture: PictureItem) -> tuple[int, tuple]:
@@ -148,80 +170,95 @@ class ImageExtractor:
         return page_num, bbox_coords
 
     def _extract_caption(
-        self, 
-        picture: PictureItem, 
-        document: DoclingDocument,
-        text_dict: dict,
-        body_indices: dict,) -> str:
+        self,
+        picture: PictureItem,
+    ) -> str:
         """Extract caption from picture."""
         if not hasattr(picture, "captions") or not picture.captions:
-            item_list = document.body.children
-            pic_index = body_indices[picture.self_ref]
-            if pic_index + 1 >= len(item_list):
+            pic_index = self.indices[picture.self_ref]
+            if pic_index + 1 >= len(self.item_list):
                 return ""
-            item = text_dict.get(item_list[pic_index + 1].cref)
+            item = self.item_dict.get(self.item_list[pic_index + 1].cref)
             if item is None:
                 return ""
             if "caption" in item.label:
                 return item.text
             return ""
 
-        caption_texts = [text_dict[cap.cref].text for cap in picture.captions]
+        caption_texts = [self.item_dict[cap.cref].text for cap in picture.captions]
         return " ".join(caption_texts).strip()
 
-    def _extract_surrounding_text(
-        self,
-        picture: PictureItem,
-        document: DoclingDocument,
-        text_dict: dict,
-        body_indices: dict,
-    ) -> str:
+    def _extract_surrounding_text(self, picture: PictureItem) -> str:
         """Extract surrounding text from picture context."""
-        surrounding_texts = []
+        surrounding_ref = []
 
         # Get text from inside picture
         for child in picture.children:
-            surrounding_texts.append(text_dict[child.cref].text)
+            surrounding_ref.append(child.cref)
 
         # Find adjacent text elements
-        item_list = document.body.children
-        text_ref = ["text"]
-        text_stop = ["header", "picture", "table", "caption"]
-        """When searching text around this picture, skip if:
-            - Meet other picture/table's caption
-            - Meet other picture/table
-            - Searching up and meet a header, this can be added
-            - Searching down and meet a header, this can NOT be added"""
+        pic_index = self.indices[picture.self_ref]
 
-        pic_index = body_indices[picture.self_ref]
-
+        # TODO: What to do with "formula"
         # Find text element in next section
-        for i in range(pic_index + 1, len(item_list)):
-            item = text_dict.get(item_list[i].cref)
-            if item is None:
+        for i in range(pic_index + 1, len(self.item_list)):
+            item = self.item_dict.get(self.item_list[i].cref)
+            if item is None or any(
+                word in item.label for word in ["caption", "page_footer", "page_header"]
+            ):
                 continue
 
-            if any(word in item.label for word in text_stop):
+            if any(word in item.label for word in ["header", "picture", "table"]):
                 break
-
-            if any(word in item.label for word in text_ref):
-                surrounding_texts.append(item.text)
-                break
+            if "text" in item.label:
+                surrounding_ref.append(item.self_ref)
+                continue
+            if "group" in item.self_ref:
+                surrounding_ref = surrounding_ref + self._get_text_ref_from_group(item)
+                continue
 
         # Find text element in previous section
         for i in range(pic_index - 1, -1, -1):
-            item = text_dict.get(item_list[i].cref)
-            if item is None:
+            item = self.item_dict.get(self.item_list[i].cref)
+            if item is None or any(
+                word in item.label for word in ["page_footer", "page_header"]
+            ):
                 continue
 
-            if any(word in item.label for word in text_ref):
-                surrounding_texts.append(item.text)
+            if any(
+                word in item.label for word in ["header", "picture", "table", "caption"]
+            ):
                 break
+            if "text" in item.label:
+                surrounding_ref.insert(0, item.self_ref)
+                continue
+            if "group" in item.self_ref:
+                surrounding_ref = surrounding_ref + self._get_text_ref_from_group(item)
+                continue
 
-            if any(word in item.label for word in text_stop):
-                break
+        surrounding_texts = []
+        for cref in surrounding_ref:
+            item = self.item_dict.get(cref)
+            if item is None:
+                continue
+            surrounding_texts.append(item.text)
 
         return "\n".join(surrounding_texts)
+
+    def _get_text_ref_from_group(self, group_item: GroupItem) -> list[str]:
+        text_list = []
+        for children in group_item.children:
+            item = self.item_dict.get(children.cref)
+            if item is None:
+                continue
+            if "text" in children.cref:
+                text_list.append(item.self_ref)
+            if "group" in children.cref:
+                item = self.item_dict.get(children.cref)
+                if item is None:
+                    continue
+                text_list.append(self._get_text_ref_from_group(item))
+        return text_list
 
 
 _extractor = None
@@ -235,6 +272,7 @@ def get_image_extractor() -> ImageExtractor:
     return _extractor
 
 
-get_image_extractor().extract_from_json(
-    os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
-)
+if __name__ == "__main__":
+    get_image_extractor().extract_from_json(
+        os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
+    )
