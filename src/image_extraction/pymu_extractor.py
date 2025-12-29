@@ -24,6 +24,26 @@ except ImportError:
     fitz = None
 
 
+
+class UnionFind:
+    """Helper class for Union-Find algorithm."""
+    def __init__(self, size):
+        self.parent = list(range(size))
+    
+    def find(self, i):
+        if self.parent[i] != i:
+            self.parent[i] = self.find(self.parent[i])
+        return self.parent[i]
+    
+    def union(self, i, j):
+        root_i = self.find(i)
+        root_j = self.find(j)
+        if root_i != root_j:
+            self.parent[root_i] = root_j
+            return True
+        return False
+
+
 class PyMuImageExtractor:
     """
     Extracts image regions from PDF documents using PyMuPDF smart cropping.
@@ -232,50 +252,91 @@ class PyMuImageExtractor:
             return []
 
     def _cluster_drawings(self, page) -> list:
-        """Cluster vector drawings into diagram regions."""
+        """
+        Cluster vector drawings into diagram regions using Grid-based Union-Find.
+        O(N) complexity for sparse grids.
+        """
         drawings = page.get_drawings()
         if not drawings:
             return []
 
-        # Filter valid drawing paths
+        # 1. Filter valid rects
         valid_rects = []
         for d in drawings:
             rect = d["rect"]
             if rect.width > 5 or rect.height > 5:
                 valid_rects.append(rect)
-
-        if not valid_rects:
+        
+        n = len(valid_rects)
+        if n == 0:
             return []
+        if n == 1:
+            return valid_rects
+        
+        # 2. Setup Union-Find and Grid
+        uf = UnionFind(n)
+        
+        # Grid cell size = merge distance. 
+        cell_size = self.cluster_merge_distance
+        grid = {}
+        
+        for i, rect in enumerate(valid_rects):
+            start_x = int(rect.x0 // cell_size)
+            end_x = int(rect.x1 // cell_size)
+            start_y = int(rect.y0 // cell_size)
+            end_y = int(rect.y1 // cell_size)
+            
+            for gx in range(start_x, end_x + 1):
+                for gy in range(start_y, end_y + 1):
+                    key = (gx, gy)
+                    if key not in grid:
+                        grid[key] = []
+                    grid[key].append(i)
+        
+        # 3. Check adjacencies within grid cells
+        dist = self.cluster_merge_distance
+        
+        for key, indices in grid.items():
+            if len(indices) < 2:
+                continue
+                
+            for i_idx in range(len(indices)):
+                idx_a = indices[i_idx]
+                rect_a = valid_rects[idx_a]
+                
+                # Expand A
+                expanded_a = fitz.Rect(rect_a)
+                expanded_a.x0 -= dist; expanded_a.y0 -= dist
+                expanded_a.x1 += dist; expanded_a.y1 += dist
+                
+                for j_idx in range(i_idx + 1, len(indices)):
+                    idx_b = indices[j_idx]
+                    
+                    if uf.find(idx_a) == uf.find(idx_b):
+                        continue
+                    
+                    rect_b = valid_rects[idx_b]
+                    if rect_b.intersects(expanded_a):
+                        uf.union(idx_a, idx_b)
 
-        # Sort for clustering
-        valid_rects.sort(key=lambda r: (r.y0, r.x0))
-
-        clusters = []
-        if valid_rects:
-            current_cluster = fitz.Rect(valid_rects[0])
-
-            for rect in valid_rects[1:]:
-                # Expand cluster by merge distance
-                expanded = fitz.Rect(current_cluster)
-                dist = self.cluster_merge_distance
-                expanded.x0 -= dist
-                expanded.y0 -= dist
-                expanded.x1 += dist
-                expanded.y1 += dist
-
-                if rect.intersects(expanded):
-                    current_cluster.include_rect(rect)
-                else:
-                    clusters.append(current_cluster)
-                    current_cluster = fitz.Rect(rect)
-            clusters.append(current_cluster)
-
-        # Filter small clusters
+        # 4. Group by root
+        groups = {}
+        for i in range(n):
+            root = uf.find(i)
+            if root not in groups:
+                groups[root] = []
+            groups[root].append(valid_rects[i])
+            
+        # 5. Create final rects
         final_clusters = []
-        for c in clusters:
-            if c.width >= self.min_diagram_size and c.height >= self.min_diagram_size:
-                final_clusters.append(c)
-
+        for root, rects in groups.items():
+            cluster_rect = fitz.Rect(rects[0])
+            for r in rects[1:]:
+                cluster_rect.include_rect(r)
+                
+            if cluster_rect.width >= self.min_diagram_size and cluster_rect.height >= self.min_diagram_size:
+                final_clusters.append(cluster_rect)
+                
         return final_clusters
 
     def _merge_nearby_blocks(self, rects: list) -> list:
