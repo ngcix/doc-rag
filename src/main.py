@@ -7,17 +7,48 @@ import argparse
 import shutil
 from pathlib import Path
 from typing import Optional
+import concurrent.futures
+from tqdm import tqdm
 
 from config import (
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
-from src.chunking import DocumentChunker
+from src.chunking import DocumentChunker, chunk_documents
 from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine
 from src.sequence_chart import get_chart_processor
 from src.image_extraction import get_image_extractor, get_vectorization_data
+
+
+def _process_chunking(file_path: Path) -> list:
+    """Helper for parallel chunking."""
+    try:
+        # Re-instantiate chunker in each process to avoid pickling issues
+        # or use the convenience function which does it internally
+        return chunk_documents(file_path)
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return []
+
+
+def _process_extraction(args) -> list:
+    """Helper for parallel image extraction."""
+    pdf_file, mode, fullpage_mode = args
+    if not pdf_file.exists():
+        return []
+    
+    try:
+        extractor = get_image_extractor(mode)
+        # Avoid print in parallel process or it might get messy, 
+        # but for now let's keep it minimal or just return results
+        return extractor.extract_from_file(pdf_file, fullpage_mode=fullpage_mode)
+    except Exception as e:
+        # print(f"Error extracting images from {pdf_file}: {e}")
+        # Return empty list on error
+        return []
+
 
 
 def process_documents(
@@ -63,11 +94,33 @@ def process_documents(
     items_to_vectorize = []
     
     # 1. Process regular documents (text)
-    print("\n[1/3] Processing documents...")
-    # Hybrid Mode: Process ALL files (including PDFs) as text chunks.
-    # This ensures granular text search works (finding specific sentences),
-    # while the Image Extractor adds the visual/contextual layer.
-    chunks = chunker.chunk_directory(input_dir)
+    print("\n[1/3] Processing documents (Parallel)...")
+    
+    # Collect files
+    extensions = ['.txt', '.md', '.pdf', '.docx', '.markdown']
+    files_to_chunk = []
+    # Use set to avoid duplicates if glob matches multiple patterns (though unlikely with these extensions)
+    # But glob is case sensitive on some OS. Windows is usually case insensitive.
+    # Let's simple iterate. 
+    for ext in extensions:
+        files_to_chunk.extend(list(input_dir.glob(f"**/*{ext}")))
+    
+    # Remove duplicates just in case
+    files_to_chunk = list(set(files_to_chunk))
+    
+    chunks = []
+    if files_to_chunk:
+        print(f"  Found {len(files_to_chunk)} files to chunk.")
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # chunk_documents helper fits perfectly here
+            results = list(tqdm(
+                executor.map(_process_chunking, files_to_chunk), 
+                total=len(files_to_chunk), 
+                desc="  Chunking files"
+            ))
+            for res in results:
+                chunks.extend(res)
+
     print(f"  Extracted {len(chunks)} text chunks")
     
     # Prepare text chunks for vectorization
@@ -82,24 +135,27 @@ def process_documents(
     
     # 2. Extract images from PDFs
     if include_images:
-        print("\n[2/3] Extracting images from PDFs...")
-        for pdf_file in input_dir.glob("**/*.pdf"):
-            try:
-                extracted = image_extractor.extract_from_file(
-                    pdf_file, 
-                    fullpage_mode=fullpage_mode
-                )
-                if extracted:
-                    total_images += len(extracted)
-                    # Get image data
-                    image_data = get_vectorization_data(extracted)
-                    for data in image_data:
-                        data["type"] = "image"
-                        items_to_vectorize.append(data)
-                        
-                    print(f"  Extracted {len(extracted)} images from {pdf_file.name}")
-            except Exception as e:
-                print(f"  Error extracting images from {pdf_file}: {e}")
+        print("\n[2/3] Extracting images from PDFs (Parallel)...")
+        pdf_files = list(input_dir.glob("**/*.pdf"))
+        
+        if pdf_files:
+            extract_args = [(p, mode, fullpage_mode) for p in pdf_files]
+            
+            with concurrent.futures.ProcessPoolExecutor() as executor:
+                results = list(tqdm(
+                    executor.map(_process_extraction, extract_args), 
+                    total=len(pdf_files), 
+                    desc="  Extracting from PDFs"
+                ))
+                
+                for i, extracted in enumerate(results):
+                    if extracted:
+                        total_images += len(extracted)
+                        image_data = get_vectorization_data(extracted)
+                        for data in image_data:
+                            data["type"] = "image"
+                            items_to_vectorize.append(data)
+                            
         print(f"  Total images processed: {total_images}")
     
     # 3. Process sequence charts

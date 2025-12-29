@@ -10,7 +10,7 @@ from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import PdfFormatOption
 from docling_core.types.doc.document import PictureItem, DoclingDocument
 
-from image_info import ExtractedImage
+from src.image_extraction.image_info import ExtractedImage
 
 
 def get_image_hash(pil_image) -> str:
@@ -235,6 +235,6 @@ def get_image_extractor() -> ImageExtractor:
     return _extractor
 
 
-get_image_extractor().extract_from_json(
-    os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
-)
+# get_image_extractor().extract_from_json(
+#     os.path.join(os.getcwd(), "data/documents/A2DP_v1.4.1.pdf.json")
+# )
