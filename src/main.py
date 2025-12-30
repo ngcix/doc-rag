@@ -5,10 +5,23 @@ This module provides the main CLI interface for the RAG system.
 """
 import argparse
 import shutil
+import time
 from pathlib import Path
 from typing import Optional
 import concurrent.futures
 from tqdm import tqdm
+
+
+def _format_duration(seconds: float) -> str:
+    """Format duration in human readable format."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    elif seconds < 60:
+        return f"{seconds:.2f}s"
+    else:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.1f}s"
 
 from config import (
     settings, ensure_directories,
@@ -95,6 +108,7 @@ def process_documents(
     
     # 1. Process regular documents (text)
     print("\n[1/3] Processing documents (Parallel)...")
+    step_start = time.perf_counter()
     
     # Collect files
     extensions = ['.txt', '.md', '.pdf', '.docx', '.markdown']
@@ -121,7 +135,8 @@ def process_documents(
             for res in results:
                 chunks.extend(res)
 
-    print(f"  Extracted {len(chunks)} text chunks")
+    chunking_time = time.perf_counter() - step_start
+    print(f"  Extracted {len(chunks)} text chunks (took {_format_duration(chunking_time)})")
     
     # Prepare text chunks for vectorization
     for chunk in chunks:
@@ -134,8 +149,10 @@ def process_documents(
         })
     
     # 2. Extract images from PDFs
+    extraction_time = 0
     if include_images:
         print("\n[2/3] Extracting images from PDFs (Parallel)...")
+        step_start = time.perf_counter()
         pdf_files = list(input_dir.glob("**/*.pdf"))
         
         if pdf_files:
@@ -155,12 +172,15 @@ def process_documents(
                         for data in image_data:
                             data["type"] = "image"
                             items_to_vectorize.append(data)
-                            
-        print(f"  Total images processed: {total_images}")
+        
+        extraction_time = time.perf_counter() - step_start
+        print(f"  Total images processed: {total_images} (took {_format_duration(extraction_time)})")
     
     # 3. Process sequence charts
+    chart_time = 0
     if include_charts:
         print("\n[3/3] Processing sequence charts...")
+        step_start = time.perf_counter()
         for md_file in input_dir.glob("**/*.md"):
             try:
                 charts = chart_processor.process_file(md_file, export_images=True)
@@ -173,10 +193,14 @@ def process_documents(
                     print(f"  Added {len(charts)} charts from {md_file.name}")
             except Exception as e:
                 print(f"  Error processing {md_file}: {e}")
+        chart_time = time.perf_counter() - step_start
+        print(f"  Charts processing completed (took {_format_duration(chart_time)})")
     
     # 4. Vectorize and Store
+    vectorize_time = 0
     if items_to_vectorize:
         print(f"\n[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
+        step_start = time.perf_counter()
         
         # Extract contents for batch vectorization
         texts = [item["content"] for item in items_to_vectorize]
@@ -193,12 +217,26 @@ def process_documents(
             item["metadata"]["content_type"] = item["type"]
             
         vector_store.add_chunks(items_to_vectorize)
+        vectorize_time = time.perf_counter() - step_start
+        print(f"  Vectorization completed (took {_format_duration(vectorize_time)})")
+    
+    # Calculate total time
+    total_time = chunking_time + extraction_time + chart_time + vectorize_time
     
     print("\n" + "=" * 50)
     print("Processing complete!")
     print(f"  Text chunks: {len(chunks)}")
     print(f"  Images extracted: {total_images}")
     print(f"  Total items in database: {vector_store.count()}")
+    print("\n⏱️  Time Report:")
+    print(f"  Chunking:      {_format_duration(chunking_time)}")
+    if include_images:
+        print(f"  Image Extract: {_format_duration(extraction_time)}")
+    if include_charts:
+        print(f"  Charts:        {_format_duration(chart_time)}")
+    print(f"  Vectorization: {_format_duration(vectorize_time)}")
+    print(f"  ─────────────────")
+    print(f"  Total:         {_format_duration(total_time)}")
 
 
 def search_documents(
@@ -209,6 +247,8 @@ def search_documents(
     """
     Search through vectorized documents.
     """
+    start_time = time.perf_counter()
+    
     print(f"Searching for: '{query}'")
     print(f"Using backend: {settings.vectordb.backend}")
     print("-" * 50)
@@ -220,8 +260,11 @@ def search_documents(
     else:
         results = engine.search(query, top_k=top_k)
     
+    search_time = time.perf_counter() - start_time
+    
     # Display results
     print(engine.format_results(results, format_type="text"))
+    print(f"\n⏱️  Search completed in {_format_duration(search_time)}")
     
     return results
 
@@ -280,6 +323,8 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
     
     # Clean directories
     print("\nCleaning...")
+    start_time = time.perf_counter()
+    
     for dir_path, name in dirs_to_clean:
         if dir_path.exists():
             try:
@@ -295,15 +340,18 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
         else:
             print(f"  - {name} not exists, skipped")
     
+    clean_time = time.perf_counter() - start_time
+    
     # Recreate directories
     ensure_directories()
-    print("\nClean completed!")
+    print(f"\nClean completed! (took {_format_duration(clean_time)})")
 
 
 def add_tag(doc_id: str, tag: str):
     """
     Add a tag to a document's metadata AND update its vector embedding.
     """
+    start_time = time.perf_counter()
     vector_store = get_vector_store()
     
     try:
@@ -335,7 +383,9 @@ def add_tag(doc_id: str, tag: str):
         # 4. Generate New Embedding
         # Lazy import to avoid circular dependency issues at top level if any
         from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
         
         # 5. Atomic-ish Update (Delete then Add)
         # Note: This effectively replaces the document
@@ -351,10 +401,15 @@ def add_tag(doc_id: str, tag: str):
             documents=[new_content],
             metadatas=[updated_metadata]
         )
-            
+        
+        total_time = time.perf_counter() - start_time
+        
         print(f"Successfully added tag '{tag}' to document '{doc_id}'")
         print(f"Updated Tags: {new_tags}")
         print("Vector embedding updated to include new tag.")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
         
     except Exception as e:
         print(f"Error adding tag: {e}")
