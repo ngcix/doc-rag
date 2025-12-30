@@ -164,7 +164,7 @@ User (Text + Image Query)
 ### 8-Step Data Flow
 
 | Step | Component | Action |
-|------|-----------|--------|
+| ------ | ----------- | -------- |
 | **①** | Chunker & ImgExt | Extract content from documents |
 | **②** | Embedding Model | Vectorize text + images (OCR) |
 | **③** | FAISS | Index vectors (N+M embeddings) |
@@ -217,16 +217,99 @@ graph LR
 | **PyMuPDF Smart Crop** | `-pymu` | Smart detection & cropping of figures | Individual images, vector drawings |
 | **Docling** | `-dl` | Extract using Docling library | Alternative extraction method |
 
-#### PyMuPDF Smart Cropping Features
+---
 
-The `-pymu` mode uses intelligent detection to extract:
+#### 🔵 Full-Page Mode (`-fp`) - How It Works
 
-| Feature | Description |
-|---------|-------------|
-| **Bitmap Detection** | Extracts embedded bitmap images from PDFs |
-| **Vector Clustering** | Groups nearby vector drawings into diagram regions |
-| **Region Merging** | Combines overlapping/adjacent elements |
-| **Context Capture** | Extracts surrounding text (150px below, 80px above) |
+**File**: `src/image_extraction/extractor.py` → `_extract_fullpage_from_pdf()`
+
+```txt
+PDF Page                          ExtractedImage
+┌─────────────────────┐           ┌─────────────────────┐
+│  Title / Header     │           │ image_id: doc_p1    │
+│  ─────────────────  │           │ region_type: fullpage│
+│  [Diagram/Chart]    │  ──────►  │ surrounding_text:   │
+│  Caption below      │           │   "Full page text..." │
+│  Body text...       │           │   (max 10,000 chars) │
+│  ─────────────────  │           │ bbox: (0,0,W,H)     │
+│  Footer             │           └─────────────────────┘
+└─────────────────────┘
+```
+
+**Flow**:
+
+1. **Filter Blank Pages**: Check if page has images (`get_images()`) or drawings (`get_drawings()`)
+2. **Render Full Page**: `page.get_pixmap(dpi=150)` → Save as PNG
+3. **Extract Context**: `page.get_text()` → Get ALL text from page (max 10,000 chars)
+4. **Auto-Tag**: Regex scan for `Figure X.Y`, `Table X.Y` patterns
+
+**Pros**: Maximum context, great for complex layouts
+**Cons**: Large file size, embedding may be "diluted" with too much text
+
+---
+
+#### 🟢 PyMuPDF Smart Crop (`-pymu`) - How It Works
+
+**File**: `src/image_extraction/pymu_extractor.py` → `_extract_smart_crops()`
+
+```txt
+PDF Page                              Context Window
+┌─────────────────────────────────┐
+│                                 │
+│  ┌───────────────────────────┐  │   
+│  │  y0 -= 80px (title zone)  │  │   ← Look for title
+│  ├───────────────────────────┤  │
+│  │                           │  │
+│  │   IMAGE BBOX (detected)   │  │   ← Smart detected region
+│  │                           │  │
+│  ├───────────────────────────┤  │
+│  │  y1 += 150px (caption)    │  │   ← Look for caption
+│  └───────────────────────────┘  │
+│        ↑ x0-20px    x1+20px ↑   │   ← Horizontal padding
+└─────────────────────────────────┘
+
+       page.get_text(clip=context_rect)
+              ↓
+    ExtractedImage.surrounding_text
+         (max 5,000 chars)
+```
+
+**Flow**:
+
+1. **Detect Regions**:
+   - A. `page.get_image_info()` → Embedded bitmap images
+   - B. `_cluster_drawings()` → Vector drawings (Union-Find algorithm)
+   - C. `_merge_nearby_blocks()` → Merge overlapping regions
+
+2. **Create Context Window**:
+
+   ```python
+   context_rect = fitz.Rect(image_bbox)
+   context_rect.y0 -= 80    # 80px above (title)
+   context_rect.y1 += 150   # 150px below (caption)
+   context_rect.x0 -= 20    # 20px left
+   context_rect.x1 += 20    # 20px right
+   ```
+
+3. **Extract Context**: `page.get_text(clip=context_rect)` → ONLY text within expanded bbox
+
+4. **Auto-Tag**: Regex scan for `Figure X.Y`, `Table X.Y` in context text
+
+**Pros**: Small file size, focused context, precise cropping
+**Cons**: May miss context if caption is far from image
+
+---
+
+#### 📊 Comparison Table
+
+| Aspect | `-fp` (Full-Page) | `-pymu` (Smart Crop) |
+|--------|-------------------|----------------------|
+| **Context Source** | Entire page text | Expanded bbox (±80-150px) |
+| **Context Limit** | 10,000 chars | 5,000 chars |
+| **Image Size** | Large (full page) | Small (cropped region) |
+| **Best For** | Complex layouts, diagrams | Individual figures, charts |
+| **Context Binding** | All text on page | Text near image only |
+| **Detection Method** | Page-level filter | Smart clustering |
 
 ### Auto-Tagging
 
