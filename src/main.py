@@ -540,7 +540,7 @@ def main():
         # Manual Validation for Strategy
         if not args.no_images:
             if not (args.fullpage or args.pymupdf or args.docling):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu)")
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu) OR --docling (-dl)")
                 
         mode = "fp"
         if args.pymupdf:

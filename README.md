@@ -75,9 +75,13 @@ python -m src.main process -fp
 # [ALTERNATIVE] PyMuPDF Mode (-pymu)
 # Extracts individual embedded images. Precision focus.
 python -m src.main process -pymu
+
+# [ALTERNATIVE] Docling Mode (-pymu)
+# Extracts individual embedded images. Precision focus.
+python -m src.main process -dl
 ```
 
-> ⚠️ **Note**: You MUST specify either `-fp` or `-pymu`. The system will error if neither is provided.
+> ⚠️ **Note**: You MUST specify either `-fp` or `-pymu` or `-dl`. The system will error if neither is provided.
 
 ### 4. Search
 
