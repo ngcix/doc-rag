@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+# Device detection removed - using CPU by default to avoid torch import overhead
+# To use GPU, change device in ModelConfig to "cuda"
+
+
 # Base paths
 BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -32,7 +36,7 @@ class ModelConfig(BaseModel):
 
     model_cache_dir: Path = MODELS_DIR
     max_seq_length: int = 8192
-    device: str = "cpu"  # or "cuda" if GPU available
+    device: str = "cpu"  # Default CPU. Change to "cuda" manually if GPU needed.
     normalize_embeddings: bool = True
 
 

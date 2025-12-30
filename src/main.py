@@ -5,19 +5,63 @@ This module provides the main CLI interface for the RAG system.
 """
 import argparse
 import shutil
+import time
 from pathlib import Path
 from typing import Optional
+import concurrent.futures
+from tqdm import tqdm
+
+
+def _format_duration(seconds: float) -> str:
+    """Format duration in human readable format."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    elif seconds < 60:
+        return f"{seconds:.2f}s"
+    else:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.1f}s"
 
 from config import (
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
-from src.chunking import DocumentChunker
+from src.chunking import DocumentChunker, chunk_documents
 from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine
 from src.sequence_chart import get_chart_processor
 from src.image_extraction import get_image_extractor, get_vectorization_data
+
+
+def _process_chunking(file_path: Path) -> list:
+    """Helper for parallel chunking."""
+    try:
+        # Re-instantiate chunker in each process to avoid pickling issues
+        # or use the convenience function which does it internally
+        return chunk_documents(file_path)
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return []
+
+
+def _process_extraction(args) -> list:
+    """Helper for parallel image extraction."""
+    pdf_file, mode, fullpage_mode = args
+    if not pdf_file.exists():
+        return []
+    
+    try:
+        extractor = get_image_extractor(mode)
+        # Avoid print in parallel process or it might get messy, 
+        # but for now let's keep it minimal or just return results
+        return extractor.extract_from_file(pdf_file, fullpage_mode=fullpage_mode)
+    except Exception as e:
+        # print(f"Error extracting images from {pdf_file}: {e}")
+        # Return empty list on error
+        return []
+
 
 
 def process_documents(
@@ -63,12 +107,36 @@ def process_documents(
     items_to_vectorize = []
     
     # 1. Process regular documents (text)
-    print("\n[1/3] Processing documents...")
-    # Hybrid Mode: Process ALL files (including PDFs) as text chunks.
-    # This ensures granular text search works (finding specific sentences),
-    # while the Image Extractor adds the visual/contextual layer.
-    chunks = chunker.chunk_directory(input_dir)
-    print(f"  Extracted {len(chunks)} text chunks")
+    print("\n[1/3] Processing documents (Parallel)...")
+    step_start = time.perf_counter()
+    
+    # Collect files
+    extensions = ['.txt', '.md', '.pdf', '.docx', '.markdown']
+    files_to_chunk = []
+    # Use set to avoid duplicates if glob matches multiple patterns (though unlikely with these extensions)
+    # But glob is case sensitive on some OS. Windows is usually case insensitive.
+    # Let's simple iterate. 
+    for ext in extensions:
+        files_to_chunk.extend(list(input_dir.glob(f"**/*{ext}")))
+    
+    # Remove duplicates just in case
+    files_to_chunk = list(set(files_to_chunk))
+    
+    chunks = []
+    if files_to_chunk:
+        print(f"  Found {len(files_to_chunk)} files to chunk.")
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # chunk_documents helper fits perfectly here
+            results = list(tqdm(
+                executor.map(_process_chunking, files_to_chunk), 
+                total=len(files_to_chunk), 
+                desc="  Chunking files"
+            ))
+            for res in results:
+                chunks.extend(res)
+
+    chunking_time = time.perf_counter() - step_start
+    print(f"  Extracted {len(chunks)} text chunks (took {_format_duration(chunking_time)})")
     
     # Prepare text chunks for vectorization
     for chunk in chunks:
@@ -81,30 +149,38 @@ def process_documents(
         })
     
     # 2. Extract images from PDFs
+    extraction_time = 0
     if include_images:
-        print("\n[2/3] Extracting images from PDFs...")
-        for pdf_file in input_dir.glob("**/*.pdf"):
-            try:
-                extracted = image_extractor.extract_from_file(
-                    pdf_file, 
-                    fullpage_mode=fullpage_mode
-                )
-                if extracted:
-                    total_images += len(extracted)
-                    # Get image data
-                    image_data = get_vectorization_data(extracted)
-                    for data in image_data:
-                        data["type"] = "image"
-                        items_to_vectorize.append(data)
-                        
-                    print(f"  Extracted {len(extracted)} images from {pdf_file.name}")
-            except Exception as e:
-                print(f"  Error extracting images from {pdf_file}: {e}")
-        print(f"  Total images processed: {total_images}")
+        print("\n[2/3] Extracting images from PDFs (Parallel)...")
+        step_start = time.perf_counter()
+        pdf_files = list(input_dir.glob("**/*.pdf"))
+        
+        if pdf_files:
+            extract_args = [(p, mode, fullpage_mode) for p in pdf_files]
+            
+            with concurrent.futures.ProcessPoolExecutor() as executor:
+                results = list(tqdm(
+                    executor.map(_process_extraction, extract_args), 
+                    total=len(pdf_files), 
+                    desc="  Extracting from PDFs"
+                ))
+                
+                for i, extracted in enumerate(results):
+                    if extracted:
+                        total_images += len(extracted)
+                        image_data = get_vectorization_data(extracted)
+                        for data in image_data:
+                            data["type"] = "image"
+                            items_to_vectorize.append(data)
+        
+        extraction_time = time.perf_counter() - step_start
+        print(f"  Total images processed: {total_images} (took {_format_duration(extraction_time)})")
     
     # 3. Process sequence charts
+    chart_time = 0
     if include_charts:
         print("\n[3/3] Processing sequence charts...")
+        step_start = time.perf_counter()
         for md_file in input_dir.glob("**/*.md"):
             try:
                 charts = chart_processor.process_file(md_file, export_images=True)
@@ -117,10 +193,14 @@ def process_documents(
                     print(f"  Added {len(charts)} charts from {md_file.name}")
             except Exception as e:
                 print(f"  Error processing {md_file}: {e}")
+        chart_time = time.perf_counter() - step_start
+        print(f"  Charts processing completed (took {_format_duration(chart_time)})")
     
     # 4. Vectorize and Store
+    vectorize_time = 0
     if items_to_vectorize:
         print(f"\n[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
+        step_start = time.perf_counter()
         
         # Extract contents for batch vectorization
         texts = [item["content"] for item in items_to_vectorize]
@@ -137,12 +217,26 @@ def process_documents(
             item["metadata"]["content_type"] = item["type"]
             
         vector_store.add_chunks(items_to_vectorize)
+        vectorize_time = time.perf_counter() - step_start
+        print(f"  Vectorization completed (took {_format_duration(vectorize_time)})")
+    
+    # Calculate total time
+    total_time = chunking_time + extraction_time + chart_time + vectorize_time
     
     print("\n" + "=" * 50)
     print("Processing complete!")
     print(f"  Text chunks: {len(chunks)}")
     print(f"  Images extracted: {total_images}")
     print(f"  Total items in database: {vector_store.count()}")
+    print("\n⏱️  Time Report:")
+    print(f"  Chunking:      {_format_duration(chunking_time)}")
+    if include_images:
+        print(f"  Image Extract: {_format_duration(extraction_time)}")
+    if include_charts:
+        print(f"  Charts:        {_format_duration(chart_time)}")
+    print(f"  Vectorization: {_format_duration(vectorize_time)}")
+    print(f"  ─────────────────")
+    print(f"  Total:         {_format_duration(total_time)}")
 
 
 def search_documents(
@@ -153,6 +247,8 @@ def search_documents(
     """
     Search through vectorized documents.
     """
+    start_time = time.perf_counter()
+    
     print(f"Searching for: '{query}'")
     print(f"Using backend: {settings.vectordb.backend}")
     print("-" * 50)
@@ -164,8 +260,11 @@ def search_documents(
     else:
         results = engine.search(query, top_k=top_k)
     
+    search_time = time.perf_counter() - start_time
+    
     # Display results
     print(engine.format_results(results, format_type="text"))
+    print(f"\n⏱️  Search completed in {_format_duration(search_time)}")
     
     return results
 
@@ -224,6 +323,8 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
     
     # Clean directories
     print("\nCleaning...")
+    start_time = time.perf_counter()
+    
     for dir_path, name in dirs_to_clean:
         if dir_path.exists():
             try:
@@ -239,15 +340,18 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
         else:
             print(f"  - {name} not exists, skipped")
     
+    clean_time = time.perf_counter() - start_time
+    
     # Recreate directories
     ensure_directories()
-    print("\nClean completed!")
+    print(f"\nClean completed! (took {_format_duration(clean_time)})")
 
 
 def add_tag(doc_id: str, tag: str):
     """
     Add a tag to a document's metadata AND update its vector embedding.
     """
+    start_time = time.perf_counter()
     vector_store = get_vector_store()
     
     try:
@@ -279,7 +383,9 @@ def add_tag(doc_id: str, tag: str):
         # 4. Generate New Embedding
         # Lazy import to avoid circular dependency issues at top level if any
         from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
         
         # 5. Atomic-ish Update (Delete then Add)
         # Note: This effectively replaces the document
@@ -295,10 +401,15 @@ def add_tag(doc_id: str, tag: str):
             documents=[new_content],
             metadatas=[updated_metadata]
         )
-            
+        
+        total_time = time.perf_counter() - start_time
+        
         print(f"Successfully added tag '{tag}' to document '{doc_id}'")
         print(f"Updated Tags: {new_tags}")
         print("Vector embedding updated to include new tag.")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
         
     except Exception as e:
         print(f"Error adding tag: {e}")
@@ -484,10 +595,12 @@ def main():
         # Manual Validation for Strategy
         if not args.no_images:
             if not (args.fullpage or args.pymupdf or args.docling):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu)")
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu) OR --docling (-dl)")
                 
         mode = "fp"
-        if args.docling:
+        if args.pymupdf:
+            mode = "pymu"
+        elif args.docling:
             mode = "dl"
         
         process_documents(

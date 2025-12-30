@@ -10,6 +10,7 @@ from config.settings import ImageExtractionConfig
 from src.image_extraction.image_info import ExtractedImage
 import src.image_extraction.extractor as paddle
 import src.image_extraction.docling_extractor as docling
+import src.image_extraction.pymu_extractor as pymu
 
 __all__ = [
     # Image extraction
@@ -24,6 +25,8 @@ def get_image_extractor(mode):
         return paddle.get_image_extractor()
     if mode == "dl":
         return docling.get_image_extractor()
+    if mode == "pymu":
+        return pymu.get_image_extractor()
     return None  # Should not happen
 
 def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:

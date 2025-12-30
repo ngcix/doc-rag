@@ -3,7 +3,7 @@ name = "simple-rag"
 version = "0.1.0"
 description = "A simple RAG system with chunking, vectorization, and semantic search"
 authors = [
-    {name = "Simple RAG", email = "dev@example.com"}
+    { name = "Simple RAG", email = "dev@example.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -44,3 +44,28 @@ where = ["."]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+# https://docs.astral.sh/ruff/configuration/
+[tool.ruff]
+line-length = 180 # I don't want to hard wrap long-line
+
+[tool.ruff.format]
+quote-style = "double" # Use double quotes for strings.
+indent-style = "space" # Indent with spaces, rather than tabs.
+
+[tool.ruff.lint]
+ignore = ["F401", "F403", "F405"] # Ignore import warning
+
+
+#https://microsoft.github.io/pyright/#/configuration?id=sample-pyprojecttoml-file
+[tool.pyright]
+exclude = ["**/__pycache__"]
+extraPaths = []
+typeCheckingMode = "standard"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportOptionalMemberAccess = false
+reportFunctionMemberAccess = false
+reportAttributeAccessIssue = false
+reportGeneralTypeIssues = false
