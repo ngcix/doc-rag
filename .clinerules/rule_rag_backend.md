@@ -5,264 +5,92 @@
 Before answering ANY technical question, you **MUST** query the RAG backend to get the latest context.
 **DO NOT rely on your internal knowledge** unless the search returns nothing.
 
-### When to Trigger Search:
-1. User asks a technical question ("How does...", "What is...", "Show me...")
-2. User mentions specific terms/protocols (e.g., "A2DP", "BQR", "HID")
-3. User asks for diagrams/images
-
-**Workflow:**
-`User Prompt` -> **[ 🔍 Search RAG ]** -> `Analyze Results` -> `Answer User`
-
----
-
-## Overview
-
-This Simple RAG system provides a vector database backend for semantic search. ClineSR should use this system to:
-
-1. Search for relevant documents/images before answering questions
-2. Use `addtag` to boost important documents for future retrieval
-3. Leverage hybrid search for exact-match queries (e.g., figure names)
-
-## Quick Reference
-
-| Action | Command |
-|--------|---------|
-| Search text | `python -m src.main search "query"` |
-| Search images only | `python -m src.main search -pic "query"` |
-| Hybrid search (exact-match) | `python -m src.main search -hy "Figure 4.1"` |
-| Multi-query search | `python -m src.main msearch "q1" "q2" "q3"` |
-| Add tag to boost | `python -m src.main addtag <doc_id> "tag"` |
-
-## When to Use Options
-
-| User Intent | Use `-pic`? | Use `-hy`? | Example |
-|-------------|-------------|------------|---------|
-| Looking for diagram/chart/figure | ✅ Yes | Optional | `search -pic "connection flow"` |
-| Asking about specific figure name | ✅ Yes | ✅ Yes | `search -pic -hy "Figure 4.2"` |
-| General text question | ❌ No | ❌ No | `search "what is HID protocol"` |
-| Looking for exact phrase/title | ❌ No | ✅ Yes | `search -hy "Interrupt IN Flow Chart"` |
-| Vague question, need broad recall | ❌ No | ❌ No | Use `msearch` with multiple queries |
-
-### Decision Rules
-
-1. **Use `-pic`** when:
-   - User asks for "diagram", "figure", "chart", "image", "flowchart"
-   - User wants visual explanation
-   - Question contains "show me", "picture of", "hình ảnh"
-
-2. **Use `-hy`** when:
-   - Query contains specific names: "Figure X.Y", "Table X", title in quotes
-   - User references exact document/section names
-   - Semantic search is returning irrelevant results
-
-3. **Use `msearch`** when:
-   - User question is vague or has multiple interpretations
-   - Single query returns no results
-   - Need to cover different phrasings
+### Core Workflow
+1. **Analyze Intent**: What is the user looking for? (Diagram, Fact, Code, Concept)
+2. **Select Command**: Use the Decision Matrix below.
+3. **Execute Search**: Run the CLI command.
+4. **Read Output**: 
+   - Check terminal summary.
+   - **CRITICAL**: Use `read_file` on the generated JSON file in `process/output/` to get full content.
+5. **Answer**: Synthesize information from the search results.
 
 ---
 
-## Search Strategies
+## 🧠 Command Decision Matrix
 
-### 1. General Search (Semantic)
-```bash
-python -m src.main search "what is the HID protocol" --top-k 5
-```
+Choose the best search strategy based on User Intent:
 
-### 2. Image-Only Search
-When you need diagrams, charts, or figures:
-```bash
-python -m src.main search -pic "connection diagram"
-```
-Returns only image results with paths to PNG files.
-
-### 3. Hybrid Search (BM25 + Vector)
-When searching for **specific figure/table names** or exact text:
-```bash
-python -m src.main search -hy "Figure 4.2: Media Payload Format"
-```
-Hybrid mode gives **higher priority to exact-match** terms.
-
-### 4. Combined: Image + Hybrid
-
-Best for finding specific diagrams:
-
-```bash
-python -m src.main search -pic -hy "Interrupt IN Flow Chart"
-```
+| User Intent | Recommended Command | Why? |
+|-------------|---------------------|------|
+| **General Question**<br>_"What is HID protocol?"_ | `python -m src.main search "query"` | Standard semantic search. |
+| **Visual/Diagrams**<br>_"Show me connection flow", "Figure of stack"_ | `python -m src.main search -pic "query"` | Filters for images/charts only. |
+| **Exact Name/Title**<br>_"Figure 4.1", "Table 2-3", "A2DP Spec"_ | `python -m src.main search -hy "exact title"` | Hybrid search ranks exact text matches higher. |
+| **Specific Diagram**<br>_"The 'Link Loss' flowchart"_ | `python -m src.main search -pic -hy "Link Loss"` | Compiles image filter + exact match. |
+| **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `python -m src.main msearch "q1" "q2" "q3"` | **Multi-Query**: Increases chance of finding info by checking variations. |
 
 ---
 
-## Multi-Query Search Strategy (Recommended)
+## 🔄 Search Troubleshooting & Fallback
 
-Instead of searching one query, **generate 2-4 keyword variations** and use `msearch`:
+If your initial search returns **0 results** or irrelevant info, **DO NOT give up**. Follow this path:
 
-### Why Multi-Query is Better
+1. **Relax Constraints**: 
+   - If using `-hy` (Hybrid), try without it (Standard Semantic).
+   - If using `-pic` (Image), try standard text search to find context first.
+   
+2. **Expand Query (`msearch`)**:
+   - Generate synonyms and broader terms.
+   - Example: _"reconnection"_ -> _"link loss", "connection establishment", "recovery"_
+   - Run: `python -m src.main msearch "term1" "term2" "term3"`
 
-| Single Query | Multi-Query |
-|--------------|-------------|
-| May miss relevant docs | Covers different phrasings |
-| Depends on exact wording | Robust to terminology |
-
-### Usage
-
-```bash
-python -m src.main msearch "query1" "query2" "query3" -pic
-```
-
-### Example
-
-User asks: "How does Bluetooth reconnect after disconnection?"
-
-**Generate queries:**
-
-```bash
-python -m src.main msearch \
-  "connection re-establishment" \
-  "link loss recovery" \
-  "bluetooth reconnect" \
-  -pic -hy
-```
-
-Results show **matched X/N queries** to indicate confidence.
+3. **Check Processing**:
+   - Verify if documents are listed: `python -m src.main list`
+   - If doc is missing, ask user to `process` it.
 
 ---
 
-## Vision-Powered Tag Enhancement (Core Workflow)
+## 📄 Handling Search Results
 
-**Cline has vision capability.** When image results are found, Cline should:
+Results are saved to `process/output/query_YYYYMM_HHMMSS.json`.
 
-### Step 1: Search for Images
-```bash
-python -m src.main search -pic "your query"
-```
-
-### Step 2: Analyze the Image
-Read the image file at `image_path` from the result metadata. 
-
-Example result:
+**JSON Structure:**
 ```json
 {
-  "chunk_id": "HID_SPEC_V10.pdf_p42",
-  "image_path": "data/extracted_images/HID_SPEC_V10.pdf_p42.png"
-}
-```
-
-**👁️ Use vision to analyze the actual image content:**
-- What does this diagram show?
-- What are the key components/flows?
-- What technical terms are visible?
-
-### Step 3: Add Descriptive Tags
-Based on your visual analysis, add tags that accurately describe the image:
-
-```bash
-python -m src.main addtag HID_SPEC_V10.pdf_p42 "connection-re-establishment-diagram"
-python -m src.main addtag HID_SPEC_V10.pdf_p42 "bluetooth-reconnection-flow"
-```
-
-> **Why this matters**: The original OCR/context extraction may miss important visual information. Your vision analysis adds semantic understanding that improves future search accuracy.
-
-### Step 4: Verify Improvement
-Search again to confirm the document now ranks higher:
-```bash
-python -m src.main search -pic "bluetooth reconnection flow"
-```
-
----
-
-## Tag Enhancement Examples
-
-| Image Content | Suggested Tags |
-|---------------|----------------|
-| Flowchart showing auth steps | `authentication-flow`, `oauth-diagram`, `login-sequence` |
-| Network topology diagram | `network-architecture`, `server-client-diagram` |
-| Bluetooth state machine | `bluetooth-state-machine`, `connection-states` |
-| API request/response flow | `api-flow`, `request-response-sequence` |
-
-### Best Practices for Tags:
-- Use **lowercase with hyphens** (e.g., `connection-flow`)
-- Be **specific and descriptive** (avoid generic tags like `diagram`)
-- Add **multiple tags** covering different aspects of the image
-- Include **domain-specific terms** visible in the image
-
----
-
-## Result Format
-
-Search results are automatically saved in the `process/output` directory with a timestamped JSON file (e.g., `process/output/query_20240101_120000.json`).
-
-**Always check this JSON file for full details**, as the terminal output may be truncated.
-
-### JSON Structure:
-
-```json
-{
-  "query": "HID protocol",
-  "result_count": 5,
   "results": [
     {
       "rank": 1,
       "similarity": 0.85,
-      "document": "Content preview...",
+      "document": "Full text content...", 
       "metadata": {
-        "source_file": "HID_SPEC.pdf",
-        "content_type": "image",
-        "image_path": "data/extracted_images/HID_SPEC_p42.png",
-        "page_number": 42
-      },
-      "chunk_id": "HID_SPEC.pdf_p42"
+        "content_type": "image", 
+        "image_path": "data/extracted/file_p1.png"
+      }
     }
   ]
 }
 ```
 
-### Key Metadata Fields:
-- `content_type`: `"text"` or `"image"`
-- `image_path`: Path to extracted image (if image result)
-- `page_number`: Source page in PDF
-- `chunk_id`: Use this for `addtag` command
+**Actionable Steps:**
+1. **Read JSON**: Always read the JSON content for the full text (Terminal output is truncated).
+2. **Analyze Images**: If `content_type` is "image", use your **Vision** capabilities to look at `image_path`.
+   - *Describe what you see in the image to the user.*
 
 ---
 
-## When to Use Each Mode
+## 🔧 Maintenance: Tagging & Processing
 
-| Scenario | Recommended Command |
-|----------|---------------------|
-| General question | `search "query"` |
-| Finding diagrams/charts | `search -pic "diagram"` |
-| Searching exact figure name | `search -hy "Figure 4.1"` |
-| Finding specific image | `search -pic -hy "exact title"` |
-| Boosting relevant result | `addtag <id> "keyword"` |
+### Vision-Powered Tagging (Improvement Loop)
+If you find an image that is relevant but hard to find, **add tags** to help future searches.
 
----
+1. **Analyze**: Look at image `data/extracted_images/xyz.png`.
+2. **Tag**: `python -m src.main addtag <chunk_id> "descriptive-tag-name"`
+   - *Example: `addtag HID_p42 "connection-state-machine"`*
 
-## Usage Guidelines for ClineSR
+### Processing Priority
+When adding new files, prioritize full-page extraction:
 
-1. **Before answering questions about documents**: Search the RAG first
-2. **If search returns images**: Check the `image_path` and analyze the image
-3. **If result is relevant but wrong rank**: Use `addtag` to improve future searches
-4. **For exact-match queries**: Always use `-hy` flag
+| Priority | Flag | Usage |
+|----------|------|-------|
+| **High** | `-fp` | `process -fp` (Default/Best for RAG) |
+| **Med** | `-pymu`| `process -pymu` (Asset extraction only) |
 
----
-
-## Processing Priority (Important)
-
-When processing new documents (using `process` command), Cline should prioritize strategies in this order:
-
-| Priority | Flag | Description | Why? |
-|----------|------|-------------|------|
-| **1 (High)** | `-fp` | Full Page Capture | Best context, preserves layout, good for RAG |
-| **2 (Medium)**| `-pymu` | Text/Image Extraction | Good for specific assets, but loses layout context |
-| **3 (Low)** | `-dl` | Docling | Experimental, slower |
-
-**Default Recommendation:**
-Always try `-fp` first unless the user specifically requests extraction of individual assets.
-
-```bash
-# ✅ Preferred:
-python -m src.main process -fp
-
-# ⚠️ Only if specific assets needed:
-python -m src.main process -pymu
-```
