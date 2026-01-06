@@ -1,89 +1,160 @@
-# Rule: Search Information in Database
+# Rule: Use RAG Backend for Information Retrieval
 
 ## Overview
-This rule describes the steps to search for information in the vector database using the Simple RAG system. The database is assumed to be already created and populated with documents.
+This Simple RAG system provides a vector database backend for semantic search. ClineSR should use this system to:
+1. Search for relevant documents/images before answering questions
+2. Use `addtag` to boost important documents for future retrieval
+3. Leverage hybrid search for exact-match queries (e.g., figure names)
 
-## Prerequisites
-- Python 3.11+
-- All dependencies installed from `requirements.txt`
+## Quick Reference
 
-## Rule Steps
+| Action | Command |
+|--------|---------|
+| Search text | `python -m src.main search "query"` |
+| Search images only | `python -m src.main search -pic "query"` |
+| Hybrid search (best for figure names) | `python -m src.main search -hy "Figure 4.1"` |
+| Add tag to boost document | `python -m src.main addtag <doc_id> "tag"` |
+| List all documents | `python -m src.main list` |
 
-### 1. Search Information
+---
+
+## Search Strategies
+
+### 1. General Search (Semantic)
 ```bash
-python -m src.main search "your query" --top-k 1
+python -m src.main search "what is the HID protocol" --top-k 5
 ```
-This command performs semantic search in the vector database and returns only the best match.
 
-### 2. View Results
-Search results are saved in JSON format in `process/output/` directory.
+### 2. Image-Only Search
+When you need diagrams, charts, or figures:
+```bash
+python -m src.main search -pic "connection diagram"
+```
+Returns only image results with paths to PNG files.
 
-Example result format:
+### 3. Hybrid Search (BM25 + Vector)
+When searching for **specific figure/table names** or exact text:
+```bash
+python -m src.main search -hy "Figure 4.2: Media Payload Format"
+```
+Hybrid mode gives **higher priority to exact-match** terms.
+
+### 4. Combined: Image + Hybrid
+Best for finding specific diagrams:
+```bash
+python -m src.main search -pic -hy "Interrupt IN Flow Chart"
+```
+
+---
+
+## Vision-Powered Tag Enhancement (Core Workflow)
+
+**Cline has vision capability.** When image results are found, Cline should:
+
+### Step 1: Search for Images
+```bash
+python -m src.main search -pic "your query"
+```
+
+### Step 2: Analyze the Image
+Read the image file at `image_path` from the result metadata. 
+
+Example result:
 ```json
 {
-  "query": "authentication flow",
-  "result_count": 1,
+  "chunk_id": "HID_SPEC_V10.pdf_p42",
+  "image_path": "data/extracted_images/HID_SPEC_V10.pdf_p42.png"
+}
+```
+
+**👁️ Use vision to analyze the actual image content:**
+- What does this diagram show?
+- What are the key components/flows?
+- What technical terms are visible?
+
+### Step 3: Add Descriptive Tags
+Based on your visual analysis, add tags that accurately describe the image:
+
+```bash
+python -m src.main addtag HID_SPEC_V10.pdf_p42 "connection-re-establishment-diagram"
+python -m src.main addtag HID_SPEC_V10.pdf_p42 "bluetooth-reconnection-flow"
+```
+
+> **Why this matters**: The original OCR/context extraction may miss important visual information. Your vision analysis adds semantic understanding that improves future search accuracy.
+
+### Step 4: Verify Improvement
+Search again to confirm the document now ranks higher:
+```bash
+python -m src.main search -pic "bluetooth reconnection flow"
+```
+
+---
+
+## Tag Enhancement Examples
+
+| Image Content | Suggested Tags |
+|---------------|----------------|
+| Flowchart showing auth steps | `authentication-flow`, `oauth-diagram`, `login-sequence` |
+| Network topology diagram | `network-architecture`, `server-client-diagram` |
+| Bluetooth state machine | `bluetooth-state-machine`, `connection-states` |
+| API request/response flow | `api-flow`, `request-response-sequence` |
+
+### Best Practices for Tags:
+- Use **lowercase with hyphens** (e.g., `connection-flow`)
+- Be **specific and descriptive** (avoid generic tags like `diagram`)
+- Add **multiple tags** covering different aspects of the image
+- Include **domain-specific terms** visible in the image
+
+---
+
+## Result Format
+
+Search results are saved in `process/output/query_YYYYMMDD_HHMMSS.json`:
+
+```json
+{
+  "query": "HID protocol",
+  "result_count": 5,
   "results": [
     {
       "rank": 1,
       "similarity": 0.85,
-      "document": "Matched content...",
+      "document": "Content preview...",
       "metadata": {
-        "source_file": "docs/api.md",
-        "type": "text"
-      }
+        "source_file": "HID_SPEC.pdf",
+        "content_type": "image",
+        "image_path": "data/extracted_images/HID_SPEC_p42.png",
+        "page_number": 42
+      },
+      "chunk_id": "HID_SPEC.pdf_p42"
     }
   ]
 }
 ```
 
-### 3. Analyze Images (If Found)
-If the search result contains images (charts, diagrams), analyze them using AI:
-```bash
-python src/analyze_image.py "query_id"
-```
+### Key Metadata Fields:
+- `content_type`: `"text"` or `"image"`
+- `image_path`: Path to extracted image (if image result)
+- `page_number`: Source page in PDF
+- `chunk_id`: Use this for `addtag` command
 
-### 4. Clean Up
-After completing the analysis, clean up input and output files to maintain system performance:
-```bash
-python -m src.main clean --logs
-```
-This command removes all search input and output logs from the process directory.
+---
 
-## Example Search Result: "Typical Bluetooth HID Software Stacks"
+## When to Use Each Mode
 
-When searching for "Typical Bluetooth HID Software Stacks", the system found a relevant diagram:
+| Scenario | Recommended Command |
+|----------|---------------------|
+| General question | `search "query"` |
+| Finding diagrams/charts | `search -pic "diagram"` |
+| Searching exact figure name | `search -hy "Figure 4.1"` |
+| Finding specific image | `search -pic -hy "exact title"` |
+| Boosting relevant result | `addtag <id> "keyword"` |
 
-**Query:** "Typical Bluetooth HID Software Stacks"
-**Result:**
-- Rank: 1
-- Similarity: 0.932
-- Document: "Figure 2.2: Typical Bluetooth HID Software Stacks"
-- Source: HID_v1.1.1.pdf (Page 23)
-- Image: pdf_HID_v1.1.1_23_0_fb144109.png
+---
 
-This result contains a diagram showing the typical Bluetooth HID software stack architecture, which is highly relevant to the query.
+## Usage Guidelines for ClineSR
 
-## Usage Guidelines
-
-Whenever you need to check for specific information, use this search workflow to verify if the information exists in the database. This approach allows you to quickly find relevant content without manually searching through documents.
-
-### Example Usage:
-```bash
-python -m src.main search "HID protocol specification"
-python -m src.main search "authentication flow details"
-python -m src.main search "error handling procedures"
-```
-
-### Interpreting Results:
-- Check the similarity score to assess relevance (higher is better)
-- Review the matched document content for accuracy
-- Verify the source file to understand context
-
-### Analyzing Images:
-When search results contain images (charts, diagrams), the system automatically extracts and saves them. You can analyze these images using the AI image analysis tool:
-```bash
-python src/analyze_image.py "query_id" --prompt "Describe this image in detail"
-```
-
-The query_id is automatically generated and saved in the process/output directory as a JSON file.
+1. **Before answering questions about documents**: Search the RAG first
+2. **If search returns images**: Check the `image_path` and analyze the image
+3. **If result is relevant but wrong rank**: Use `addtag` to improve future searches
+4. **For exact-match queries**: Always use `-hy` flag
