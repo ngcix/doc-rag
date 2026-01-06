@@ -1,5 +1,20 @@
 # Rule: Use RAG Backend for Information Retrieval
 
+## ⚠️ CRITICAL INSTRUCTION: ALWAYS SEARCH FIRST
+
+Before answering ANY technical question, you **MUST** query the RAG backend to get the latest context.
+**DO NOT rely on your internal knowledge** unless the search returns nothing.
+
+### When to Trigger Search:
+1. User asks a technical question ("How does...", "What is...", "Show me...")
+2. User mentions specific terms/protocols (e.g., "A2DP", "BQR", "HID")
+3. User asks for diagrams/images
+
+**Workflow:**
+`User Prompt` -> **[ 🔍 Search RAG ]** -> `Analyze Results` -> `Answer User`
+
+---
+
 ## Overview
 
 This Simple RAG system provides a vector database backend for semantic search. ClineSR should use this system to:
@@ -175,7 +190,11 @@ python -m src.main search -pic "bluetooth reconnection flow"
 
 ## Result Format
 
-Search results are saved in `process/output/query_YYYYMMDD_HHMMSS.json`:
+Search results are automatically saved in the `process/output` directory with a timestamped JSON file (e.g., `process/output/query_20240101_120000.json`).
+
+**Always check this JSON file for full details**, as the terminal output may be truncated.
+
+### JSON Structure:
 
 ```json
 {
@@ -224,3 +243,26 @@ Search results are saved in `process/output/query_YYYYMMDD_HHMMSS.json`:
 2. **If search returns images**: Check the `image_path` and analyze the image
 3. **If result is relevant but wrong rank**: Use `addtag` to improve future searches
 4. **For exact-match queries**: Always use `-hy` flag
+
+---
+
+## Processing Priority (Important)
+
+When processing new documents (using `process` command), Cline should prioritize strategies in this order:
+
+| Priority | Flag | Description | Why? |
+|----------|------|-------------|------|
+| **1 (High)** | `-fp` | Full Page Capture | Best context, preserves layout, good for RAG |
+| **2 (Medium)**| `-pymu` | Text/Image Extraction | Good for specific assets, but loses layout context |
+| **3 (Low)** | `-dl` | Docling | Experimental, slower |
+
+**Default Recommendation:**
+Always try `-fp` first unless the user specifically requests extraction of individual assets.
+
+```bash
+# ✅ Preferred:
+python -m src.main process -fp
+
+# ⚠️ Only if specific assets needed:
+python -m src.main process -pymu
+```
