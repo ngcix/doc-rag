@@ -23,6 +23,20 @@ def _format_duration(seconds: float) -> str:
         secs = seconds % 60
         return f"{minutes}m {secs:.1f}s"
 
+
+def log(message: str = "", newline: bool = True):
+    """Print message with timestamp prefix."""
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    if message:
+        output = f"{timestamp} | {message}"
+    else:
+        output = ""
+    if newline:
+        print(output)
+    else:
+        print(output, end="", flush=True)
+
 from config import (
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
@@ -84,12 +98,12 @@ def process_documents(
     input_dir = Path(input_dir)
     
     backend = settings.vectordb.backend
-    print(f"Processing documents from: {input_dir}")
-    print(f"Vector store backend: {backend}")
+    log(f"Processing documents from: {input_dir}")
+    log(f"Vector store backend: {backend}")
     if backend == "faiss":
-        print(f"FAISS index location: {FAISS_INDEX_DIR}")
+        log(f"FAISS index location: {FAISS_INDEX_DIR}")
     else:
-        print(f"ChromaDB location: {VECTORDB_DIR}")
+        log(f"ChromaDB location: {VECTORDB_DIR}")
     print("-" * 50)
     
     # Initialize components
@@ -107,7 +121,7 @@ def process_documents(
     items_to_vectorize = []
     
     # 1. Process regular documents (text)
-    print("\n[1/3] Processing documents (Parallel)...")
+    log("[1/3] Processing documents (Parallel)...")
     step_start = time.perf_counter()
     
     # Collect files
@@ -136,7 +150,7 @@ def process_documents(
                 chunks.extend(res)
 
     chunking_time = time.perf_counter() - step_start
-    print(f"  Extracted {len(chunks)} text chunks (took {_format_duration(chunking_time)})")
+    log(f"  Extracted {len(chunks)} text chunks (took {_format_duration(chunking_time)})")
     
     # Prepare text chunks for vectorization
     for chunk in chunks:
@@ -151,7 +165,7 @@ def process_documents(
     # 2. Extract images from PDFs
     extraction_time = 0
     if include_images:
-        print("\n[2/3] Extracting images from PDFs (Parallel)...")
+        log("[2/3] Extracting images from PDFs (Parallel)...")
         step_start = time.perf_counter()
         pdf_files = list(input_dir.glob("**/*.pdf"))
         
@@ -174,12 +188,12 @@ def process_documents(
                             items_to_vectorize.append(data)
         
         extraction_time = time.perf_counter() - step_start
-        print(f"  Total images processed: {total_images} (took {_format_duration(extraction_time)})")
+        log(f"  Total images processed: {total_images} (took {_format_duration(extraction_time)})")
     
     # 3. Process sequence charts
     chart_time = 0
     if include_charts:
-        print("\n[3/3] Processing sequence charts...")
+        log("[3/3] Processing sequence charts...")
         step_start = time.perf_counter()
         for md_file in input_dir.glob("**/*.md"):
             try:
@@ -194,12 +208,12 @@ def process_documents(
             except Exception as e:
                 print(f"  Error processing {md_file}: {e}")
         chart_time = time.perf_counter() - step_start
-        print(f"  Charts processing completed (took {_format_duration(chart_time)})")
+        log(f"  Charts processing completed (took {_format_duration(chart_time)})")
     
     # 4. Vectorize and Store
     vectorize_time = 0
     if items_to_vectorize:
-        print(f"\n[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
+        log(f"[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
         step_start = time.perf_counter()
         
         # Extract contents for batch vectorization
@@ -218,25 +232,25 @@ def process_documents(
             
         vector_store.add_chunks(items_to_vectorize)
         vectorize_time = time.perf_counter() - step_start
-        print(f"  Vectorization completed (took {_format_duration(vectorize_time)})")
+        log(f"  Vectorization completed (took {_format_duration(vectorize_time)})")
     
     # Calculate total time
     total_time = chunking_time + extraction_time + chart_time + vectorize_time
     
     print("\n" + "=" * 50)
-    print("Processing complete!")
-    print(f"  Text chunks: {len(chunks)}")
-    print(f"  Images extracted: {total_images}")
-    print(f"  Total items in database: {vector_store.count()}")
-    print("\n⏱️  Time Report:")
-    print(f"  Chunking:      {_format_duration(chunking_time)}")
+    log("Processing complete!")
+    log(f"  Text chunks: {len(chunks)}")
+    log(f"  Images extracted: {total_images}")
+    log(f"  Total items in database: {vector_store.count()}")
+    log("⏱️  Time Report:")
+    log(f"  Chunking:      {_format_duration(chunking_time)}")
     if include_images:
-        print(f"  Image Extract: {_format_duration(extraction_time)}")
+        log(f"  Image Extract: {_format_duration(extraction_time)}")
     if include_charts:
-        print(f"  Charts:        {_format_duration(chart_time)}")
-    print(f"  Vectorization: {_format_duration(vectorize_time)}")
-    print(f"  ─────────────────")
-    print(f"  Total:         {_format_duration(total_time)}")
+        log(f"  Charts:        {_format_duration(chart_time)}")
+    log(f"  Vectorization: {_format_duration(vectorize_time)}")
+    log(f"  ─────────────────")
+    log(f"  Total:         {_format_duration(total_time)}")
 
 
 def search_documents(
@@ -258,8 +272,8 @@ def search_documents(
     """
     start_time = time.perf_counter()
     
-    print(f"Searching for: '{query}'")
-    print(f"Using backend: {settings.vectordb.backend}")
+    log(f"Searching for: '{query}'")
+    log(f"Using backend: {settings.vectordb.backend}")
     if use_hybrid:
         print("Mode: Hybrid (BM25 + Vector)")
     if images_only:
