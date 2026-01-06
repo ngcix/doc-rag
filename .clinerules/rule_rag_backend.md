@@ -40,7 +40,7 @@ Choose the best search strategy based on User Intent:
 | **Visual/Diagrams**<br>_"Show me connection flow", "Figure of stack"_ | `python -m src.main search -pic "query"` | Filters for images/charts only. |
 | **Exact Name/Title**<br>_"Figure 4.1", "Table 2-3", "A2DP Spec"_ | `python -m src.main search -hy "exact title"` | Hybrid search ranks exact text matches higher. |
 | **Specific Diagram**<br>_"The 'Link Loss' flowchart"_ | `python -m src.main search -pic -hy "Link Loss"` | Compiles image filter + exact match. |
-| **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `python -m src.main msearch "q1" "q2" "q3"` | **Multi-Query**: Increases chance of finding info by checking variations. |
+| **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `python -m src.main msearch "query 1" "query 2" "query 3"` | **Strongly Recommended**: Uses Multi-Query (RRF) to find info from different angles. Use this for ANY "How to", "Why", or "Explain" question. |
 
 ---
 
