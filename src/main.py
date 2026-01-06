@@ -30,7 +30,7 @@ from config import (
 )
 from src.chunking import DocumentChunker, chunk_documents
 from src.vectorization import get_vectorizer, get_vector_store
-from src.search import get_search_engine
+from src.search import get_search_engine, HybridSearchEngine
 from src.sequence_chart import get_chart_processor
 from src.image_extraction import get_image_extractor, get_vectorization_data
 
@@ -242,28 +242,112 @@ def process_documents(
 def search_documents(
     query: str,
     top_k: int = 5,
-    save_results: bool = True
+    save_results: bool = True,
+    images_only: bool = False,
+    use_hybrid: bool = False
 ):
     """
     Search through vectorized documents.
+    
+    Args:
+        query: Search query text.
+        top_k: Number of results to return.
+        save_results: Whether to save search input/output.
+        images_only: If True, only return image results.
+        use_hybrid: If True, use BM25+Vector hybrid search.
     """
     start_time = time.perf_counter()
     
     print(f"Searching for: '{query}'")
     print(f"Using backend: {settings.vectordb.backend}")
+    if use_hybrid:
+        print("Mode: Hybrid (BM25 + Vector)")
+    if images_only:
+        print("Filter: Images only")
     print("-" * 50)
     
-    engine = get_search_engine()
+    # Fetch more results if filtering, to ensure we get enough after filter
+    # For image-only search, fetch many more since images may have lower similarity than text
+    fetch_k = 1000 if images_only else top_k
+    search_threshold = 0.5 if images_only else None
     
-    if save_results:
-        results = engine.search_and_save(query, top_k=top_k)
+    # Use hybrid or regular search
+    if use_hybrid:
+        vectorizer = get_vectorizer()
+        vector_store = get_vector_store()
+        hybrid_engine = HybridSearchEngine(vector_store, vectorizer)
+        raw_results = hybrid_engine.search(
+            query, 
+            top_k=fetch_k, 
+            vector_weight=0.4,  # Give more weight to BM25 for exact-match
+            bm25_weight=0.6,
+            threshold=search_threshold
+        )
+        # Convert to SearchResult-like objects for compatibility
+        from src.search import SearchResult
+        results = [
+            SearchResult(
+                rank=r["rank"],
+                document=r["document"],
+                similarity=r.get("rrf_score", r.get("similarity", 0)),
+                metadata=r["metadata"],
+                chunk_id=r["id"]
+            )
+            for r in raw_results
+        ]
     else:
-        results = engine.search(query, top_k=top_k)
+        engine = get_search_engine()
+        if save_results:
+            results = engine.search_and_save(query, top_k=fetch_k, threshold=search_threshold)
+        else:
+            results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
+    
+    # Filter for images only if requested
+    if images_only:
+        image_types = ["image", "extracted_image", "fullpage"]
+        results = [
+            r for r in results 
+            if r.metadata.get("content_type") in image_types 
+            or r.metadata.get("type") in image_types
+            or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
+        ][:top_k]  # Limit to top_k after filtering
+        
+        # Re-rank after filtering
+        for i, r in enumerate(results):
+            r.rank = i + 1
     
     search_time = time.perf_counter() - start_time
     
     # Display results
-    print(engine.format_results(results, format_type="text"))
+    if images_only and results:
+        print(f"Found {len(results)} image results:\n")
+        for r in results:
+            image_path = r.metadata.get("image_path", "N/A")
+            source = r.metadata.get("source_file", "Unknown")
+            page = r.metadata.get("page_number", "?")
+            print(f"[{r.rank}] Score: {r.similarity:.4f}")
+            print(f"    Image: {image_path}")
+            print(f"    Source: {source}, Page {page}")
+            print(f"    ID: {r.chunk_id}")
+            print()
+    elif images_only and not results:
+        print("No image results found.")
+    elif results:
+        # Format results using engine or manual formatting
+        if not use_hybrid:
+            print(engine.format_results(results, format_type="text"))
+        else:
+            # Manual formatting for hybrid results
+            print(f"Found {len(results)} results:\n")
+            for r in results:
+                print(f"[{r.rank}] Score: {r.similarity:.4f}")
+                print(f"    ID: {r.chunk_id}")
+                print(f"    Source: {r.metadata.get('source_file', 'Unknown')}")
+                print(f"    Content: {r.document[:200] if r.document else 'N/A'}...")
+                print()
+    else:
+        print("No results found.")
+    
     print(f"\n⏱️  Search completed in {_format_duration(search_time)}")
     
     return results
@@ -523,6 +607,16 @@ def main():
         action="store_true",
         help="Don't save search input/output"
     )
+    search_parser.add_argument(
+        "--pic", "-pic",
+        action="store_true",
+        help="Only return image results (filter by content_type)"
+    )
+    search_parser.add_argument(
+        "--hybrid", "-hy",
+        action="store_true",
+        help="Use hybrid search (BM25 + Vector) for better exact-match ranking"
+    )
     
     # Stats command
     subparsers.add_parser(
@@ -615,7 +709,9 @@ def main():
         search_documents(
             query=args.query,
             top_k=args.top_k,
-            save_results=not args.no_save
+            save_results=not args.no_save,
+            images_only=args.pic,
+            use_hybrid=args.hybrid
         )
     
     elif args.command == "stats":

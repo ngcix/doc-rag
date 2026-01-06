@@ -36,8 +36,10 @@ class ExtractedImage:
         if self.caption:
             parts.append(f"Caption: {self.caption}")
         if self.tags:
-            # Repeat tags to boost importance in vector
-            parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}")
+            # Repeat tags many times to strongly boost importance in vector
+            # This helps exact-match tags rank higher than semantic-only matches
+            tag_boost = ", ".join([self.tags] * 10)
+            parts.append(f"Tags: {tag_boost}")
         if self.description:
             parts.append(f"Description: {self.description}")
         if self.surrounding_text:

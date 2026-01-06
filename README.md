@@ -96,6 +96,23 @@ python -m src.main search "Figure 4.1"
 python -m src.main search "OAuth flow" --top-k 10
 ```
 
+### 5. Advanced Search Options
+
+```bash
+# 🖼️ Image-only filter (-pic)
+# Returns only image results, useful for finding diagrams/figures
+python -m src.main search -pic "Connection diagram"
+
+# 🔀 Hybrid Search (--hybrid or -hy)
+# Uses BM25 + Vector for better exact-match ranking
+python -m src.main search -hy "Figure 4.2: Media Payload"
+
+# 🔗 Combine both: Find images with hybrid ranking
+python -m src.main search -pic -hy "Interrupt IN Flow Chart"
+```
+
+> 💡 **Tip**: Use `-hy` when searching for specific figure/table names to improve exact-match accuracy.
+
 ---
 
 ## 🏃 Workflow Example
@@ -128,6 +145,8 @@ python -m src.main search "security diagram"
 | **`process -fp`** | Full-page image extraction | `python -m src.main process -fp` |
 | **`process -pymu`** | Individual image extraction | `python -m src.main process -pymu` |
 | **`search`** | Query the database | `python -m src.main search "query"` |
+| **`search -pic`** | Search images only | `python -m src.main search -pic "diagram"` |
+| **`search -hy`** | Hybrid search (BM25+Vector) | `python -m src.main search -hy "Figure 4.1"` |
 | **`list`** | Show all indexed Docs | `python -m src.main list` |
 | **`listtag`** | View tags for a doc | `python -m src.main listtag doc_id` |
 | **`addtag`** | Add tag & **Re-embed** | `python -m src.main addtag doc_id "new-tag"` |
@@ -319,7 +338,7 @@ The system scans page text for patterns:
 - `Table X.Y`, `Hình X.Y` (Vietnamese)
 - Custom regex patterns in settings
 
-Tags are repeated 3x in embedding content for **boosted retrieval priority**.
+Tags are repeated **10x** in embedding content for **strongly boosted retrieval priority**.
 
 ---
 
