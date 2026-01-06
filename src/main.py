@@ -850,6 +850,24 @@ def main():
         type=str,
         help="Document ID"
     )
+
+    # Eval command
+    eval_parser = subparsers.add_parser(
+        "eval",
+        help="Run retrieval evaluation"
+    )
+    eval_parser.add_argument(
+        "--dataset",
+        type=str,
+        default="tests/data/golden_dataset.json",
+        help="Path to golden dataset"
+    )
+    eval_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=5,
+        help="Top K results to check"
+    )
     
     
     args = parser.parse_args()
@@ -918,6 +936,17 @@ def main():
         
     elif args.command == "listtag":
         list_tags(args.doc_id)
+
+    elif args.command == "eval":
+        import sys
+        # Import dynamically to avoid requirement if not used
+        try:
+            from tests.eval_retrieval import main as eval_main
+            # Override sys.argv for the called script
+            sys.argv = [sys.argv[0], "--dataset", args.dataset, "--top-k", str(args.top_k)]
+            eval_main()
+        except ImportError:
+            print("Could not import tests.eval_retrieval. Make sure to run from project root.")
     
     else:
         parser.print_help()

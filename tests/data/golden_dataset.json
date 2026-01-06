@@ -1,0 +1,25 @@
+[
+  {
+    "id": "1",
+    "query": "HID protocol structure",
+    "expected_ids": ["HID_SPEC_V10.pdf_p15", "HID_SPEC_V10.pdf_p16"],
+    "type": "text",
+    "description": "General text search for HID protocol"
+  },
+  {
+    "id": "2",
+    "query": "connection flow diagram",
+    "expected_ids": ["HID_SPEC_V10.pdf_p42.png", "HID_SPEC_V10.pdf_p43.png"],
+    "type": "image",
+    "mode": "pic",
+    "description": "Image search for connection flow"
+  },
+  {
+    "id": "3",
+    "query": "Figure 4.1",
+    "expected_ids": ["HID_SPEC_V10.pdf_p42.png"],
+    "type": "image",
+    "mode": "hybrid",
+    "description": "Hybrid search for exact figure name"
+  }
+]
