@@ -14,11 +14,12 @@ Before answering ANY technical question, you **MUST** query the RAG backend to g
    - **CRITICAL**: Use `read_file` on the generated JSON file in `process/output/` to get full content.
 5. **Answer**: Synthesize information from the search results.
 
-### 🚫 PROHIBITED ACTIONS
-- **DO NOT** convert PDF to text using python libraries (e.g., PyPDF2, pdfminer).
-- **DO NOT** try to read raw PDF files directly.
-- **DO NOT** bypass the RAG backend to search files manually.
-- **REASON**: The RAG backend is optimized for chunking, vectorization, and retrieval. Manual reading is slow, error-prone, and loses semantic context.
+### 🚫 PROHIBITED ACTIONS (STRICTLY ENFORCED)
+- **NO manual Python scripts**: Do NOT write/run Python code (e.g., `fitz`, `PyMuPDF`, `os`) to extract text from PDFs.
+- **NO ad-hoc extraction**: Do NOT create temporary scripts to read page ranges (e.g., "read pages 13-17").
+- **NO raw file reading**: Do NOT use `read_file` on `.pdf` files directly.
+- **ONLY SOURCE OF TRUTH**: You MUST rely **solely** on the JSON output from the `search`/`msearch` commands.
+- **REASON**: Manual scripts break the RAG workflow, lose vector context, and cause hallucinations.
 
 ---
 
