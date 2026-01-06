@@ -1,7 +1,9 @@
 # Rule: Use RAG Backend for Information Retrieval
 
 ## Overview
+
 This Simple RAG system provides a vector database backend for semantic search. ClineSR should use this system to:
+
 1. Search for relevant documents/images before answering questions
 2. Use `addtag` to boost important documents for future retrieval
 3. Leverage hybrid search for exact-match queries (e.g., figure names)
@@ -12,9 +14,36 @@ This Simple RAG system provides a vector database backend for semantic search. C
 |--------|---------|
 | Search text | `python -m src.main search "query"` |
 | Search images only | `python -m src.main search -pic "query"` |
-| Hybrid search (best for figure names) | `python -m src.main search -hy "Figure 4.1"` |
-| Add tag to boost document | `python -m src.main addtag <doc_id> "tag"` |
-| List all documents | `python -m src.main list` |
+| Hybrid search (exact-match) | `python -m src.main search -hy "Figure 4.1"` |
+| Multi-query search | `python -m src.main msearch "q1" "q2" "q3"` |
+| Add tag to boost | `python -m src.main addtag <doc_id> "tag"` |
+
+## When to Use Options
+
+| User Intent | Use `-pic`? | Use `-hy`? | Example |
+|-------------|-------------|------------|---------|
+| Looking for diagram/chart/figure | ✅ Yes | Optional | `search -pic "connection flow"` |
+| Asking about specific figure name | ✅ Yes | ✅ Yes | `search -pic -hy "Figure 4.2"` |
+| General text question | ❌ No | ❌ No | `search "what is HID protocol"` |
+| Looking for exact phrase/title | ❌ No | ✅ Yes | `search -hy "Interrupt IN Flow Chart"` |
+| Vague question, need broad recall | ❌ No | ❌ No | Use `msearch` with multiple queries |
+
+### Decision Rules
+
+1. **Use `-pic`** when:
+   - User asks for "diagram", "figure", "chart", "image", "flowchart"
+   - User wants visual explanation
+   - Question contains "show me", "picture of", "hình ảnh"
+
+2. **Use `-hy`** when:
+   - Query contains specific names: "Figure X.Y", "Table X", title in quotes
+   - User references exact document/section names
+   - Semantic search is returning irrelevant results
+
+3. **Use `msearch`** when:
+   - User question is vague or has multiple interpretations
+   - Single query returns no results
+   - Need to cover different phrasings
 
 ---
 
@@ -40,10 +69,47 @@ python -m src.main search -hy "Figure 4.2: Media Payload Format"
 Hybrid mode gives **higher priority to exact-match** terms.
 
 ### 4. Combined: Image + Hybrid
+
 Best for finding specific diagrams:
+
 ```bash
 python -m src.main search -pic -hy "Interrupt IN Flow Chart"
 ```
+
+---
+
+## Multi-Query Search Strategy (Recommended)
+
+Instead of searching one query, **generate 2-4 keyword variations** and use `msearch`:
+
+### Why Multi-Query is Better
+
+| Single Query | Multi-Query |
+|--------------|-------------|
+| May miss relevant docs | Covers different phrasings |
+| Depends on exact wording | Robust to terminology |
+
+### Usage
+
+```bash
+python -m src.main msearch "query1" "query2" "query3" -pic
+```
+
+### Example
+
+User asks: "How does Bluetooth reconnect after disconnection?"
+
+**Generate queries:**
+
+```bash
+python -m src.main msearch \
+  "connection re-establishment" \
+  "link loss recovery" \
+  "bluetooth reconnect" \
+  -pic -hy
+```
+
+Results show **matched X/N queries** to indicate confidence.
 
 ---
 

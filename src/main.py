@@ -353,6 +353,136 @@ def search_documents(
     return results
 
 
+def multi_search(
+    queries: list[str],
+    top_k: int = 5,
+    images_only: bool = False,
+    use_hybrid: bool = False
+):
+    """
+    Search with multiple queries and merge results using RRF.
+    
+    This improves recall by searching with different phrasings of the same concept.
+    
+    Args:
+        queries: List of search queries (2-5 recommended)
+        top_k: Number of final results to return
+        images_only: If True, only return image results
+        use_hybrid: If True, use BM25+Vector hybrid search
+    """
+    start_time = time.perf_counter()
+    
+    print(f"Multi-Query Search ({len(queries)} queries)")
+    print(f"Using backend: {settings.vectordb.backend}")
+    if use_hybrid:
+        print("Mode: Hybrid (BM25 + Vector)")
+    if images_only:
+        print("Filter: Images only")
+    print("-" * 50)
+    
+    for i, q in enumerate(queries, 1):
+        print(f"  [{i}] {q}")
+    print("-" * 50)
+    
+    # Collect results from all queries
+    all_results = {}  # chunk_id -> (best_score, result_obj, query_hits)
+    rrf_k = 60  # RRF parameter
+    
+    for query_idx, query in enumerate(queries):
+        # Search with lower threshold to get more candidates
+        fetch_k = top_k * 3
+        search_threshold = 0.4 if images_only else 0.5
+        
+        if use_hybrid:
+            vectorizer = get_vectorizer()
+            vector_store = get_vector_store()
+            hybrid_engine = HybridSearchEngine(vector_store, vectorizer)
+            raw_results = hybrid_engine.search(
+                query, 
+                top_k=fetch_k, 
+                vector_weight=0.4,
+                bm25_weight=0.6,
+                threshold=search_threshold
+            )
+            from src.search import SearchResult
+            results = [
+                SearchResult(
+                    rank=r["rank"],
+                    document=r["document"],
+                    similarity=r.get("rrf_score", r.get("similarity", 0)),
+                    metadata=r["metadata"],
+                    chunk_id=r["id"]
+                )
+                for r in raw_results
+            ]
+        else:
+            engine = get_search_engine()
+            results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
+        
+        # Apply image filter if needed
+        if images_only:
+            image_types = ["image", "extracted_image", "fullpage"]
+            results = [
+                r for r in results 
+                if r.metadata.get("content_type") in image_types 
+                or r.metadata.get("type") in image_types
+                or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
+            ]
+        
+        # Add to all_results with RRF scoring
+        for rank, result in enumerate(results, 1):
+            chunk_id = result.chunk_id
+            rrf_score = 1.0 / (rrf_k + rank)
+            
+            if chunk_id in all_results:
+                # Update: add RRF score, keep best similarity, track hit count
+                prev_score, prev_result, hit_count = all_results[chunk_id]
+                new_score = prev_score + rrf_score
+                best_result = prev_result if prev_result.similarity > result.similarity else result
+                all_results[chunk_id] = (new_score, best_result, hit_count + 1)
+            else:
+                all_results[chunk_id] = (rrf_score, result, 1)
+    
+    # Sort by RRF score (higher = better, appeared in more queries with higher rank)
+    sorted_results = sorted(all_results.values(), key=lambda x: x[0], reverse=True)
+    
+    # Build final results
+    final_results = []
+    for rank, (rrf_score, result, hit_count) in enumerate(sorted_results[:top_k], 1):
+        result.rank = rank
+        result.similarity = rrf_score  # Override with RRF score for display
+        final_results.append((result, hit_count))
+    
+    search_time = time.perf_counter() - start_time
+    
+    # Display results
+    if not final_results:
+        print("No results found.")
+    elif images_only:
+        print(f"\nFound {len(final_results)} merged image results:\n")
+        for result, hit_count in final_results:
+            image_path = result.metadata.get("image_path", "N/A")
+            source = result.metadata.get("source_file", "Unknown")
+            page = result.metadata.get("page_number", "?")
+            print(f"[{result.rank}] RRF Score: {result.similarity:.4f} (matched {hit_count}/{len(queries)} queries)")
+            print(f"    Image: {image_path}")
+            print(f"    Source: {source}, Page {page}")
+            print(f"    ID: {result.chunk_id}")
+            print()
+    else:
+        print(f"\nFound {len(final_results)} merged results:\n")
+        for result, hit_count in final_results:
+            print(f"[{result.rank}] RRF Score: {result.similarity:.4f} (matched {hit_count}/{len(queries)} queries)")
+            print(f"    ID: {result.chunk_id}")
+            print(f"    Source: {result.metadata.get('source_file', 'Unknown')}")
+            print(f"    Content: {result.document[:150] if result.document else 'N/A'}...")
+            print()
+    
+    print(f"⏱️  Multi-search completed in {_format_duration(search_time)}")
+    
+    return [r for r, _ in final_results]
+
+
 def show_stats():
     """Show vector database statistics."""
     vector_store = get_vector_store()
@@ -618,6 +748,34 @@ def main():
         help="Use hybrid search (BM25 + Vector) for better exact-match ranking"
     )
     
+    # Multi-Search command
+    msearch_parser = subparsers.add_parser(
+        "msearch",
+        help="Search with multiple queries and merge results (improves recall)"
+    )
+    msearch_parser.add_argument(
+        "queries",
+        nargs="+",
+        type=str,
+        help="Multiple search queries (2-5 recommended)"
+    )
+    msearch_parser.add_argument(
+        "--top-k", "-k",
+        type=int,
+        default=5,
+        help="Number of merged results (default: 5)"
+    )
+    msearch_parser.add_argument(
+        "--pic", "-pic",
+        action="store_true",
+        help="Only return image results"
+    )
+    msearch_parser.add_argument(
+        "--hybrid", "-hy",
+        action="store_true",
+        help="Use hybrid search (BM25 + Vector)"
+    )
+    
     # Stats command
     subparsers.add_parser(
         "stats",
@@ -710,6 +868,14 @@ def main():
             query=args.query,
             top_k=args.top_k,
             save_results=not args.no_save,
+            images_only=args.pic,
+            use_hybrid=args.hybrid
+        )
+    
+    elif args.command == "msearch":
+        multi_search(
+            queries=args.queries,
+            top_k=args.top_k,
             images_only=args.pic,
             use_hybrid=args.hybrid
         )
