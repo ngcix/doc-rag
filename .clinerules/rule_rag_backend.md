@@ -8,6 +8,7 @@ Before answering ANY technical question, you **MUST** query the RAG backend to g
 ### Core Workflow
 1. **Analyze Intent**: What is the user looking for? (Diagram, Fact, Code, Concept)
 2. **Select Command**: Use the Decision Matrix below.
+   - **Requirement**: Explicitly state your chosen strategy. e.g., *"User wants a diagram, so I will switch to `-pic` mode."*
 3. **Execute Search**: Run the CLI command.
 4. **Read Output**: 
    - Check terminal summary.
