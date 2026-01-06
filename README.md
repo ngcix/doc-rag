@@ -16,8 +16,10 @@ It handles **End-to-End** flow: from raw documents (PDF, DOCX, MD) to intelligen
 | **🧠 Intelligent Chunking** | Optimized recursive splitting for text (TXT, MD, PDF, DOCX) to preserve context. |
 | **⚡ High-Perf Vectorization** | Uses `gte-multilingual-base` (384-dim) for SOTA multilingual embedding quality. |
 | **🔍 Hybrid Search** | **Semantic Search** (Vector) + **Keyword Boosting** (Tags) for maximum accuracy. |
+| **🧩 Multi-Query Search** | **RRF (Reciprocal Rank Fusion)** merges results from multiple queries for complex questions. |
 | **🖼️ Smart Image Extraction** | Extracts full PDF pages or individual images, auto-tags (e.g., `Figure 4.1`, `Table 2`). |
 | **🤖 Agent Integration** | Designed for **ClineSR / GaussO MM** multimodal agent with vision capability. |
+| **🧪 Automated Eval** | Built-in retrieval evaluation suite (`Hit Rate`, `MRR`) with golden dataset support. |
 | **📈 Self-Improving** | Feedback loop with **Tag Boosting** (3x repeat) for automatic re-embedding. |
 
 ---
@@ -108,7 +110,26 @@ python -m src.main search -pic "Connection diagram"
 python -m src.main search -hy "Figure 4.2: Media Payload"
 
 # 🔗 Combine both: Find images with hybrid ranking
+# 🔗 Combine both: Find images with hybrid ranking
 python -m src.main search -pic -hy "Interrupt IN Flow Chart"
+
+# 🧩 Multi-Query Search (msearch) - BEST FOR COMPLEX QUESTIONS
+# Automatically runs multiple queries and fuses results (RRF algorithm)
+python -m src.main msearch "bluetooth reconnection" "link loss supervision" "timeout"
+```
+
+> 💡 **Tip**: Use `msearch` when you are unsure of the exact term or when asking "How to" / "Why" questions. Break your question into synonyms.
+
+### 6. 🧪 Quality Assurance (Evaluation)
+
+Run the built-in evaluation suite to measure retrieval accuracy (Hit Rate / MRR):
+
+```bash
+# Run evaluation using default golden dataset
+python -m src.main eval
+
+# Options
+python -m src.main eval --top-k 10 --dataset tests/data/my_golden_data.json
 ```
 
 > 💡 **Tip**: Use `-hy` when searching for specific figure/table names to improve exact-match accuracy.
@@ -147,6 +168,8 @@ python -m src.main search "security diagram"
 | **`search`** | Query the database | `python -m src.main search "query"` |
 | **`search -pic`** | Search images only | `python -m src.main search -pic "diagram"` |
 | **`search -hy`** | Hybrid search (BM25+Vector) | `python -m src.main search -hy "Figure 4.1"` |
+| **`msearch`** | Multi-Query Search (RRF) | `python -m src.main msearch "q1" "q2"` |
+| **`eval`** | Run accuracy evaluation | `python -m src.main eval` |
 | **`list`** | Show all indexed Docs | `python -m src.main list` |
 | **`listtag`** | View tags for a doc | `python -m src.main listtag doc_id` |
 | **`addtag`** | Add tag & **Re-embed** | `python -m src.main addtag doc_id "new-tag"` |
