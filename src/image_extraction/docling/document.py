@@ -29,6 +29,7 @@ class Label(Enum):
     CheckboxUnselected = 14
     Form = 15
     KeyValueRegion = 16
+    Icon = 17
 
 
 class MyItem:
@@ -59,6 +60,8 @@ class MyPage:
     picture_list: List[MyItem]
     scale_x: int
     scale_y: int
+    page_width: int
+    page_height: int
 
     def __init__(self, fitz_page=None, page_num=0):
         self.fitz_page = fitz_page
@@ -75,13 +78,13 @@ class MyPage:
         self.image_size = pil_image.size
 
         page_rect = self.fitz_page.rect
-        page_width = page_rect.width
-        page_height = page_rect.height
-        print(f"Page {self.page_num} = ({page_width}, {page_height})")
+        self.page_width = page_rect.width
+        self.page_height = page_rect.height
+        # print(f"Page {self.page_num} = ({self.page_width}, {self.page_height})")
 
         img_width, img_height = self.image_size
-        self.scale_x = page_width / img_width
-        self.scale_y = page_height / img_height
+        self.scale_x = self.page_width / img_width
+        self.scale_y = self.page_height / img_height
 
     def predict_items(self):
         model = get_model()
@@ -100,7 +103,7 @@ class MyPage:
                         score=score,
                     )
                 )
-
+        # self.resolve_gap_items()
         for item in self.item_list:
             if item.label in [
                 Label.Text,
@@ -125,6 +128,10 @@ class MyPage:
 
             text_rect = fitz.Rect(pdf_x1, pdf_y1, pdf_x2, pdf_y2)
             item.text = self.fitz_page.get_text(clip=text_rect).strip()
+            if item.label != Label.Picture:
+                item.text = item.text.replace("\n", "").strip()
+            else:
+                item.text = item.text.replace("\n", ".").strip()
 
         except Exception as e:
             print(f"Error extract text from page {self.page_num}:\n\t{e}")
@@ -133,7 +140,7 @@ class MyPage:
         image = Image.open(self.image_path)
         for i, pic in enumerate(self.picture_list):
             pic.image = image.crop(pic.box)
-            image_path = output_dir / f"{file_name}_p{self.page_num}_{i}"
+            image_path = output_dir / f"{file_name}_p{self.page_num}_{i}.png"
             pic.path = image_path.__str__()
             pic.image.save(image_path, "PNG")
 
@@ -150,24 +157,38 @@ class MyPage:
         output_path = output_dir / f"{file_name}_p{self.page_num}.png"
         image.save(output_path)
 
-    def _is_small_image(self, item: MyItem):
+    def is_icon_image(self, item: MyItem):
         """We need the scale, so this function must be put here"""
         _x1, _y1, _x2, _y2 = item.box
         x1 = _x1 * self.scale_x
         y1 = _y1 * self.scale_y
         x2 = _x2 * self.scale_x
         y2 = _y2 * self.scale_y
-        size_x = round(x2 - x1, 2)
-        size_y = round(y2 - y1, 2)
-        
-        # Quantization
-        size_x = round(size_x / 4)
-        size_y = round(size_y / 4)
-        x1 = round(x1 / 4)
-        y1 = round(y1 / 4)
-        
-        print(f"size=({size_x} x {size_y}) \t loc=({x1, y1})")
-        return False
+        size_x = (x2 - x1) * 100 / self.page_width
+        size_y = (y2 - y1) * 100 / self.page_height
+
+        loc_x = x1 * 100 / self.page_width
+        loc_y = y1 * 100 / self.page_height
+
+        # print(f"size=({size_x} x {size_y}) \t loc=({loc_x, loc_y})")
+
+        return size_x <= 5 and size_x <= 5
+
+    def resolve_gap_items(self):
+        # print(f"Page {self.page_num}:")
+        for item in self.item_list:
+            _x1, _y1, _x2, _y2 = item.box
+            # print(f"({_y1} {_x1})")
+            pass
+
+    def delete_image(self):
+        image_file = Path(self.image_path)
+        try:
+            image_file.unlink()
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            pass
 
 
 class MyDocument:
@@ -188,6 +209,8 @@ class MyDocument:
         self.page_count = min(len(self.pages), max_page)
 
     def close(self):
+        for page in self.pages:
+            page.delete_image()
         self.pages = []
         self.fitz_doc.close()
 
@@ -210,7 +233,6 @@ class MyDocument:
             get_processor().run_sequential(
                 desc, lambda p: self.pages[p].predict_items(), self.page_count
             )
-        self._remove_icons()
 
     def crop_pictures(self, output_dir: Path):
         get_processor().run_sequential(
@@ -225,11 +247,19 @@ class MyDocument:
             lambda p: self.pages[p].draw_bboxes(output_dir, self.file_name),
             self.page_count,
         )
-        
-    def _remove_icons(self):
+
+    def remove_unecessary_items(self):
         """Remove if icon repeat in many page or too small or in the same location"""
         self.pictures = []
-        for page in self.pages:
-            self.pictures.extend(page.picture_list)
+        for i in range(self.page_count):
+            page = self.pages[i]
+            page.resolve_gap_items()
+            icons = []
             for p in page.picture_list:
-                page._is_small_image(p)
+                if page.is_icon_image(p):
+                    icons.append(p)
+            for ic in icons:
+                page.picture_list.remove(ic)
+                page.item_list.remove(ic)
+
+            self.pictures.extend(page.picture_list)

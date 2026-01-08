@@ -7,6 +7,6 @@ if __name__ == "__main__":
     # test_file = file_dir / "data/documents/HID_v1.1.1._pdf"
     test_file = file_dir / "data/documents/A2DP_v1.4.1.pdf"
     output = e.extract_from_file(test_file)
-    # for item in output:
-    #     print("_" * 100)
-    #     print(item)
+    for item in output:
+        print("_" * 100)
+        print(item)
