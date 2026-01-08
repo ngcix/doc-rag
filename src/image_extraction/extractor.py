@@ -291,6 +291,10 @@ class ImageExtractor:
                 if not has_images and self.extract_figures:
                     drawings = page.get_drawings()
                     max_drawing_area = page_area * 0.50  # Exclude full-page frames/borders
+                    
+                    # Calculate COMBINED area of meaningful drawings
+                    total_content_area = 0
+                    
                     for d in drawings:
                         rect = d["rect"]
                         drawing_area = rect.width * rect.height
@@ -298,21 +302,41 @@ class ImageExtractor:
                         # Skip light-colored solid rectangles (background boxes/headers)
                         fill = d.get("fill")
                         if fill and len(d.get("items", [])) == 1:
-                            # Check if it's a simple rectangle with light fill
                             item_type = d.get("items", [[""]])[0][0]
-                            if item_type == "re":  # Rectangle
-                                # Calculate brightness (average of RGB)
+                            if item_type == "re":
                                 brightness = sum(fill) / len(fill) if fill else 0
-                                if brightness > 0.85:  # Very light (near white/gray)
-                                    continue  # Skip this decorative background
+                                if brightness > 0.85:
+                                    continue
                         
-                        # Filter: 5% to 50% of page (excludes tiny logos AND full-page borders)
-                        if (
-                            rect.width > self.min_drawing_size
-                            and rect.height > self.min_drawing_size
-                            and drawing_area >= min_image_area
-                            and drawing_area <= max_drawing_area
-                        ):
+                        # Skip trivially small elements
+                        if rect.width < self.min_drawing_size or rect.height < self.min_drawing_size:
+                            continue
+                        
+                        # Skip full-page frames
+                        if drawing_area > max_drawing_area:
+                            continue
+                        
+                        # Add to combined area
+                        total_content_area += drawing_area
+                    
+                    # Check if COMBINED area is significant (2% of page)
+                    if total_content_area >= page_area * 0.02:
+                        has_images = True
+                
+                # Secondary check: page contains Figure/Table captions
+                if not has_images:
+                    text = page.get_text().lower()
+                    # Check for figure/table caption patterns
+                    import re
+                    figure_patterns = [
+                        r'figure\s+\d+',      # Figure 1, Figure 12
+                        r'fig\.\s*\d+',       # Fig. 1, Fig.12
+                        r'table\s+\d+',       # Table 1
+                        r'hình\s+\d+',        # Vietnamese: Hình 1
+                        r'bảng\s+\d+',        # Vietnamese: Bảng 1
+                    ]
+                    for pattern in figure_patterns:
+                        if re.search(pattern, text):
                             has_images = True
                             break
 
