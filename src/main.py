@@ -309,12 +309,23 @@ def search_documents(
             )
             for r in raw_results
         ]
+        
+        # Helper to save hybrid results
+        if save_results:
+             # We need access to the base search engine for saving utility
+             base_engine = get_search_engine()
+             params = {
+                "top_k": fetch_k,
+                "threshold": search_threshold,
+                "mode": "hybrid",
+                "original_count": len(results)
+             }
+             # Note: We save AFTER filtering below, but if we wanted to save raw hybrid results:
+             # base_engine.save_search_results(query, results, extra_params=params)
+
     else:
         engine = get_search_engine()
-        if save_results:
-            results = engine.search_and_save(query, top_k=fetch_k, threshold=search_threshold)
-        else:
-            results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
+        results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
     
     # Filter for images only if requested
     if images_only:
@@ -331,6 +342,17 @@ def search_documents(
             r.rank = i + 1
     
     search_time = time.perf_counter() - start_time
+    
+    # Save results if requested
+    if save_results:
+        engine = get_search_engine()
+        save_params = {
+            "top_k": top_k,
+            "images_only": images_only,
+            "use_hybrid": use_hybrid,
+            "fetch_k": fetch_k
+        }
+        engine.save_search_results(query, results, extra_params=save_params)
     
     # Display results
     if images_only and results:

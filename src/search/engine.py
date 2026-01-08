@@ -127,6 +127,56 @@ class SearchEngine:
         
         return results
     
+    def save_search_results(
+        self,
+        query: str,
+        results: list[SearchResult],
+        query_id: Optional[str] = None,
+        extra_params: Optional[dict] = None
+    ) -> Path:
+        """
+        Save search results to disk.
+        
+        Args:
+            query: The search query text.
+            results: List of SearchResult objects to save.
+            query_id: Optional identifier for the query.
+            extra_params: Optional dict of search parameters to save in input file.
+            
+        Returns:
+            Path to the output file.
+        """
+        timestamp = datetime.now().isoformat()
+        query_id = query_id or f"query_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Save input
+        input_data = {
+            "query_id": query_id,
+            "query": query,
+            "timestamp": timestamp,
+            "parameters": extra_params or {}
+        }
+        
+        input_file = PROCESS_INPUT_DIR / f"{query_id}.json"
+        with open(input_file, "w", encoding="utf-8") as f:
+            json.dump(input_data, f, ensure_ascii=False, indent=2)
+        
+        # Save output
+        output_data = {
+            "query_id": query_id,
+            "query": query,
+            "timestamp": timestamp,
+            "result_count": len(results),
+            "results": [r.to_dict() for r in results]
+        }
+        
+        output_file = PROCESS_OUTPUT_DIR / f"{query_id}.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"Search saved. Input: {input_file}, Output: {output_file}")
+        return output_file
+
     def search_and_save(
         self,
         query: str,
@@ -144,41 +194,17 @@ class SearchEngine:
         Returns:
             List of SearchResult objects.
         """
-        timestamp = datetime.now().isoformat()
-        query_id = query_id or f"query_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        # Save input
-        input_data = {
-            "query_id": query_id,
-            "query": query,
-            "timestamp": timestamp,
-            "parameters": {
-                "top_k": kwargs.get("top_k", self.config.top_k),
-                "threshold": kwargs.get("threshold", self.config.score_threshold)
-            }
-        }
-        
-        input_file = PROCESS_INPUT_DIR / f"{query_id}.json"
-        with open(input_file, "w", encoding="utf-8") as f:
-            json.dump(input_data, f, ensure_ascii=False, indent=2)
-        
         # Perform search
         results = self.search(query, **kwargs)
         
-        # Save output
-        output_data = {
-            "query_id": query_id,
-            "query": query,
-            "timestamp": timestamp,
-            "result_count": len(results),
-            "results": [r.to_dict() for r in results]
+        # Prepare params for saving
+        params = {
+            "top_k": kwargs.get("top_k", self.config.top_k),
+            "threshold": kwargs.get("threshold", self.config.score_threshold)
         }
         
-        output_file = PROCESS_OUTPUT_DIR / f"{query_id}.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, ensure_ascii=False, indent=2)
-        
-        print(f"Search completed. Input: {input_file}, Output: {output_file}")
+        # Save results
+        self.save_search_results(query, results, query_id, params)
         
         return results
     
