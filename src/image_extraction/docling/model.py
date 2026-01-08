@@ -5,10 +5,9 @@ from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
 
 class MyModel:
-    def __init__(self, threshold: float = 0.6, dpi: int = 120, max_workers: int = None):
+    def __init__(self, threshold: float = 0.6, dpi: int = 120):
         self.threshold = threshold
         self.dpi = dpi
-        self.max_workers = max_workers or (os.cpu_count() // 2)  # type: ignore
 
         file_dir = Path(__file__).resolve().parents[3]
         model_path = file_dir / "models" / "docling-project--docling-layout-heron"
@@ -20,8 +19,6 @@ class MyModel:
         self.model = RTDetrV2ForObjectDetection.from_pretrained(model_path)
         self.model = self.model.to(self.device)  # type: ignore
         self.model.eval()
-        
-        print(f"Using {self.max_workers} workers / {os.cpu_count()} cores")
 
     def predict(self, image):
         inputs = self.processor(images=[image], return_tensors="pt")
@@ -35,3 +32,11 @@ class MyModel:
             threshold=self.threshold,
         )
         return results
+
+_model = None
+
+def get_model(threshold: float = 0.6, dpi: int = 120):
+    global _model
+    if _model is None:
+        _model = MyModel(threshold=threshold, dpi=dpi)
+    return _model

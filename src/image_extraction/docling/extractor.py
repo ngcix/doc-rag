@@ -1,42 +1,23 @@
-from typing import List
+import hashlib
+import io
+from typing import List, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
-from .document import MyDocument
-from .model import MyModel
+from .document import MyDocument, MyItem, Label
+from ..image_info import ExtractedImage
 
 
-@dataclass
-class ExtractedImage:
-    image_id: str
-    image_path: str
-    source_file: str
-    page_number: int
-    bbox: tuple
-    region_type: str
-    surrounding_text: str = ""
-    caption: str = ""
-    description: str = ""
-    tags: str = ""
-
-    def to_dict(self) -> dict:
-        return {
-            "image_id": self.image_id,
-            "image_path": self.image_path,
-            "source_file": self.source_file,
-            "page_number": self.page_number,
-            "bbox": self.bbox,
-            "region_type": self.region_type,
-            "surrounding_text": self.surrounding_text,
-            "caption": self.caption,
-            "description": self.description,
-            "tags": self.tags,
-        }
+def get_image_hash(pil_image) -> str:
+    """Generate MD5 hash from PIL Image."""
+    img_byte_arr = io.BytesIO()
+    pil_image.save(img_byte_arr, format="PNG")
+    img_bytes = img_byte_arr.getvalue()
+    return hashlib.md5(img_bytes).hexdigest()[:8]
 
 
 class DoclingExtractorV2:
-    def __init__(self, threshold: float = 0.6, dpi: int = 120, max_workers: int = None, debug: bool = False):
-        self.model = MyModel(threshold=threshold, dpi=dpi, max_workers=max_workers)
+    def __init__(self, debug: bool = False):
         self.debug = debug
 
         file_dir = Path(__file__).resolve().parents[3]
@@ -50,9 +31,12 @@ class DoclingExtractorV2:
 
     def extract_from_file(self, file_path: Path, **kwargs) -> List[ExtractedImage]:
         doc = MyDocument()
-        doc.open(file_path)
-        doc.convert_pages_to_images_parallel(self.temp_dir, self.model)
-        doc.process_pages(self.model)
+        if self.debug:
+            doc.open(file_path, 24)
+        else:
+            doc.open(file_path)
+        doc.convert_pages_to_images_parallel(self.temp_dir)
+        doc.process_pages()
         doc.crop_pictures(self.pic_dir)
 
         if self.debug:
@@ -61,5 +45,49 @@ class DoclingExtractorV2:
         return self.process_pictures(doc)
 
     def process_pictures(self, doc: MyDocument) -> List[ExtractedImage]:
-        # TODO: process images context here
-        return []
+        output = []
+        all_items: List[MyItem] = []
+        for page in doc.pages:
+            for item in page.item_list:
+                all_items.append(item)
+
+        all_items.sort(key=lambda item: (item.page_num, item.box[1], item.box[0]))
+        picture_indices = {i: item for i, item in enumerate(all_items) if item.label == Label.Picture}
+
+        for pic_idx, pic_item in picture_indices.items():
+            before_text = self._collect_surrounding_text(all_items, pic_idx, direction=-1)
+            after_text = self._collect_surrounding_text(all_items, pic_idx, direction=1)
+
+            context = " ".join(before_text + after_text).strip()
+            # print(pic_item.text.strip())
+
+            output.append(
+                ExtractedImage(
+                    image_id=get_image_hash(pic_item.image),
+                    image_path=pic_item.path,
+                    source_file=doc.file_name,
+                    page_number=pic_item.page_num,
+                    bbox=pic_item.box,
+                    region_type="picture",
+                    surrounding_text=context,
+                    caption=" ",
+                    description=f"Picture from {doc.file_name}, page {pic_item.page_num}",
+                )
+            )
+        return output
+
+    def _collect_surrounding_text(self, all_items: List[MyItem], start_idx: int, direction: int) -> List[str]:
+        stop_labels = {Label.Table, Label.Picture, Label.SectionHeader, Label.Title}
+        texts = []
+        idx = start_idx + direction
+        while 0 <= idx < len(all_items):
+            item = all_items[idx]
+            if item.label in stop_labels or (item.label == Label.Caption and direction == -1):
+                break  # Stop if hit table, another picture, or header
+            if item.text.strip():  # Only add if has text
+                texts.append(item.text.strip())
+            idx += direction
+
+        if direction == -1:
+            texts.reverse()  # Reverse before-text to maintain order
+        return texts

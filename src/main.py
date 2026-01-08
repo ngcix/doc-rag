@@ -501,6 +501,11 @@ def main():
         action="store_true",
         help="Extract individual images using Docling"
     )
+    strategy_group.add_argument(
+        "--docling1", "-dl1",
+        action="store_true",
+        help="Extract individual images using Docling old version"
+    )
     
     # Search command
     search_parser = subparsers.add_parser(
@@ -594,14 +599,16 @@ def main():
     if args.command == "process":
         # Manual Validation for Strategy
         if not args.no_images:
-            if not (args.fullpage or args.pymupdf or args.docling):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu) OR --docling (-dl)")
+            if not (args.fullpage or args.pymupdf or args.docling or args.docling1):
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu) OR --docling (-dl) OR --docling1 (-dl1)")
                 
         mode = "fp"
         if args.pymupdf:
             mode = "pymu"
         elif args.docling:
             mode = "dl"
+        elif args.docling1:
+            mode = "dl1"
         
         process_documents(
             mode,
