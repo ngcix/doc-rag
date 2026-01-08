@@ -55,7 +55,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 ## 4. Describe Images
 
-1. Only read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
+1. ONLY read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
 
 2. **Check search results** - First examine the JSON output to verify the top result is an image using the `read_file` tool
 
@@ -84,17 +84,36 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Formulate comprehensive answer addressing user's original question specifically
    - Note that images may contain extraneous text or elements not relevant to the query
 
-2. **Present detailed explanation to user** using `attempt_completion` tool:
+2. **Present detailed explanation to user**:
    - Provide comprehensive explanation based on analyzed content
    - Include detailed supporting evidence from search results
    - Show relevant image analysis if applicable
    - Structure response with thorough reasoning to address user's query
 
-4. **Proceed to next steps**:
+3. **Display complete analysis before proceeding**:
+   - Ensure all search results and image analysis content are presented to user
+   - Do not proceed to tagging until user has seen the full analysis
+   - Wait for user acknowledgment of the analysis content
+
+4. **Automatically proceed to next steps**:
+   - Display the complete analysis results to user
+   - Automatically continue to next steps without waiting for user feedback
    - If top result IS an image → Continue to step 6 (Generate and Add Tags for Images)
    - If top result is NOT an image → Continue to step 7 (Cleanup Query Files)
 
 ## 6. Generate and Add Tags for Images
+
+1. **Verify analysis presentation**:
+   - Confirm that search results have been displayed to user
+   - Confirm that image analysis content has been shown to user
+   - Ensure user has seen the complete analysis before proceeding to tagging
+
+2. **Identify key concepts** from the image description:
+   - Figure numbers and names (e.g., "Figure 2.1 A2DP") - phrase
+   - Protocol names and stacks (e.g., "AVDTP SDP stack") - phrase
+   - Specific entities and components (e.g., "Audio Source Sink") - phrase
+   - Architectural elements (e.g., "Protocol stack layers") - phrase
+   - **Avoid single words like: "protocol", "figure", "stack"**
 
 1. **Identify key concepts** from the image description:
    - Figure numbers and names (e.g., "Figure 2.1 A2DP") - phrase
