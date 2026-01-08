@@ -260,6 +260,11 @@ class ImageExtractor:
                 # Check if page has images
                 has_images = False
                 headers_detected = False
+                
+                # Calculate page area for relative size filtering (5% threshold)
+                page_rect = page.rect
+                page_area = page_rect.width * page_rect.height
+                min_image_area = page_area * 0.05  # 5% of page
 
                 # Check for embedded images
                 image_list = page.get_images(full=True)
@@ -267,9 +272,13 @@ class ImageExtractor:
                     try:
                         xref = img[0]
                         pix_check = fitz.Pixmap(doc, xref)
+                        image_area = pix_check.width * pix_check.height
+                        
+                        # Filter: must meet minimum dimensions AND 5% of page area
                         if (
                             pix_check.width >= self.min_width
                             and pix_check.height >= self.min_height
+                            and image_area >= min_image_area
                         ):
                             has_images = True
                             pix_check = None
@@ -281,11 +290,28 @@ class ImageExtractor:
                 # If no embedded images, check for drawings if configured
                 if not has_images and self.extract_figures:
                     drawings = page.get_drawings()
+                    max_drawing_area = page_area * 0.50  # Exclude full-page frames/borders
                     for d in drawings:
                         rect = d["rect"]
+                        drawing_area = rect.width * rect.height
+                        
+                        # Skip light-colored solid rectangles (background boxes/headers)
+                        fill = d.get("fill")
+                        if fill and len(d.get("items", [])) == 1:
+                            # Check if it's a simple rectangle with light fill
+                            item_type = d.get("items", [[""]])[0][0]
+                            if item_type == "re":  # Rectangle
+                                # Calculate brightness (average of RGB)
+                                brightness = sum(fill) / len(fill) if fill else 0
+                                if brightness > 0.85:  # Very light (near white/gray)
+                                    continue  # Skip this decorative background
+                        
+                        # Filter: 5% to 50% of page (excludes tiny logos AND full-page borders)
                         if (
                             rect.width > self.min_drawing_size
                             and rect.height > self.min_drawing_size
+                            and drawing_area >= min_image_area
+                            and drawing_area <= max_drawing_area
                         ):
                             has_images = True
                             break
