@@ -12,7 +12,36 @@ Expected output: Search results with optional image descriptions and improved ta
 ## Recommended Rule
 Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
-## 1. Environment Setup
+## 1. Question Analysis
+
+1. **Analyze User Question Intent**:
+   - Determine if the question is specific or vague/general
+   - Identify key technical domains mentioned (audio, network, security, protocol, algorithm, design, etc.)
+   - Detect question type (diagram request, factual query, procedural question, etc.)
+
+2. **Handle Vague Questions**:
+   - If question is too general (e.g., "show me diagram", "what is filter") or not detailed, provide suggestions
+   - Generate 3-5 specific alternatives based on common patterns:
+     - Diagram requests: "flow diagram", "architecture diagram", "sequence diagram", "connection diagram", "block diagram"
+     - Flow requests: "data flow", "process flow", "signal flow", "control flow", "algorithm flow"
+     - Protocol requests: "communication protocol", "network protocol", "audio protocol", "stack protocol", "interface protocol"
+     - Filter requests: "filter design", "filter implementation", "digital filter", "analog filter", "frequency filter"
+     - System requests: "system architecture", "system design", "system components", "system overview", "system flow"
+     - Entity requests: "system entities", "component entities", "architecture entities", "protocol entities", "interface entities"
+
+3. **Present Suggestions to User** using `ask_followup_question`:
+   ```xml
+   <ask_followup_question>
+   <question>Your question "{original_question}" is quite general. Here are some more specific options:</question>
+   <options>["Option 1: Specific suggestion 1", "Option 2: Specific suggestion 2", "Option 3: Specific suggestion 3", "Let me rephrase my question"]</options>
+   </ask_followup_question>
+   ```
+
+4. **Wait for User Selection**:
+   - Use the selected specific question for the search
+   - If user chooses to rephrase, wait for their new question
+
+## 2. Environment Setup
 
 1. Always activate the virtual environment before running any commands using the `execute_command` tool:
    ```bash
@@ -89,15 +118,16 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Include detailed supporting evidence from search results
    - Show relevant image analysis if applicable
    - Structure response with thorough reasoning to address user's query
+   - **Ensure final results show detailed information addressing user's specific request**
 
-3. **Display complete analysis before proceeding**:
-   - Ensure all search results and image analysis content are presented to user
+3. **CRITICAL: Always display complete analysis before proceeding**:
+   - **CRITICAL** Ensure all search results and image analysis content are presented to user
    - Do not proceed to tagging until user has seen the full analysis
    - Wait for user acknowledgment of the analysis content
+   - Display detailed results before asking for tagging decisions
 
-4. **Automatically proceed to next steps**:
-   - Display the complete analysis results to user
-   - Automatically continue to next steps without waiting for user feedback
+4. **Proceed to next steps after user acknowledgment**:
+   - Wait for user confirmation after presenting complete analysis
    - If top result IS an image → Continue to step 6 (Generate and Add Tags for Images)
    - If top result is NOT an image → Continue to step 7 (Cleanup Query Files)
 
@@ -135,11 +165,12 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 3. **Present options to user** using `ask_followup_question`:
    - Show 2-3 tag options plus "No tags" option
    - Include brief descriptions of what each option emphasizes
+   - **Show actual tags for each option** to help user make informed decisions
    - Example format:
      ```
      <ask_followup_question>
      <question>Which tag option would you like to use for this image?</question>
-     <options>["Option 1: Protocol-focused tags", "Option 2: Architecture-focused tags", "Option 3: Entity-focused tags", "No tags"]</options>
+     <options>["Option 1: Protocol-focused tags (tag1, tag2, tag3)", "Option 2: Architecture-focused tags (tag4, tag5, tag6)", "Option 3: Entity-focused tags (tag7, tag8, tag9)", "No tags"]</options>
      </ask_followup_question>
      ```
 
