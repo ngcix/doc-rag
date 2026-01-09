@@ -393,7 +393,8 @@ def multi_search(
     queries: list[str],
     top_k: int = 5,
     images_only: bool = False,
-    use_hybrid: bool = False
+    use_hybrid: bool = False,
+    save_results: bool = True
 ):
     """
     Search with multiple queries and merge results using RRF.
@@ -405,6 +406,7 @@ def multi_search(
         top_k: Number of final results to return
         images_only: If True, only return image results
         use_hybrid: If True, use BM25+Vector hybrid search
+        save_results: If True, save merged results to file
     """
     start_time = time.perf_counter()
     
@@ -515,6 +517,28 @@ def multi_search(
             print()
     
     print(f"⏱️  Multi-search completed in {_format_duration(search_time)}")
+    
+    # Save results if requested
+    if save_results and final_results:
+        # We need access to the base search engine for saving utility
+        engine = get_search_engine()
+        
+        # Create a composite query string for the filename/record
+        composite_query = " | ".join(queries)
+        
+        # Prepare actual result objects
+        results_to_save = [r for r, _ in final_results]
+        
+        save_params = {
+            "top_k": top_k,
+            "images_only": images_only,
+            "use_hybrid": use_hybrid,
+            "mode": "multi_search",
+            "queries": queries,
+            "rerank_method": "RRF"
+        }
+        
+        engine.save_search_results(composite_query, results_to_save, extra_params=save_params)
     
     return [r for r, _ in final_results]
 
@@ -816,6 +840,11 @@ def main():
         action="store_true",
         help="Use hybrid search (BM25 + Vector)"
     )
+    msearch_parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Don't save search input/output"
+    )
     
     # Stats command
     subparsers.add_parser(
@@ -938,7 +967,8 @@ def main():
             queries=args.queries,
             top_k=args.top_k,
             images_only=args.pic,
-            use_hybrid=args.hybrid
+            use_hybrid=args.hybrid,
+            save_results=not args.no_save
         )
     
     elif args.command == "stats":
