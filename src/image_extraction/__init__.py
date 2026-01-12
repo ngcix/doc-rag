@@ -21,9 +21,9 @@ __all__ = [
     "get_image_extractor",
 ]
 
-def get_image_extractor(mode):
+def get_image_extractor(mode, force_new: bool = False, image_format: str = None):
     if mode == "fp":
-        return paddle.get_image_extractor()
+        return paddle.get_image_extractor(force_new=force_new, image_format=image_format)
     if mode == "dl":
         return docling.get_image_extractor()
     if mode == "dl1":

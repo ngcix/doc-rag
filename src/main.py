@@ -62,12 +62,12 @@ def _process_chunking(file_path: Path) -> list:
 
 def _process_extraction(args) -> list:
     """Helper for parallel image extraction."""
-    pdf_file, mode, fullpage_mode = args
+    pdf_file, mode, fullpage_mode, image_format = args
     if not pdf_file.exists():
         return []
     
     try:
-        extractor = get_image_extractor(mode)
+        extractor = get_image_extractor(mode, force_new=True, image_format=image_format)
         # Avoid print in parallel process or it might get messy, 
         # but for now let's keep it minimal or just return results
         return extractor.extract_from_file(pdf_file, fullpage_mode=fullpage_mode)
@@ -113,11 +113,12 @@ def process_documents(
     vector_store = get_vector_store()
     chart_processor = get_chart_processor()
     
-    # Set image format in config before creating extractor
-    if image_format and mode == "fp":
-        settings.image_extraction.image_format = image_format
+    # Create image extractor with format override if specified
+    image_format_override = None
+    if mode == "fp" and image_format and image_format != "png":
+        image_format_override = image_format
     
-    image_extractor = get_image_extractor(mode)
+    image_extractor = get_image_extractor(mode, force_new=bool(image_format_override), image_format=image_format_override)
     
     all_vectorized = []
     total_images = 0
@@ -176,7 +177,7 @@ def process_documents(
         pdf_files = list(input_dir.glob("**/*.pdf"))
         
         if pdf_files:
-            extract_args = [(p, mode, fullpage_mode) for p in pdf_files]
+            extract_args = [(p, mode, fullpage_mode, image_format_override) for p in pdf_files]
             
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 results = list(tqdm(

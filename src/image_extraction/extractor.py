@@ -72,12 +72,13 @@ class ImageExtractor:
     Configuration is loaded from config/settings.py
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, image_format_override: str = None):
         """
         Initialize the ImageExtractor.
 
         Args:
             config: Image extraction configuration. If None, loads from settings.
+            image_format_override: Override the image format from config (e.g., "jpeg").
         """
         # Load config from settings if not provided
         if config is None:
@@ -85,6 +86,7 @@ class ImageExtractor:
 
         # Store config (may be pydantic model or None)
         self._config = config
+        self._image_format_override = image_format_override
         self._structure_engine = None
         ensure_directories()
 
@@ -105,6 +107,9 @@ class ImageExtractor:
 
     @property
     def image_format(self):
+        # Use override if provided, otherwise fallback to config
+        if self._image_format_override:
+            return self._image_format_override
         return self._get_config_value("image_format", "png")
 
     @property
@@ -1343,9 +1348,15 @@ class ImageExtractor:
 _extractor: Optional[ImageExtractor] = None
 
 
-def get_image_extractor() -> ImageExtractor:
-    """Get or create the global image extractor instance."""
+def get_image_extractor(force_new: bool = False, image_format: str = None) -> ImageExtractor:
+    """Get or create the global image extractor instance.
+    
+    Args:
+        force_new: If True, create a new instance even if one exists.
+        image_format: Override image format (e.g., "jpeg").
+    """
     global _extractor
-    if _extractor is None:
-        _extractor = ImageExtractor()
+    if _extractor is None or force_new:
+        _extractor = ImageExtractor(image_format_override=image_format)
     return _extractor
+
