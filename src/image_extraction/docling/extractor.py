@@ -32,10 +32,9 @@ class DoclingExtractorV2:
     def extract_from_file(self, file_path: Path, **kwargs) -> List[ExtractedImage]:
         doc = MyDocument()
         if self.debug:
-            doc.open(file_path, 24)
+            doc.open(file_path)
         else:
             doc.open(file_path)
-        doc.convert_pages_to_images_parallel(self.temp_dir)
         doc.process_pages()
         doc.remove_unecessary_items()
         doc.crop_pictures(self.pic_dir)

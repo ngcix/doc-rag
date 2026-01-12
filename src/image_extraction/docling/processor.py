@@ -4,7 +4,7 @@ import os
 
 class Processor:
     def __init__(self, max_workers: int = None): # type: ignore
-        self.max_workers = max_workers or (os.cpu_count() // 2)  # type: ignore
+        self.max_workers = max_workers or (os.cpu_count() // 4)  # type: ignore
         print(f"Using {self.max_workers} workers / {os.cpu_count()} cores")
 
     def run_parallel(self, desc, func, size):
