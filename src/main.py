@@ -83,7 +83,8 @@ def process_documents(
     input_dir: Optional[Path] = None,
     include_charts: bool = True,
     include_images: bool = True,
-    fullpage_mode: bool = False
+    fullpage_mode: bool = False,
+    image_format: str = "png"
 ):
     """
     Process all documents in the input directory.
@@ -111,6 +112,11 @@ def process_documents(
     vectorizer = get_vectorizer()
     vector_store = get_vector_store()
     chart_processor = get_chart_processor()
+    
+    # Set image format in config before creating extractor
+    if image_format and mode == "fp":
+        settings.image_extraction.image_format = image_format
+    
     image_extractor = get_image_extractor(mode)
     
     all_vectorized = []
@@ -999,6 +1005,13 @@ def main():
         action="store_true",
         help="Extract individual images using Docling old version"
     )
+    process_parser.add_argument(
+        "--format", "-fmt",
+        type=str,
+        choices=["png", "jpeg", "jpg"],
+        default="png",
+        help="Image format for fullpage mode (default: png, use jpeg for smaller files)"
+    )
     
     # Search command
     search_parser = subparsers.add_parser(
@@ -1212,7 +1225,8 @@ def main():
             input_dir=args.input,
             include_charts=not args.no_charts,
             include_images=not args.no_images,
-            fullpage_mode=args.fullpage
+            fullpage_mode=args.fullpage,
+            image_format=args.format
         )
     
     elif args.command == "search":

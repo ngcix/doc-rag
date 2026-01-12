@@ -345,16 +345,23 @@ class ImageExtractor:
 
                 # Render full page
                 pix = page.get_pixmap(dpi=150)
-                image_data = pix.tobytes("png")
-
-                # Generate ID
-                # Use deterministic ID based on filename and page: docname_p{pagenum}
+                
+                # Generate ID and save with configured format
+                image_format = self.image_format.lower()
                 image_id = f"{pdf_path.name}_p{page_num + 1}"
-                image_filename = f"{image_id}.png"
+                image_filename = f"{image_id}.{image_format}"
                 image_path = self.output_dir / image_filename
 
-                # Save image
-                pix.save(str(image_path))
+                # Save image (jpeg with quality 90 for smaller size)
+                if image_format in ("jpg", "jpeg"):
+                    # Convert to PIL for JPEG save with quality control
+                    from PIL import Image
+                    import io
+                    img_data = pix.tobytes("ppm")
+                    pil_img = Image.open(io.BytesIO(img_data))
+                    pil_img.save(str(image_path), "JPEG", quality=90)
+                else:
+                    pix.save(str(image_path))
 
                 # Get text content as context
                 text = page.get_text()
