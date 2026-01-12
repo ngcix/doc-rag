@@ -144,6 +144,9 @@ A typical "Basic Cycle" for a new user:
 # 1. Process documents (MUST choose -fp or -pymu)
 python -m src.main process -fp
 
+# OR use JPEG for smaller file sizes (~2-5x smaller)
+python -m src.main process -fp --format jpeg
+
 # 2. Search for something
 python -m src.main search "system architecture"
 
@@ -156,6 +159,26 @@ python -m src.main addtag A2DP_v1.4.pdf_p18 "security-diagram"
 # 5. Search again with the new tag
 python -m src.main search "security diagram"
 ```
+
+### 🧠 Knowledge Management (For Agent)
+
+Save image analysis results to avoid redundant processing:
+
+```bash
+# Add knowledge (append) - Cline saves analysis for future queries
+python -m src.main addknowledge A2DP_v1.4.pdf_p18 "This is a connection flow diagram showing..."
+
+# Replace existing knowledge
+python -m src.main updateknowledge A2DP_v1.4.pdf_p18 "Updated description..."
+
+# View stored knowledge
+python -m src.main getknowledge A2DP_v1.4.pdf_p18
+
+# Also works with image path (system auto-resolves to chunk_id)
+python -m src.main addknowledge "data/extracted/A2DP_v1.4.pdf_p18.png" "Diagram shows..."
+```
+
+> 💡 **Tip**: Knowledge is included in vector embeddings, improving future search accuracy.
 
 ---
 
