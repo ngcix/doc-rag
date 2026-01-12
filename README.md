@@ -164,6 +164,7 @@ python -m src.main search "security diagram"
 | Command | Action | Example |
 |---------|--------|---------|
 | **`process -fp`** | Full-page image extraction | `python -m src.main process -fp` |
+| **`process -fp -fmt jpeg`** | Full-page with JPEG format (smaller) | `python -m src.main process -fp -fmt jpeg` |
 | **`process -pymu`** | Individual image extraction | `python -m src.main process -pymu` |
 | **`search`** | Query the database | `python -m src.main search "query"` |
 | **`search -pic`** | Search images only | `python -m src.main search -pic "diagram"` |
@@ -176,6 +177,9 @@ python -m src.main search "security diagram"
 | **`stats`** | View DB size/status | `python -m src.main stats` |
 | **`clean`** | Reset database | `python -m src.main clean --yes` |
 | **`init`** | Setup folder structure | `python -m src.main init` |
+| **`addknowledge`** | Add knowledge (description) to image | `python -m src.main addknowledge doc_id "text"` |
+| **`updateknowledge`** | Replace existing knowledge | `python -m src.main updateknowledge doc_id "new text"` |
+| **`getknowledge`** | Get knowledge for an image | `python -m src.main getknowledge doc_id` |
 
 ---
 
