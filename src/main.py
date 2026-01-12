@@ -708,6 +708,225 @@ def list_tags(doc_id: str):
         print(f"Error listing tags: {e}")
 
 
+def resolve_chunk_id(identifier: str) -> str:
+    """
+    Resolve an identifier (chunk_id or image_path) to a chunk_id.
+    
+    Args:
+        identifier: Either a chunk_id (e.g., "HID_SPEC_V10.pdf_p42") 
+                    or an image_path (e.g., "data/extracted/HID_SPEC_V10.pdf_p42.png")
+    
+    Returns:
+        The resolved chunk_id, or the original identifier if no match found.
+    """
+    vector_store = get_vector_store()
+    
+    # First, check if identifier is already a valid chunk_id
+    metadata = vector_store.get_metadata(identifier)
+    if metadata:
+        return identifier
+    
+    # If not found, try to find by image_path in metadata
+    # This is a fallback for when user provides image path instead of chunk_id
+    from pathlib import Path
+    identifier_path = Path(identifier).name  # Get just filename
+    
+    # Search through all documents to find matching image_path
+    all_docs = vector_store.list_documents()
+    for doc_id in all_docs.keys():
+        doc_metadata = vector_store.get_metadata(doc_id)
+        if doc_metadata:
+            img_path = doc_metadata.get("image_path", "")
+            if img_path:
+                # Match by filename or full path
+                if Path(img_path).name == identifier_path or img_path == identifier:
+                    return doc_id
+    
+    # Return original if no match found
+    return identifier
+
+
+def add_knowledge(identifier: str, knowledge_text: str):
+    """
+    Add knowledge to a document's metadata AND update its vector embedding.
+    Knowledge is appended to existing knowledge.
+    
+    Args:
+        identifier: chunk_id or image_path
+        knowledge_text: The knowledge text to add (markdown supported)
+    """
+    start_time = time.perf_counter()
+    vector_store = get_vector_store()
+    
+    # Resolve identifier to chunk_id
+    doc_id = resolve_chunk_id(identifier)
+    
+    try:
+        # 1. Get current data
+        current_metadata = vector_store.get_metadata(doc_id)
+        if not current_metadata:
+            print(f"Error: Document {doc_id} not found.")
+            return
+
+        current_content = vector_store.get_content(doc_id)
+        if current_content is None:
+            print(f"Error: Could not retrieve content for {doc_id}")
+            return
+
+        # 2. Update Metadata Knowledge
+        current_knowledge = current_metadata.get("knowledge", "")
+        if current_knowledge:
+            new_knowledge = f"{current_knowledge}\n\n{knowledge_text}"
+        else:
+            new_knowledge = knowledge_text
+        
+        # 3. Update Content for Vectorization (Include knowledge for semantic boost)
+        knowledge_boost = f"\n\n---\nKnowledge:\n{knowledge_text}"
+        new_content = current_content + knowledge_boost
+        
+        print("Re-calculating vector embedding...")
+        
+        # 4. Generate New Embedding
+        from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
+        new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
+        
+        # 5. Atomic Update (Delete then Add)
+        vector_store.delete([doc_id])
+        
+        # Prepare metadata
+        updated_metadata = current_metadata.copy()
+        updated_metadata["knowledge"] = new_knowledge
+        
+        vector_store.add(
+            ids=[doc_id],
+            embeddings=[new_embedding],
+            documents=[new_content],
+            metadatas=[updated_metadata]
+        )
+        
+        total_time = time.perf_counter() - start_time
+        
+        print(f"Successfully added knowledge to document '{doc_id}'")
+        print(f"Knowledge preview: {knowledge_text[:100]}...")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
+        
+    except Exception as e:
+        print(f"Error adding knowledge: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def update_knowledge(identifier: str, knowledge_text: str):
+    """
+    Replace existing knowledge with new knowledge.
+    
+    Args:
+        identifier: chunk_id or image_path
+        knowledge_text: The new knowledge text (replaces existing)
+    """
+    start_time = time.perf_counter()
+    vector_store = get_vector_store()
+    
+    # Resolve identifier to chunk_id
+    doc_id = resolve_chunk_id(identifier)
+    
+    try:
+        # 1. Get current data
+        current_metadata = vector_store.get_metadata(doc_id)
+        if not current_metadata:
+            print(f"Error: Document {doc_id} not found.")
+            return
+
+        # Get ORIGINAL content (without old knowledge boost)
+        # We need to retrieve base content and rebuild
+        current_content = vector_store.get_content(doc_id)
+        if current_content is None:
+            print(f"Error: Could not retrieve content for {doc_id}")
+            return
+        
+        # Remove old knowledge section if it exists
+        if "\n\n---\nKnowledge:" in current_content:
+            base_content = current_content.split("\n\n---\nKnowledge:")[0]
+        else:
+            base_content = current_content
+        
+        # 2. Set new knowledge (replace completely)
+        new_knowledge = knowledge_text
+        
+        # 3. Rebuild content with new knowledge
+        knowledge_boost = f"\n\n---\nKnowledge:\n{knowledge_text}"
+        new_content = base_content + knowledge_boost
+        
+        print("Re-calculating vector embedding...")
+        
+        # 4. Generate New Embedding
+        from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
+        new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
+        
+        # 5. Atomic Update
+        vector_store.delete([doc_id])
+        
+        updated_metadata = current_metadata.copy()
+        updated_metadata["knowledge"] = new_knowledge
+        
+        vector_store.add(
+            ids=[doc_id],
+            embeddings=[new_embedding],
+            documents=[new_content],
+            metadatas=[updated_metadata]
+        )
+        
+        total_time = time.perf_counter() - start_time
+        
+        print(f"Successfully updated knowledge for document '{doc_id}'")
+        print(f"New knowledge: {knowledge_text[:100]}...")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
+        
+    except Exception as e:
+        print(f"Error updating knowledge: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def get_knowledge(identifier: str):
+    """
+    Get knowledge for a document.
+    
+    Args:
+        identifier: chunk_id or image_path
+    """
+    vector_store = get_vector_store()
+    
+    # Resolve identifier to chunk_id
+    doc_id = resolve_chunk_id(identifier)
+    
+    try:
+        metadata = vector_store.get_metadata(doc_id)
+        if not metadata:
+            print(f"Document {doc_id} not found.")
+            return
+
+        knowledge = metadata.get("knowledge", "")
+        if knowledge:
+            print(f"Knowledge for {doc_id}:")
+            print("-" * 50)
+            print(knowledge)
+            print("-" * 50)
+        else:
+            print(f"No knowledge found for {doc_id}")
+        
+    except Exception as e:
+        print(f"Error getting knowledge: {e}")
+
+
 def list_docs():
     """List all documents in the vector store."""
     vector_store = get_vector_store()
@@ -907,6 +1126,49 @@ def main():
         help="Document ID"
     )
 
+    # Add Knowledge command
+    add_knowledge_parser = subparsers.add_parser(
+        "addknowledge",
+        help="Add knowledge (description) to a document"
+    )
+    add_knowledge_parser.add_argument(
+        "identifier",
+        type=str,
+        help="Document ID or image path"
+    )
+    add_knowledge_parser.add_argument(
+        "knowledge",
+        type=str,
+        help="Knowledge text to add (markdown supported)"
+    )
+
+    # Update Knowledge command
+    update_knowledge_parser = subparsers.add_parser(
+        "updateknowledge",
+        help="Replace existing knowledge with new knowledge"
+    )
+    update_knowledge_parser.add_argument(
+        "identifier",
+        type=str,
+        help="Document ID or image path"
+    )
+    update_knowledge_parser.add_argument(
+        "knowledge",
+        type=str,
+        help="New knowledge text (replaces existing)"
+    )
+
+    # Get Knowledge command
+    get_knowledge_parser = subparsers.add_parser(
+        "getknowledge",
+        help="Get knowledge for a document"
+    )
+    get_knowledge_parser.add_argument(
+        "identifier",
+        type=str,
+        help="Document ID or image path"
+    )
+
     # Eval command
     eval_parser = subparsers.add_parser(
         "eval",
@@ -995,6 +1257,15 @@ def main():
         
     elif args.command == "listtag":
         list_tags(args.doc_id)
+
+    elif args.command == "addknowledge":
+        add_knowledge(args.identifier, args.knowledge)
+
+    elif args.command == "updateknowledge":
+        update_knowledge(args.identifier, args.knowledge)
+
+    elif args.command == "getknowledge":
+        get_knowledge(args.identifier)
 
     elif args.command == "eval":
         import sys
