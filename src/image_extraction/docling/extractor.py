@@ -1,19 +1,8 @@
-import hashlib
-import io
 from typing import List, Tuple
 from pathlib import Path
-from dataclasses import dataclass
 
 from .document import MyDocument, MyItem, Label
 from ..image_info import ExtractedImage
-
-
-def get_image_hash(pil_image) -> str:
-    """Generate MD5 hash from PIL Image."""
-    img_byte_arr = io.BytesIO()
-    pil_image.save(img_byte_arr, format="PNG")
-    img_bytes = img_byte_arr.getvalue()
-    return hashlib.md5(img_bytes).hexdigest()[:8]
 
 
 class DoclingExtractorV2:
@@ -42,9 +31,9 @@ class DoclingExtractorV2:
         if self.debug:
             doc.draw_bbox(self.temp_dir)
 
-        return self.process_pictures(doc)
+        return self.process_pictures(doc, file_path._str)
 
-    def process_pictures(self, doc: MyDocument) -> List[ExtractedImage]:
+    def process_pictures(self, doc: MyDocument, source_file : str) -> List[ExtractedImage]:
         output = []
         all_items: List[MyItem] = []
         for page in doc.pages:
@@ -68,12 +57,12 @@ class DoclingExtractorV2:
 
             output.append(
                 ExtractedImage(
-                    image_id=get_image_hash(pic_item.image),
+                    image_id=Path(pic_item.path).stem,
                     image_path=pic_item.path,
-                    source_file=doc.file_name,
+                    source_file=source_file,
                     page_number=pic_item.page_num,
                     bbox=pic_item.box,
-                    region_type="picture",
+                    region_type="docling",
                     surrounding_text=surrounding_text,
                     caption=caption,
                     description=f"Picture from {doc.file_name}, page {pic_item.page_num}",
