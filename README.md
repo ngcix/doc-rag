@@ -262,6 +262,39 @@ A page is captured if it has:
 - **Vector drawings** with combined area ≥ 2% of page
 - **Caption patterns**: `Figure X.Y`, `Table X.Y`, `Hình X.Y`, etc.
 
+### Docling Mode (`-dl`) - How It Works
+
+Unlike `-fp` which captures the whole page, Docling uses **AI Computer Vision** (`RT-DETR` model) to surgically extract specific elements.
+
+```
+PDF Document                    Processing Flow
+┌──────────────────┐           ┌─────────────────────────────────┐
+│  Page 20         │           │ 1. Render Page to RGB Image     │
+│  ┌────────────┐  │           │ 2. AI Object Detection          │
+│  │ [Figure]   │  │  ───────► │    → Detect "Picture", "Table"  │
+│  └────────────┘  │           │    → Detect "Caption", "Text"   │
+│  Caption: ...    │           │ 3. Smart Grouping               │
+│  Text body...    │           │    → Link Caption to Picture    │
+└──────────────────┘           │    → Grab nearby Text context   │
+                               │ 4. Crop & Save Metadata         │
+                               └─────────────────────────────────┘
+```
+
+**Key Logic:**
+- **Smart Context**: Scans text *geometrically* close to the image (before/after), stopping at headers or other tables.
+- **Icon Filtering**: Automatically removes small icons or repetitive header/footer images.
+- **Precise Cropping**: Extracts the exact bounding box of the figure/chart.
+
+### Comparison: Full-Page vs Docling
+
+| Feature | Full-Page (`-fp`) | Docling (`-dl`) |
+|---------|-------------------|-----------------|
+| **Extraction Unit** | **Whole Page** as 1 Image | **Individual Figures** (Multiple per page) |
+| **Context Source** | All text on page (Broad) | Text nearby image (Focused) |
+| **Technology** | Regular Expression + PyMuPDF | **RT-DETR Vision Model** |
+| **Best For** | Complex flows traversing page | Charts, tables, distinct figures |
+| **Noise Level** | High (captures irrelevant text) | **Low** (filters unrelated text) |
+
 ### ExtractedImage Data Structure
 
 Each extracted image is stored with these fields:
