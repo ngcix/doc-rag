@@ -56,6 +56,10 @@ def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
                     "page_number": img.page_number,
                     "bbox": str(img.bbox),
                     "tags": img.tags,
+                    # Store original tags separately for reset capability
+                    "original_tags": img.tags,
+                    # User-added tags (initially empty)
+                    "user_tags": "",
                 },
                 "source_file": img.source_file,
             }

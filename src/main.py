@@ -628,10 +628,80 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
     print(f"\nClean completed! (took {_format_duration(clean_time)})")
 
 
+def _normalize_doc_id(doc_id: str) -> str:
+    """
+    Normalize document ID by removing image file extensions.
+    
+    This allows users to input image filenames (e.g., HID_SPEC_V10.pdf_p20.png)
+    and have them automatically converted to the correct doc_id format
+    (e.g., HID_SPEC_V10.pdf_p20).
+    
+    Args:
+        doc_id: Input document ID or image filename
+        
+    Returns:
+        Normalized document ID without image extension
+    """
+    from pathlib import Path
+    
+    # List of image extensions to strip
+    image_extensions = {'.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp'}
+    
+    # Check if the input ends with an image extension
+    path = Path(doc_id)
+    if path.suffix.lower() in image_extensions:
+        # Strip the extension
+        return str(path.with_suffix('')).replace('\\', '/').split('/')[-1]
+    
+    # Also handle full paths
+    if '/' in doc_id or '\\' in doc_id:
+        # Extract just the filename without extension
+        name = path.stem if path.suffix.lower() in image_extensions else path.name
+        return name
+    
+    return doc_id
+
+
+def _rebuild_combined_tags(original_tags: str, user_tags: str) -> str:
+    """Helper to combine original and user tags into single string."""
+    parts = []
+    if original_tags:
+        parts.append(original_tags)
+    if user_tags:
+        parts.append(user_tags)
+    return ",".join(parts)
+
+
+def _rebuild_content_with_tags(base_content: str, all_tags: str) -> str:
+    """Helper to rebuild content with proper tag boosting."""
+    import re
+    
+    # Remove old Tags: section if exists (handles both \nTags: and start-of-line Tags:)
+    # The Tags: line often contains repetitions, so we match until end of line
+    # Pattern: Tags: followed by anything until a newline that doesn't start with comma/space/tag
+    base_content = re.sub(r'\nTags:[^\n]*', '', base_content)
+    base_content = re.sub(r'^Tags:[^\n]*\n?', '', base_content)
+    
+    # Clean up any double newlines that might result
+    base_content = re.sub(r'\n{3,}', '\n\n', base_content)
+    base_content = base_content.strip()
+    
+    if all_tags:
+        # Boost tags by repeating (same format as image_info.py)
+        tag_boost_parts = ", ".join([all_tags] * 5)
+        tag_section = f"\nTags: {tag_boost_parts}"
+        return base_content + tag_section
+    return base_content
+
+
 def add_tag(doc_id: str, tag: str):
     """
-    Add a tag to a document's metadata AND update its vector embedding.
+    Add a user tag to a document's metadata AND update its vector embedding.
+    User tags are stored separately from original (auto-extracted) tags.
     """
+    # Normalize doc_id (strip image extension if present)
+    doc_id = _normalize_doc_id(doc_id)
+    
     start_time = time.perf_counter()
     vector_store = get_vector_store()
     
@@ -647,34 +717,46 @@ def add_tag(doc_id: str, tag: str):
             print(f"Error: Could not retrieve content for {doc_id}")
             return
 
-        # 2. Update Metadata Tags
-        current_tags = current_metadata.get("tags", "")
-        if current_tags:
-            new_tags = f"{current_tags},{tag}"
-        else:
-            new_tags = tag
+        # 2. Get original and user tags separately
+        original_tags = current_metadata.get("original_tags", current_metadata.get("tags", ""))
+        user_tags = current_metadata.get("user_tags", "")
         
-        # 3. Update Content for Vectorization (Boost the tag)
-        # We append the tag multiple times to boost its semantic weight
-        tag_boost = f"\nTags: {tag}, {tag}, {tag}"
-        new_content = current_content + tag_boost
+        # Check if tag already exists
+        existing_user_list = [t.strip() for t in user_tags.split(",") if t.strip()]
+        if tag in existing_user_list:
+            print(f"Tag '{tag}' already exists in user tags.")
+            return
+        
+        # 3. Add to user_tags
+        if user_tags:
+            new_user_tags = f"{user_tags},{tag}"
+        else:
+            new_user_tags = tag
+        
+        # 4. Rebuild combined tags
+        new_combined_tags = _rebuild_combined_tags(original_tags, new_user_tags)
+        
+        # 5. Rebuild content with new tags
+        new_content = _rebuild_content_with_tags(current_content, new_combined_tags)
         
         print("Re-calculating vector embedding...")
         
-        # 4. Generate New Embedding
-        # Lazy import to avoid circular dependency issues at top level if any
+        # 6. Generate New Embedding
         from src.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
         
-        # 5. Atomic-ish Update (Delete then Add)
-        # Note: This effectively replaces the document
+        # 7. Atomic Update (Delete then Add)
         vector_store.delete([doc_id])
         
-        # Prepare metadata (ensure no type conflict)
+        # Prepare metadata
         updated_metadata = current_metadata.copy()
-        updated_metadata["tags"] = new_tags
+        updated_metadata["tags"] = new_combined_tags
+        updated_metadata["user_tags"] = new_user_tags
+        # Ensure original_tags is preserved
+        if "original_tags" not in updated_metadata:
+            updated_metadata["original_tags"] = original_tags
         
         vector_store.add(
             ids=[doc_id],
@@ -686,8 +768,10 @@ def add_tag(doc_id: str, tag: str):
         total_time = time.perf_counter() - start_time
         
         print(f"Successfully added tag '{tag}' to document '{doc_id}'")
-        print(f"Updated Tags: {new_tags}")
-        print("Vector embedding updated to include new tag.")
+        print(f"  Original tags: {original_tags or '(none)'}")
+        print(f"  User tags:     {new_user_tags}")
+        print(f"  Combined:      {new_combined_tags}")
+        print("Vector embedding updated.")
         print(f"\n⏱️  Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
@@ -696,10 +780,171 @@ def add_tag(doc_id: str, tag: str):
         print(f"Error adding tag: {e}")
 
 
+def remove_tag(doc_id: str, tag: str):
+    """
+    Remove a user-added tag from a document.
+    Only user tags can be removed; original tags are immutable.
+    """
+    # Normalize doc_id (strip image extension if present)
+    doc_id = _normalize_doc_id(doc_id)
+    
+    start_time = time.perf_counter()
+    vector_store = get_vector_store()
+    
+    try:
+        # 1. Get current data
+        current_metadata = vector_store.get_metadata(doc_id)
+        if not current_metadata:
+            print(f"Error: Document {doc_id} not found.")
+            return
+
+        current_content = vector_store.get_content(doc_id)
+        if current_content is None:
+            print(f"Error: Could not retrieve content for {doc_id}")
+            return
+
+        # 2. Get original and user tags
+        original_tags = current_metadata.get("original_tags", "")
+        user_tags = current_metadata.get("user_tags", "")
+        
+        # 3. Check if tag is in original tags (cannot remove)
+        original_list = [t.strip() for t in original_tags.split(",") if t.strip()]
+        if tag in original_list:
+            print(f"Error: Cannot remove '{tag}' - it's an original (auto-extracted) tag.")
+            print("Use 'resettags' to restore only original tags.")
+            return
+        
+        # 4. Check if tag exists in user tags
+        user_list = [t.strip() for t in user_tags.split(",") if t.strip()]
+        if tag not in user_list:
+            print(f"Error: Tag '{tag}' not found in user tags.")
+            print(f"Current user tags: {user_tags or '(none)'}")
+            return
+        
+        # 5. Remove from user tags
+        user_list.remove(tag)
+        new_user_tags = ",".join(user_list)
+        
+        # 6. Rebuild combined tags
+        new_combined_tags = _rebuild_combined_tags(original_tags, new_user_tags)
+        
+        # 7. Rebuild content
+        new_content = _rebuild_content_with_tags(current_content, new_combined_tags)
+        
+        print("Re-calculating vector embedding...")
+        
+        # 8. Generate New Embedding
+        from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
+        new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
+        
+        # 9. Atomic Update
+        vector_store.delete([doc_id])
+        
+        updated_metadata = current_metadata.copy()
+        updated_metadata["tags"] = new_combined_tags
+        updated_metadata["user_tags"] = new_user_tags
+        
+        vector_store.add(
+            ids=[doc_id],
+            embeddings=[new_embedding],
+            documents=[new_content],
+            metadatas=[updated_metadata]
+        )
+        
+        total_time = time.perf_counter() - start_time
+        
+        print(f"Successfully removed tag '{tag}' from document '{doc_id}'")
+        print(f"  Original tags: {original_tags or '(none)'}")
+        print(f"  User tags:     {new_user_tags or '(none)'}")
+        print(f"  Combined:      {new_combined_tags or '(none)'}")
+        print("Vector embedding updated.")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
+        
+    except Exception as e:
+        print(f"Error removing tag: {e}")
+
+
+def reset_tags(doc_id: str):
+    """
+    Reset tags to original (auto-extracted) tags, removing all user-added tags.
+    """
+    # Normalize doc_id (strip image extension if present)
+    doc_id = _normalize_doc_id(doc_id)
+    
+    start_time = time.perf_counter()
+    vector_store = get_vector_store()
+    
+    try:
+        # 1. Get current data
+        current_metadata = vector_store.get_metadata(doc_id)
+        if not current_metadata:
+            print(f"Error: Document {doc_id} not found.")
+            return
+
+        current_content = vector_store.get_content(doc_id)
+        if current_content is None:
+            print(f"Error: Could not retrieve content for {doc_id}")
+            return
+
+        # 2. Get original tags
+        original_tags = current_metadata.get("original_tags", "")
+        user_tags = current_metadata.get("user_tags", "")
+        
+        if not user_tags:
+            print(f"No user tags to reset for document '{doc_id}'.")
+            print(f"Current tags: {original_tags or '(none)'}")
+            return
+        
+        # 3. Rebuild content with only original tags
+        new_content = _rebuild_content_with_tags(current_content, original_tags)
+        
+        print("Re-calculating vector embedding...")
+        
+        # 4. Generate New Embedding
+        from src.vectorization.vectorizer import vectorize_text
+        embedding_start = time.perf_counter()
+        new_embedding = vectorize_text(new_content)[0].tolist()
+        embedding_time = time.perf_counter() - embedding_start
+        
+        # 5. Atomic Update
+        vector_store.delete([doc_id])
+        
+        updated_metadata = current_metadata.copy()
+        updated_metadata["tags"] = original_tags
+        updated_metadata["user_tags"] = ""
+        
+        vector_store.add(
+            ids=[doc_id],
+            embeddings=[new_embedding],
+            documents=[new_content],
+            metadatas=[updated_metadata]
+        )
+        
+        total_time = time.perf_counter() - start_time
+        
+        print(f"Successfully reset tags for document '{doc_id}'")
+        print(f"  Removed user tags: {user_tags}")
+        print(f"  Restored to:       {original_tags or '(none)'}")
+        print("Vector embedding updated.")
+        print(f"\n⏱️  Time Report:")
+        print(f"  Embedding:  {_format_duration(embedding_time)}")
+        print(f"  Total:      {_format_duration(total_time)}")
+        
+    except Exception as e:
+        print(f"Error resetting tags: {e}")
+
+
 def list_tags(doc_id: str):
     """
-    List tags for a document.
+    List tags for a document, showing original and user-added tags separately.
     """
+    # Normalize doc_id (strip image extension if present)
+    doc_id = _normalize_doc_id(doc_id)
+    
     vector_store = get_vector_store()
     
     try:
@@ -708,8 +953,14 @@ def list_tags(doc_id: str):
             print(f"Document {doc_id} not found.")
             return
 
-        tags = metadata.get("tags", "No tags found")
-        print(f"Tags for {doc_id}: {tags}")
+        original_tags = metadata.get("original_tags", "")
+        user_tags = metadata.get("user_tags", "")
+        combined_tags = metadata.get("tags", "")
+        
+        print(f"Tags for {doc_id}:")
+        print(f"  Original (auto-extracted): {original_tags or '(none)'}")
+        print(f"  User-added:                {user_tags or '(none)'}")
+        print(f"  Combined:                  {combined_tags or '(none)'}")
         
     except Exception as e:
         print(f"Error listing tags: {e}")
@@ -1132,9 +1383,36 @@ def main():
     # List Tag command
     list_tag_parser = subparsers.add_parser(
         "listtag",
-        help="List tags for a document"
+        help="List tags for a document (shows original vs user-added)"
     )
     list_tag_parser.add_argument(
+        "doc_id",
+        type=str,
+        help="Document ID"
+    )
+
+    # Remove Tag command
+    remove_tag_parser = subparsers.add_parser(
+        "removetag",
+        help="Remove a user-added tag from a document"
+    )
+    remove_tag_parser.add_argument(
+        "doc_id",
+        type=str,
+        help="Document ID"
+    )
+    remove_tag_parser.add_argument(
+        "tag",
+        type=str,
+        help="Tag to remove (only user-added tags can be removed)"
+    )
+
+    # Reset Tags command
+    reset_tags_parser = subparsers.add_parser(
+        "resettags",
+        help="Reset tags to original (remove all user-added tags)"
+    )
+    reset_tags_parser.add_argument(
         "doc_id",
         type=str,
         help="Document ID"
@@ -1272,6 +1550,12 @@ def main():
         
     elif args.command == "listtag":
         list_tags(args.doc_id)
+
+    elif args.command == "removetag":
+        remove_tag(args.doc_id, args.tag)
+
+    elif args.command == "resettags":
+        reset_tags(args.doc_id)
 
     elif args.command == "addknowledge":
         add_knowledge(args.identifier, args.knowledge)
