@@ -62,9 +62,9 @@ class DoclingExtractorV2:
             )
             after_text = self._collect_surrounding_text(all_items, pic_idx, direction=1)
             caption = self._find_caption(all_items, pic_idx, pic_item.page_num)
-            context = ". ".join(before_text + after_text).strip()
+            surrounding_text = ". ".join(before_text + after_text).strip()
             if pic_item.text:
-                context += pic_item.text
+                surrounding_text += ". " + pic_item.text
 
             output.append(
                 ExtractedImage(
@@ -74,9 +74,10 @@ class DoclingExtractorV2:
                     page_number=pic_item.page_num,
                     bbox=pic_item.box,
                     region_type="picture",
-                    surrounding_text=context,
+                    surrounding_text=surrounding_text,
                     caption=caption,
                     description=f"Picture from {doc.file_name}, page {pic_item.page_num}",
+                    tags=caption
                 )
             )
         return output
