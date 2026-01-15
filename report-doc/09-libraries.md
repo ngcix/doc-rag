@@ -45,11 +45,11 @@ requirements.txt
 
 #### **PyTorch (`torch>=2.0.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Backend computation cho neural networks |
+| Aspect            | Details                                 |
+| ----------------- | --------------------------------------- |
+| **Mục đích**      | Backend computation cho neural networks |
 | **Sử dụng trong** | `sentence-transformers`, `transformers` |
-| **Lợi ích** | Tensor operations, GPU acceleration |
+| **Lợi ích**       | Tensor operations, GPU acceleration     |
 
 ```python
 # Implicit usage via sentence-transformers
@@ -61,11 +61,11 @@ requirements.txt
 
 #### **Transformers (`transformers>=4.35.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Load và run HuggingFace models |
+| Aspect            | Details                           |
+| ----------------- | --------------------------------- |
+| **Mục đích**      | Load và run HuggingFace models    |
 | **Sử dụng trong** | `src/vectorization/vectorizer.py` |
-| **Provider** | HuggingFace |
+| **Provider**      | HuggingFace                       |
 
 ```python
 # Used by SentenceTransformer internally
@@ -77,17 +77,18 @@ requirements.txt
 ```
 
 **Lợi ích:**
+
 - Hỗ trợ hàng ngàn pre-trained models
 - Tự động download và cache models
 - Chuẩn hóa API cho các loại models
 
 #### **Sentence-Transformers (`sentence-transformers>=2.2.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Text-to-vector embedding |
-| **Sử dụng trong** | `src/vectorization/vectorizer.py` |
-| **Model** | `Alibaba-NLP/gte-multilingual-base` |
+| Aspect            | Details                             |
+| ----------------- | ----------------------------------- |
+| **Mục đích**      | Text-to-vector embedding            |
+| **Sử dụng trong** | `src/vectorization/vectorizer.py`   |
+| **Model**         | `Alibaba-NLP/gte-multilingual-base` |
 
 ```python
 # File: src/vectorization/vectorizer.py
@@ -111,6 +112,7 @@ embeddings = model.encode(
 ```
 
 **Lợi ích:**
+
 - API đơn giản cho text embedding
 - Batch processing
 - Automatic normalization
@@ -131,11 +133,11 @@ embeddings = model.encode(
 
 #### **FAISS (`faiss-cpu>=1.7.4`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Fast similarity search |
+| Aspect            | Details                            |
+| ----------------- | ---------------------------------- |
+| **Mục đích**      | Fast similarity search             |
 | **Sử dụng trong** | `src/vectorization/faiss_store.py` |
-| **Provider** | Facebook AI Research |
+| **Provider**      | Facebook AI Research               |
 
 ```python
 # File: src/vectorization/faiss_store.py
@@ -157,6 +159,7 @@ distances, indices = index.search(query_vector, top_k)
 ```
 
 **Lợi ích:**
+
 - Cực kỳ nhanh (C++ backend)
 - Tối ưu memory
 - Hỗ trợ nhiều index types (Flat, IVF, HNSW)
@@ -171,11 +174,11 @@ distances, indices = index.search(query_vector, top_k)
 
 #### **ChromaDB (`chromadb>=0.4.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Alternative vector store |
+| Aspect            | Details                             |
+| ----------------- | ----------------------------------- |
+| **Mục đích**      | Alternative vector store            |
 | **Sử dụng trong** | `src/vectorization/vector_store.py` |
-| **Backend** | SQLite + HNSW |
+| **Backend**       | SQLite + HNSW                       |
 
 ```python
 # File: src/vectorization/vector_store.py
@@ -205,6 +208,7 @@ results = collection.query(
 ```
 
 **Lợi ích:**
+
 - Tích hợp metadata filtering
 - Built-in persistence
 - Easy setup (no server needed)
@@ -225,9 +229,9 @@ results = collection.query(
 
 #### **LangChain (`langchain>=0.1.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Text chunking framework |
+| Aspect            | Details                   |
+| ----------------- | ------------------------- |
+| **Mục đích**      | Text chunking framework   |
 | **Sử dụng trong** | `src/chunking/chunker.py` |
 
 ```python
@@ -246,11 +250,13 @@ chunks = splitter.split_text(text)
 ```
 
 **Lợi ích:**
+
 - Recursive splitting giữ context
 - Configurable separators
 - Overlap để không mất thông tin
 
 **Splitting Strategy:**
+
 ```
 Priority order:
 1. "\n\n" (paragraph breaks) - Best for semantic units
@@ -279,11 +285,11 @@ except ImportError:
 
 #### **PyMuPDF (`PyMuPDF>=1.23.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | PDF processing |
+| Aspect            | Details                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| **Mục đích**      | PDF processing                                                 |
 | **Sử dụng trong** | `src/image_extraction/extractor.py`, `src/chunking/chunker.py` |
-| **Import as** | `fitz` |
+| **Import as**     | `fitz`                                                         |
 
 ```python
 # File: src/image_extraction/extractor.py
@@ -294,16 +300,16 @@ doc = fitz.open("document.pdf")
 
 for page_num in range(len(doc)):
     page = doc[page_num]
-    
+
     # Extract text
     text = page.get_text()
-    
+
     # Get embedded images
     images = page.get_images(full=True)
-    
+
     # Get vector drawings
     drawings = page.get_drawings()
-    
+
     # Render page to image
     pix = page.get_pixmap(dpi=150)
     pix.save("page.png")
@@ -312,6 +318,7 @@ doc.close()
 ```
 
 **Lợi ích:**
+
 - Rất nhanh (C-based)
 - Full PDF features: text, images, drawings, annotations
 - High-quality rendering
@@ -329,9 +336,9 @@ doc.close()
 
 #### **python-docx (`python-docx>=0.8.11`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | DOCX file reading |
+| Aspect            | Details                   |
+| ----------------- | ------------------------- |
+| **Mục đích**      | DOCX file reading         |
 | **Sử dụng trong** | `src/chunking/chunker.py` |
 
 ```python
@@ -346,10 +353,10 @@ text = "\n\n".join(paragraphs)
 
 #### **PyPDF2 (`PyPDF2>=3.0.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Fallback PDF reader |
-| **Status** | Available but PyMuPDF preferred |
+| Aspect       | Details                         |
+| ------------ | ------------------------------- |
+| **Mục đích** | Fallback PDF reader             |
+| **Status**   | Available but PyMuPDF preferred |
 
 ---
 
@@ -357,9 +364,9 @@ text = "\n\n".join(paragraphs)
 
 #### **Pillow (`Pillow>=10.0.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Image manipulation |
+| Aspect            | Details                                                                |
+| ----------------- | ---------------------------------------------------------------------- |
+| **Mục đích**      | Image manipulation                                                     |
 | **Sử dụng trong** | `src/image_extraction/extractor.py`, `src/sequence_chart/processor.py` |
 
 ```python
@@ -381,17 +388,18 @@ cropped.save("output.png")
 ```
 
 **Lợi ích:**
+
 - Đơn giản, mạnh mẽ
 - Hỗ trợ nhiều formats
 - Image analysis (histogram, stats)
 
 #### **PaddleOCR (`paddleocr>=2.6.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Layout analysis (PP-Structure) |
+| Aspect            | Details                             |
+| ----------------- | ----------------------------------- |
+| **Mục đích**      | Layout analysis (Docling RT-DETR)   |
 | **Sử dụng trong** | `src/image_extraction/extractor.py` |
-| **Optional** | Chỉ dùng khi `use_ppstructure=True` |
+| **Optional**      | Chỉ dùng khi `use_ppstructure=True` |
 
 ```python
 # File: src/image_extraction/extractor.py
@@ -413,12 +421,14 @@ results = engine.predict(input="page.png")
 ```
 
 **Lợi ích:**
+
 - AI-based layout detection
 - Identifies figures, tables, titles
 - Text region extraction
 - Chinese/English OCR included
 
 **Installation (Optional):**
+
 ```bash
 # CPU version
 pip install paddlepaddle
@@ -435,10 +445,10 @@ pip install paddleocr
 
 #### **Pydantic (`pydantic>=2.0.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Configuration validation |
-| **Sử dụng trong** | `config/settings.py` |
+| Aspect            | Details                  |
+| ----------------- | ------------------------ |
+| **Mục đích**      | Configuration validation |
+| **Sử dụng trong** | `config/settings.py`     |
 
 ```python
 # File: config/settings.py
@@ -460,6 +470,7 @@ settings = Settings()
 ```
 
 **Lợi ích:**
+
 - Type validation at runtime
 - Default values
 - Nested configurations
@@ -467,9 +478,9 @@ settings = Settings()
 
 #### **tqdm (`tqdm>=4.66.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Progress bars |
+| Aspect            | Details                   |
+| ----------------- | ------------------------- |
+| **Mục đích**      | Progress bars             |
 | **Sử dụng trong** | Vectorization, processing |
 
 ```python
@@ -485,10 +496,10 @@ embeddings = model.encode(
 
 #### **NumPy (`numpy>=1.24.0`)**
 
-| Aspect | Details |
-|--------|---------|
-| **Mục đích** | Array operations |
-| **Sử dụng trong** | Everywhere |
+| Aspect            | Details          |
+| ----------------- | ---------------- |
+| **Mục đích**      | Array operations |
+| **Sử dụng trong** | Everywhere       |
 
 ```python
 import numpy as np
@@ -634,14 +645,13 @@ pip install pydantic numpy tqdm
 
 ## 5. Version Compatibility Matrix
 
-| Package | Min Version | Tested Version | Notes |
-|---------|-------------|----------------|-------|
-| Python | 3.10 | 3.10, 3.11 | 3.12 untested |
-| torch | 2.0.0 | 2.1.0 | CUDA 11.8+ for GPU |
-| transformers | 4.35.0 | 4.36.0 | For GTE model |
-| sentence-transformers | 2.2.0 | 2.3.0 | |
-| faiss-cpu | 1.7.4 | 1.7.4 | |
-| chromadb | 0.4.0 | 0.4.15 | |
-| PyMuPDF | 1.23.0 | 1.23.8 | |
-| pydantic | 2.0.0 | 2.5.0 | V2 required |
-
+| Package               | Min Version | Tested Version | Notes              |
+| --------------------- | ----------- | -------------- | ------------------ |
+| Python                | 3.10        | 3.10, 3.11     | 3.12 untested      |
+| torch                 | 2.0.0       | 2.1.0          | CUDA 11.8+ for GPU |
+| transformers          | 4.35.0      | 4.36.0         | For GTE model      |
+| sentence-transformers | 2.2.0       | 2.3.0          |                    |
+| faiss-cpu             | 1.7.4       | 1.7.4          |                    |
+| chromadb              | 0.4.0       | 0.4.15         |                    |
+| PyMuPDF               | 1.23.0      | 1.23.8         |                    |
+| pydantic              | 2.0.0       | 2.5.0          | V2 required        |
