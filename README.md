@@ -392,15 +392,48 @@ SpecRag/
 │   ├── gte-multilingual-base/
 │   └── docling-layout-heron/
 ├── src/
-│   ├── chunking/           # Text splitters
-│   ├── image_extraction/   # PDF/Image processing
-│   ├── search/             # Search engines
-│   ├── vectorization/      # Embedding
-│   └── main.py             # CLI entry point
-└── tests/                  # Evaluation suite
+│   ├── chunking/           # Text splitters (LangChain based)
+│   ├── image_extraction/   # PDF/Image processing (PyMuPDF)
+│   ├── search/             # Search Algo & Ranking
+│   ├── vectorization/      # Embedding Engines
+│   └── main.py             # CLI Entry point
+├── report-doc/             # Architecture & Integration docs
+└── tests/                  # Pytest suite
 ```
 
 ---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [04-flow-process.md](report-doc/04-flow-process.md) | Detailed processing flow |
+| [05-flow-image-extraction.md](report-doc/05-flow-image-extraction.md) | Image extraction guide |
+| [10-debuit-clineSR.md](report-doc/10-debuit-clineSR.md) | ClineSR integration (detailed) |
+| [11-report-clineSR-withRAG.md](report-doc/11-report-clineSR-withRAG.md) | Summary report with diagrams |
+
+---
+
+## 📁 Extension Scripts
+
+Additional functionality is available in the `extension_script/` directory:
+
+### analyze_extracted_images.py
+
+Automatically analyzes extracted images using Gauss AI and adds knowledge/tags to the RAG system:
+
+- **Batch Processing**: Processes all images in `data/extracted_images/`
+- **Detailed Analysis**: Technical analysis using Gauss AI
+- **Smart Tagging**: Generates relevant tags from analysis
+- **RAG Integration**: Adds knowledge and tags to vector database
+
+```bash
+# Process all images (requires Gauss API credentials)
+python extension_script/analyze_extracted_images.py
+
+# Test with dry run
+python extension_script/analyze_extracted_images.py --dry-run
+```
 
 ## 📄 License
 

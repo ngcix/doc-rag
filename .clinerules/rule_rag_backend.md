@@ -4,6 +4,7 @@
 
 Before answering ANY technical question, you **MUST** query the RAG backend to get the latest context.
 **DO NOT rely on your internal knowledge** unless the search returns nothing.
+**NEVER read file in ./data/documents**.
 
 ### Core Workflow
 1. **Analyze Intent**: What is the user looking for? (Diagram, Fact, Code, Concept)

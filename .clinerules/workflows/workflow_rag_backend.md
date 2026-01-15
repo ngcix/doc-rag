@@ -11,6 +11,7 @@ Expected output: Search results with optional image descriptions and improved ta
 
 ## Recommended Rule
 Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
+**NEVER read file in ./data/documents**
 
 ## 1. Question Analysis
 
@@ -43,12 +44,12 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 ## 2. Environment Setup
 
-1. Always activate the virtual environment before running any commands using the `execute_command` tool:
+1. Always activate the virtual environment in first time before running any commands using the `execute_command` tool:
    ```bash
    source .venv/bin/activate
    ```
 
-## 2. Search Operations
+## 3. Search Operations
 
 1. **Basic Search** - Use for general queries:
    ```bash
@@ -70,7 +71,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    python -m src.main search -pic -hy "Interrupt IN Flow Chart"
    ```
 
-## 3. View and Analyze Results
+## 4. View and Analyze Results
 
 1. Results are saved in `process/output/query_*.json`
 
@@ -82,13 +83,13 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 3. Use the `read_file` tool to examine the JSON output for detailed results
 
-## 4. Describe Images
+## 5. Describe Images
 
 1. ONLY read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
 
 2. **Check search results** - First examine the JSON output to verify the top result is an image using the `read_file` tool
 
-3. **Read the image file** using the `read_file` tool only when content_type is image:
+3. **Read the image file** using the `read_file` tool only when the rank 1 search result has "content_type": "image" in the JSON output:
    ```xml
    <read_file>
    <path>/path/to/image.png</path>
@@ -99,7 +100,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Provide a detail description** based on the analysis results
 
-## 5. Present Answer Based on Analysis
+## 6. Present Answer Based on Analysis
 
 1. **Synthesize information** from search results and image analysis:
    - Extract key information from `process/output/query_*.json`
@@ -131,7 +132,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - If top result IS an image → Continue to step 6 (Generate and Add Tags for Images)
    - If top result is NOT an image → Continue to step 7 (Cleanup Query Files)
 
-## 6. Generate and Add Tags for Images
+## 7. Generate and Add Tags for Images
 
 1. **Verify analysis presentation**:
    - Confirm that search results have been displayed to user
@@ -179,7 +180,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    python -m src.main addtag <chunk_id> "selected,tag,option"
    ```
 
-## 7. Cleanup Query Files
+## 8. Cleanup Query Files
 
 1. **Identify query files** in both directories:
    - `process/input/` - Contains query parameter files
