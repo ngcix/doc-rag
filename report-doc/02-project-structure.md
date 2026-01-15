@@ -3,7 +3,7 @@
 ## 1. Tổng Quan Cấu Trúc
 
 ```
-simple-rag/
+SpecRag/
 ├── config/                      # ⚙️ Cấu hình hệ thống
 │   ├── __init__.py              # Export settings, paths
 │   └── settings.py              # Định nghĩa tất cả cấu hình
@@ -17,10 +17,11 @@ simple-rag/
 │   └── vectordb/                # 📊 ChromaDB data (alternative)
 │
 ├── models/                      # 🤖 Local models
-│   └── Alibaba-NLP_gte-multilingual-base/  # Embedding model
-│       ├── model.safetensors    # Model weights
-│       ├── tokenizer.json       # Tokenizer
-│       └── config.json          # Model config
+│   ├── Alibaba-NLP_gte-multilingual-base/  # Embedding model
+│   │   ├── model.safetensors    # Model weights
+│   │   ├── tokenizer.json       # Tokenizer
+│   │   └── config.json          # Model config
+│   └── docling-layout-heron/    # Docling RT-DETR model (auto-downloaded)
 │
 ├── process/                     # 📝 Process logs
 │   ├── input/                   # Query inputs (JSON)
@@ -31,13 +32,19 @@ simple-rag/
 │   ├── main.py                  # 🚀 CLI Entry point
 │   ├── chunking/                # ✂️ Document chunking
 │   ├── image_extraction/        # 🖼️ Image extraction
+│   │   ├── extractor.py         # Full-page extraction
+│   │   ├── pymu_extractor.py    # PyMuPDF extraction
+│   │   ├── docling_extractor.py # Docling AI extraction (NEW)
+│   │   └── docling/             # Docling helpers
 │   ├── search/                  # 🔍 Search engine
+│   │   ├── engine.py            # Semantic search
+│   │   └── bm25.py              # BM25 + Hybrid search (NEW)
 │   ├── sequence_chart/          # 📊 Mermaid processing
 │   └── vectorization/           # 🧮 Vectorization
 │
 ├── tests/                       # 🧪 Unit tests
 │   ├── test_chunking.py
-│   └── test_sequence_chart.py
+│   └── eval_retrieval.py        # Retrieval evaluation
 │
 ├── requirements.txt             # 📦 Dependencies
 ├── pyproject.toml               # 🔧 Project metadata

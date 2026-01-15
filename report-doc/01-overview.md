@@ -1,8 +1,8 @@
-# 📚 Tổng Quan Dự Án Simple RAG System
+# 📚 Tổng Quan Dự Án SpecRag
 
 ## 1. Giới Thiệu
 
-**Simple RAG** là hệ thống **Retrieval-Augmented Generation (RAG)** production-ready, được thiết kế để xử lý tài liệu từ đầu đến cuối:
+**SpecRag** (Specification RAG) là hệ thống **Retrieval-Augmented Generation (RAG)** production-ready, được thiết kế để xử lý tài liệu đặc tả kỹ thuật từ đầu đến cuối:
 
 - **Đầu vào**: Tài liệu raw (PDF, DOCX, MD, TXT)
 - **Xử lý**: Chunking thông minh, trích xuất hình ảnh, vectorization
@@ -12,7 +12,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SIMPLE RAG SYSTEM                                  │
+│                              SPECRAG SYSTEM                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌────────────┐    ┌──────────────┐    ┌──────────────┐    ┌─────────────┐ │
@@ -42,11 +42,12 @@
 - **Hỗ trợ**: TXT, MD, PDF, DOCX
 
 ### 3.2 Image Extraction (`src/image_extraction/`)
-- **Công nghệ**: PyMuPDF (fitz) + PaddleOCR PP-Structure
+- **Công nghệ**: PyMuPDF (fitz) + Docling (RT-DETR layout model)
 - **Chức năng**: Trích xuất hình ảnh từ PDF với auto-tagging
-- **2 chế độ**: 
-  - Full-page mode (context-rich)
-  - PyMuPDF mode (individual images)
+- **3 chế độ**: 
+  - Full-page mode (`-fp`): Context-rich, cho RAG
+  - PyMuPDF mode (`-pymu`): Individual images, cho assets
+  - Docling mode (`-dl`): AI layout detection, precise cropping
 
 ### 3.3 Vectorization (`src/vectorization/`)
 - **Model**: `Alibaba-NLP/gte-multilingual-base` (768 dimensions)

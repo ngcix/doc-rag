@@ -14,10 +14,17 @@ python -m src.main <command> [options] [arguments]
 | Command | Mô tả | Ví dụ |
 |---------|-------|-------|
 | `process` | Xử lý và index tài liệu | `python -m src.main process -fp` |
-| `search` | Tìm kiếm semantic | `python -m src.main search "query"` |
+| `search` | Tìm kiếm semantic/hybrid | `python -m src.main search "query"` |
+| `msearch` | Multi-query với RRF fusion | `python -m src.main msearch "q1" "q2"` |
 | `list` | Liệt kê tất cả documents | `python -m src.main list` |
 | `listtag` | Xem tags của document | `python -m src.main listtag doc_id` |
 | `addtag` | Thêm tag và re-embed | `python -m src.main addtag doc_id "tag"` |
+| `removetag` | Xóa user tag | `python -m src.main removetag doc_id "tag"` |
+| `resettags` | Reset về original tags | `python -m src.main resettags doc_id` |
+| `addknowledge` | Thêm knowledge | `python -m src.main addknowledge doc_id "text"` |
+| `updateknowledge` | Cập nhật knowledge | `python -m src.main updateknowledge doc_id "text"` |
+| `getknowledge` | Xem knowledge | `python -m src.main getknowledge doc_id` |
+| `eval` | Chạy evaluation | `python -m src.main eval` |
 | `stats` | Thống kê database | `python -m src.main stats` |
 | `clean` | Xóa dữ liệu | `python -m src.main clean --yes` |
 | `init` | Tạo thư mục cấu trúc | `python -m src.main init` |
@@ -42,15 +49,23 @@ python -m src.main process [options]
 | `--input PATH` | `-i PATH` | Thư mục input | `data/documents/` |
 | `--fullpage` | `-fp` | Full-page image extraction | - |
 | `--pymupdf` | `-pymu` | Individual image extraction | - |
+| `--docling` | `-dl` | Docling AI extraction (RT-DETR) | - |
+| `--docling1` | `-dl1` | Docling legacy version | - |
+| `--format` | `-fmt` | Định dạng ảnh (png/jpeg) | png |
 | `--no-charts` | - | Bỏ qua sequence charts | False |
 | `--no-images` | - | Bỏ qua image extraction | False |
 
-**Lưu ý:** Phải chỉ định `-fp` HOẶC `-pymu` trừ khi dùng `--no-images`.
+**Lưu ý:** Phải chỉ định `-fp` HOẶC `-pymu` HOẶC `-dl` trừ khi dùng `--no-images`.
 
-**Ví dụ:**
 ```bash
 # Full-page mode (recommended cho RAG)
 python -m src.main process -fp
+
+# Docling mode (AI layout detection)
+python -m src.main process -dl
+
+# Full-page với JPEG format (nhỏ hơn)
+python -m src.main process -fp --format jpeg
 
 # PyMuPDF mode (individual images)
 python -m src.main process -pymu
@@ -60,9 +75,6 @@ python -m src.main process -fp -i /path/to/docs
 
 # Text only (no images)
 python -m src.main process --no-images
-
-# No charts processing
-python -m src.main process -fp --no-charts
 ```
 
 **Output:**
@@ -120,17 +132,24 @@ python -m src.main search "query" [options]
 |--------|----------|-------|----------|
 | `--top-k N` | `-k N` | Số kết quả trả về | 5 |
 | `--no-save` | - | Không lưu input/output logs | False |
+| `--pic` | `-pic` | Chỉ trả về image results | False |
+| `--hybrid` | `-hy` | BM25 + Vector hybrid search | False |
 
-**Ví dụ:**
 ```bash
-# Basic search
+# Basic search (semantic)
 python -m src.main search "Figure 4.1"
+
+# Hybrid search (BM25 + Vector, tốt cho exact match)
+python -m src.main search -hy "Figure 4.1: Media payload format"
+
+# Images only
+python -m src.main search -pic "connection diagram"
+
+# Hybrid + Images
+python -m src.main search -hy -pic "state machine"
 
 # Get more results
 python -m src.main search "system architecture" -k 10
-
-# Don't save logs
-python -m src.main search "bluetooth protocol" --no-save
 ```
 
 **Output:**
@@ -255,7 +274,132 @@ Vector embedding updated to include new tag.
 
 ---
 
-### 3.6 `stats` - Thống Kê Database
+### 3.6 `msearch` - Multi-Query Search
+
+**Mô tả:** Tìm kiếm với nhiều queries và merge kết quả bằng RRF (Reciprocal Rank Fusion).
+
+**Cú pháp:**
+```bash
+python -m src.main msearch "query1" "query2" [...] [options]
+```
+
+**Options:**
+
+| Option | Shortcut | Mô tả | Mặc định |
+|--------|----------|-------|----------|
+| `--top-k N` | `-k N` | Số kết quả merged | 5 |
+| `--pic` | `-pic` | Chỉ images | False |
+| `--hybrid` | `-hy` | BM25 + Vector | False |
+| `--no-save` | - | Không lưu logs | False |
+
+**Ví dụ:**
+```bash
+# Multi-query cho câu hỏi phức tạp
+python -m src.main msearch "bluetooth reconnection" "link loss" "timeout recovery"
+
+# Multi-query cho images
+python -m src.main msearch -pic "state machine" "FSM diagram" "connection flow"
+```
+
+---
+
+### 3.7 `removetag` - Xóa User Tag
+
+**Mô tả:** Xóa tag do user thêm (original tags không thể xóa).
+
+**Cú pháp:**
+```bash
+python -m src.main removetag <doc_id> <tag>
+```
+
+**Ví dụ:**
+```bash
+python -m src.main removetag HID_v1.1.1.pdf_p30 "wrong-tag"
+```
+
+**Output:**
+```
+Successfully removed tag 'wrong-tag' from document 'HID_v1.1.1.pdf_p30'
+  Original tags: Figure 4.1: Media payload format
+  User tags:     (none)
+Vector embedding updated.
+```
+
+---
+
+### 3.8 `resettags` - Reset Tags
+
+**Mô tả:** Reset về original tags, xóa tất cả user-added tags.
+
+**Cú pháp:**
+```bash
+python -m src.main resettags <doc_id>
+```
+
+**Ví dụ:**
+```bash
+python -m src.main resettags HID_v1.1.1.pdf_p30
+```
+
+---
+
+### 3.9 `addknowledge` - Thêm Knowledge
+
+**Mô tả:** Thêm mô tả/annotation vào document, tự động re-embed.
+
+**Cú pháp:**
+```bash
+python -m src.main addknowledge <identifier> <knowledge_text>
+```
+
+**Ví dụ:**
+```bash
+python -m src.main addknowledge HID_p42 "Đây là state machine diagram mô tả 5 trạng thái Bluetooth"
+```
+
+---
+
+### 3.10 `updateknowledge` - Cập Nhật Knowledge
+
+**Mô tả:** Thay thế hoàn toàn knowledge hiện tại.
+
+**Cú pháp:**
+```bash
+python -m src.main updateknowledge <identifier> <new_knowledge>
+```
+
+---
+
+### 3.11 `getknowledge` - Xem Knowledge
+
+**Mô tả:** Hiển thị knowledge của document.
+
+**Cú pháp:**
+```bash
+python -m src.main getknowledge <identifier>
+```
+
+---
+
+### 3.12 `eval` - Chạy Evaluation
+
+**Mô tả:** Đánh giá accuracy trên golden dataset.
+
+**Cú pháp:**
+```bash
+python -m src.main eval [--dataset PATH] [--top-k N]
+```
+
+**Options:**
+
+| Option | Mặc định |
+|--------|----------|
+| `--dataset` | `tests/data/golden_dataset.json` |
+| `--top-k` | 5 |
+
+---
+
+### 3.13 `stats` - Thống Kê Database
 
 **Mô tả:** Hiển thị thông tin về vector database.
 

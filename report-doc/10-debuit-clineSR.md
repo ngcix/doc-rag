@@ -1,12 +1,12 @@
-# Tích Hợp Cline + Simple RAG System
+# Tích Hợp Cline + SpecRag System
 
-> **Mục đích**: Tài liệu này mô tả cách tích hợp giữa Cline (LLM Agent) và Simple RAG CLI, đặc biệt nhấn mạnh khả năng **Vision** của Cline trong việc xử lý kết quả tìm kiếm có chứa hình ảnh.
+> **Mục đích**: Tài liệu này mô tả cách tích hợp giữa Cline (LLM Agent) và SpecRag CLI, đặc biệt nhấn mạnh khả năng **Vision** của Cline trong việc xử lý kết quả tìm kiếm có chứa hình ảnh.
 
 ## 1. Tổng quan Kiến trúc
 
-Simple RAG không chỉ là một công cụ tìm kiếm văn bản thông thường - nó được thiết kế để tích hợp sâu với các LLM Agent có khả năng multimodal (xử lý cả văn bản và hình ảnh). Cline, với khả năng vision, có thể:
+SpecRag không chỉ là một công cụ tìm kiếm văn bản thông thường - nó được thiết kế để tích hợp sâu với các LLM Agent có khả năng multimodal (xử lý cả văn bản và hình ảnh). Cline, với khả năng vision, có thể:
 
-- **Đọc kết quả văn bản** từ Simple RAG
+- **Đọc kết quả văn bản** từ SpecRag
 - **"Nhìn" và phân tích hình ảnh** được trả về từ search results
 - **Hiểu context** từ cả hai nguồn thông tin để đưa ra câu trả lời chính xác
 - **Tự động gắn tag** cho hình ảnh sau khi "hiểu" nội dung, giúp cải thiện độ chính xác tìm kiếm trong tương lai
@@ -23,7 +23,7 @@ sequenceDiagram
     
     actor User
     participant Cline as Cline (LMM Agent)
-    participant CLI as Simple RAG CLI
+    participant CLI as SpecRag CLI
     
     box Processing Layer
         participant Chunker as Text Chunker
@@ -131,6 +131,19 @@ python -m src.main process -pymu --input ./docs
 - **Phù hợp cho**: Product images, charts, screenshots
 - **Output**: Individual image files + caption + surrounding text
 
+##### Strategy 3: Docling Mode (`--docling` / `-dl`) **[NEW]**
+
+```bash
+python -m src.main process -dl --input ./docs
+```
+
+- **Logic**:
+  1. Sử dụng RT-DETR model phân tích layout từ PDF
+  2. Phát hiện và crop từng element (figure, table, chart)
+  3. Trích xuất context xung quanh mỗi element
+- **Phù hợp cho**: Mixed content pages, precise figure extraction
+- **Output**: Individual cropped figures với accurate context
+
 **PP-Structure Enrichment** (tự động chạy nếu có images):
 
 ```python
@@ -160,7 +173,7 @@ if use_ppstructure and extracted_images:
 
 **Đặc điểm kỹ thuật**:
 
-- **Embedding Model**: `gte-multilingual-base` (384 dimensions)
+- **Embedding Model**: `gte-multilingual-base` (**768 dimensions**)
 - **Vector Database**: FAISS Index (IndexFlatIP - Inner Product)
 - **Image Extraction**: PP-Structure với full-page mode (`-fp`)
 
@@ -174,7 +187,7 @@ sequenceDiagram
     
     actor User
     participant Cline as Cline (LMM Agent) - Vision Capability
-    participant CLI as Simple RAG CLI
+    participant CLI as SpecRag CLI
     participant DB as FAISS Database
     
     User->>Cline: Show me the authentication diagram
@@ -201,7 +214,7 @@ sequenceDiagram
 
 **Chi tiết về Vision Processing**:
 
-1. **Input từ Simple RAG**: Cline nhận được không chỉ metadata mà cả đường dẫn đến file ảnh thực tế
+1. **Input từ SpecRag**: Cline nhận được không chỉ metadata mà cả đường dẫn đến file ảnh thực tế
 2. **Vision Analysis**: Cline sử dụng model multimodal để "xem" và phân tích nội dung hình ảnh
 3. **Context Integration**: Kết hợp thông tin từ ảnh + text để tạo câu trả lời mạch lạc
 4. **User Experience**: User thấy được cả ảnh gốc + phân tích chi tiết từ Cline
@@ -209,7 +222,7 @@ sequenceDiagram
 **Ví dụ thực tế**:
 
 ```json
-// Simple RAG Search Output
+// SpecRag Search Output
 {
   "results": [
     {
@@ -273,7 +286,7 @@ Sau khi Cline "hiểu" được nội dung hình ảnh, nó có thể **chủ đ
 sequenceDiagram
     actor User
     participant Cline as Cline (LMM Agent)
-    participant CLI as Simple RAG CLI
+    participant CLI as SpecRag CLI
     participant Embed as Embedding: gte-multilingual-base
     participant DB as FAISS Database
     
@@ -333,18 +346,18 @@ original_content = "Image showing authentication flow between client and server.
 
 # After: Boosted content for embedding
 tag = "oauth, authentication"
-tag_boost = f"\nTags: {tag}, {tag}, {tag}"  # Repeat 3x
+tag_boost = f"\nTags: {tag}, {tag}, {tag}, {tag}, {tag}"  # Repeat 5x
 new_content = original_content + tag_boost
 
 # Result:
 # "Image showing authentication flow between client and server...
-#  Tags: oauth, authentication, oauth, authentication, oauth, authentication"
+#  Tags: oauth, authentication, oauth, authentication, oauth, authentication, oauth, authentication, oauth, authentication"
 ```
 
-**Tại sao lặp lại 3 lần?**
+**Tại sao lặp lại 5 lần?**
 - 🎯 **Semantic Weight**: Embedding model sẽ "chú ý" nhiều hơn đến từ khóa xuất hiện nhiều lần
 - 🔍 **Search Boost**: Khi user search "oauth", embedding của document này sẽ có cosine similarity cao hơn
-- ⚖️ **Balance**: 3 lần là đủ để boost mà không làm overwhelm context gốc
+- ⚖️ **Balance**: 5 lần là đủ để boost mà không làm overwhelm context gốc
 
 #### Re-Embedding Process (5 Steps)
 
@@ -364,17 +377,17 @@ new_content = original_content + tag_boost
 
 3. **Create Boosted Content**
    ```python
-   tag_boost = f"\nTags: {tag}, {tag}, {tag}"
+   tag_boost = f"\nTags: {tag}, {tag}, {tag}, {tag}, {tag}"
    new_content = current_content + tag_boost
    ```
 
 4. **Generate New Embedding**
    ```python
    from src.vectorization.vectorizer import vectorize_text
-   new_embedding = vectorize_text(new_content)[0]  # Shape: (384,) for gte-multilingual-base
+   new_embedding = vectorize_text(new_content)[0]  # Shape: (768,) for gte-multilingual-base
    
    # Embedding difference visualization:
-   # E1 (before): [0.12, 0.45, -0.23, ...]  # Without tag semantic
+   # E1 (before): [0.12, 0.45, -0.25, ...]  # Without tag semantic
    # E2 (after):  [0.18, 0.52, -0.19, ...]  # With tag semantic boost
    # Cosine(E2, "oauth") > Cosine(E1, "oauth")
    ```
@@ -408,7 +421,7 @@ new_content = original_content + tag_boost
 - **Better Future Searches**: Lần tìm sau với từ khóa tương tự sẽ có độ chính xác cao hơn
 - **No Model Retraining**: Chỉ cần re-embed, không cần train lại embedding model
 
-## 3. Kiến Trúc Kết Nối Module
+## 5. Kiến Trúc Kết Nối Module
 
 Sơ đồ dưới đây mô tả **toàn bộ hệ thống** với các bước chi tiết:
 
@@ -426,7 +439,7 @@ flowchart TB
     ImgExt[🖼️ Image Extractor<br/>①<br/>PyMuPDF]
     
     %% Embedding
-    Embed[🧠 Embedding Model<br/>②<br/>gte-multilingual-base<br/>384 dimensions]
+    Embed[🧠 Embedding Model<br/>②<br/>gte-multilingual-base<br/>768 dimensions]
     
     %% Database
     FAISS[(💾 Vector Database<br/>③④⑤<br/>FAISS Index<br/>Inner Product)]
@@ -443,7 +456,7 @@ flowchart TB
     %% Feedback
     AddTag[🏷️ Feedback Loop<br/>⑧<br/>addtag + Re-embed]
     
-    %% FLOW: Ingestion (1-3)
+    %% FLOW: Ingestion (1-5)
     Docs -->|Extract| Chunker
     Docs -->|Extract| ImgExt
     Chunker -->|N chunks| Embed
@@ -465,10 +478,10 @@ flowchart TB
     AddTag -.->|Update Vectors| FAISS
     
     %% Styling
-    classDef userStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef docStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef processStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef modelStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    classDef userStyle fill:#e5f2fd,stroke:#1565c0,stroke-width:5px
+    classDef docStyle fill:#fff5e0,stroke:#f57c00,stroke-width:2px
+    classDef processStyle fill:#f5e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef modelStyle fill:#e8f5e9,stroke:#2e7d52,stroke-width:5px
     classDef dbStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:4px
     classDef agentStyle fill:#fce4ec,stroke:#c2185b,stroke-width:4px
     classDef searchStyle fill:#fff9c4,stroke:#f9a825,stroke-width:2px
@@ -525,7 +538,7 @@ flowchart TB
 🌟 Cline (LLM Agent)
     │ ⑤ Call CLI
     ↓
-⚙️ Simple RAG CLI
+⚙️ SpecRag CLI
     │ ⑥ Similarity Search
     ↓
 💾 FAISS Database
@@ -562,7 +575,7 @@ flowchart TB
     │ Process:
     │ 1. Retrieve current content
     │ 2. Boost: content + "Tags: oauth, oauth, oauth, ..."
-    │ 3. Re-embed with gte-multilingual-base
+    │ 5. Re-embed with gte-multilingual-base
     │ 4. DELETE old entry
     │ 5. ADD new entry
     │
@@ -593,13 +606,13 @@ flowchart TB
 
 1. **①②③ = Static Pipeline**: Chạy một lần khi nạp document mới
 2. **④⑤⑥⑦ = Dynamic Pipeline**: Chạy mỗi lần user query
-3. **⑧ = Improvement Loop**: Optional, chạy khi Cline quyết định tag
+5. **⑧ = Improvement Loop**: Optional, chạy khi Cline quyết định tag
 
 **Điểm đặc biệt**:
 - **Step ②**: PP-Structure là optional enhancement, không bắt buộc
 - **Step ⑥**: FAISS trả về **paths** đến images, không phải image data
 - **Step ⑦**: Cline sử dụng **vision model** để "xem" images
-- **Step ⑧**: Re-embedding với **tag boost 3x** để tăng semantic weight
+- **Step ⑧**: Re-embedding với **tag boost 5x** để tăng semantic weight
 
 ### Giải thích 8 bước (Numbered Flow)
 
@@ -618,12 +631,12 @@ flowchart TB
 | Bước | Tên | Mô tả |
 |------|-----|-------|
 | **④** | **Query** | User gửi câu hỏi đến Cline |
-| **⑤** | **Search** | Cline gọi Simple RAG CLI để search trong FAISS |
+| **⑤** | **Search** | Cline gọi SpecRag CLI để search trong FAISS |
 | **⑥** | **Retrieve** | FAISS trả về top-K results (text + image paths) → Cline |
 
 **Output**: Cline nhận được context (text chunks + image files) để phân tích
 
-#### **Phase 3: Generation (Bước ⑦)**
+#### **Phase 5: Generation (Bước ⑦)**
 
 | Bước | Tên | Mô tả |
 |------|-----|-------|
@@ -657,12 +670,12 @@ flowchart TB
 
 1. **Separation of Concerns**: Mỗi layer có trách nhiệm riêng biệt
 2. **Scalability**: Dễ dàng thay đổi một layer mà không ảnh hưởng các layer khác
-3. **Clarity**: Numbered steps giúp dễ theo dõi data flow
+5. **Clarity**: Numbered steps giúp dễ theo dõi data flow
 4. **Feedback Loop**: Bước ⑧ cho thấy hệ thống self-improving
 
 ### So sánh với RAG truyền thống
 
-| Đặc điểm | RAG Truyền thống | **Vision-Enhanced RAG (Cline + SimpleRAG)** |
+| Đặc điểm | RAG Truyền thống | **Vision-Enhanced RAG (Cline + SpecRag)** |
 |----------|------------------|---------------------------------------------|
 | **Data Flow** | Linear: ①②③④⑤⑥⑦ (one-way) | **Cyclic**: ①②③④⑤⑥⑦**⑧** (feedback loop) |
 | **User Layer** | User only | User + **Cline (LMM Agent)** |
@@ -691,7 +704,7 @@ flowchart TB
 - **Synthesis**: Tổng hợp thông tin từ nhiều nguồn (text + image) để trả lời mượt mà
 - **Self-Learning**: Tự gắn tag dựa trên "hiểu biết" của mình
 
-### 4.3. Simple RAG CLI
+### 4.5. SpecRag CLI
 - **Công cụ thực thi kỹ thuật**: Xử lý dữ liệu nặng (PDF parsing, OCR)
 - **Vector Operations**: Tính toán embedding và similarity search
 - **Data Provider**: Cung cấp dữ liệu thô (text + image paths) cho Cline
@@ -702,7 +715,7 @@ flowchart TB
 
 ## 5. So Sánh: RAG Truyền Thống vs. Vision-Enhanced RAG
 
-| Đặc điểm | RAG Truyền thống | **Vision-Enhanced RAG (Cline + SimpleRAG)** |
+| Đặc điểm | RAG Truyền thống | **Vision-Enhanced RAG (Cline + SpecRag)** |
 |----------|------------------|---------------------------------------------|
 | **Input** | Chỉ văn bản | Văn bản + Hình ảnh (multimodal) |
 | **Search Output** | Text chunks | Text chunks + Image paths |
@@ -713,7 +726,7 @@ flowchart TB
 
 ## 6. Kết Luận
 
-Tích hợp Cline với Simple RAG tạo ra một hệ thống RAG **thế hệ mới**:
+Tích hợp Cline với SpecRag tạo ra một hệ thống RAG **thế hệ mới**:
 
 ✅ **Multimodal**: Xử lý cả văn bản và hình ảnh  
 ✅ **Intelligent**: Cline "hiểu" thực sự nội dung, không chỉ keyword matching  

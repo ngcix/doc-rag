@@ -1,4 +1,4 @@
-# Cline + Simple RAG Integration Report (Summary)
+# Cline + SpecRag Integration Report (Summary)
 
 > 📖 **Chi tiết đầy đủ**: [10-debuit-clineSR.md](./10-debuit-clineSR.md)
 
@@ -29,7 +29,7 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant Cline as Cline (Vision LLM)
-    participant CLI as Simple RAG CLI
+    participant CLI as SpecRag CLI
     participant DB as FAISS Database
 
     User->>Cline: ④ "Show me OAuth diagram"
@@ -55,7 +55,7 @@ sequenceDiagram
 
     User->>Cline: "Yes, that's the OAuth flow"
     Cline->>CLI: ⑧ addtag "doc_id" "oauth, auth-flow"
-    CLI->>CLI: Tag Boost (3x repeat)
+    CLI->>CLI: Tag Boost (5x repeat)
     CLI->>Embed: Re-embed with boosted content
     Embed->>DB: Update vector
     CLI-->>Cline: Tag added successfully
@@ -158,7 +158,7 @@ flowchart TB
 | Step | Component | Input | Output |
 |------|-----------|-------|--------|
 | **①** | Chunker & ImgExt | PDF/MD files | N text chunks (~500 tokens each) + M images |
-| **②** | Embedding Model | Text + OCR content | 384-dim vectors for each chunk/image |
+| **②** | Embedding Model | Text + OCR content | 768-dim vectors for each chunk/image |
 | **③** | FAISS Index | N+M embeddings | Indexed vector database |
 
 ---
@@ -205,7 +205,7 @@ flowchart TB
    ↓ ⑧
 🏷️ addtag CLI
    ├── 1. Retrieve current content
-   ├── 2. Boost: content + "Tags: oauth, oauth, oauth, ..."
+   ├── 2. Boost: content + "Tags: oauth, oauth, oauth, oauth, oauth, ..." (5x)
    ├── 3. Re-embed with gte-multilingual-base
    ├── 4. DELETE old FAISS entry
    └── 5. ADD new entry with boosted vector
@@ -218,7 +218,7 @@ flowchart TB
 | Step | Action | Description |
 |------|--------|-------------|
 | **⑧.1** | Retrieve | Lấy content và metadata hiện tại từ FAISS |
-| **⑧.2** | Tag Boost | Append tag lặp lại 3x để tăng semantic weight |
+| **⑧.2** | Tag Boost | Append tag lặp lại 5x để tăng semantic weight |
 | **⑧.3** | Re-embed | Tạo embedding mới với boosted content |
 | **⑧.4** | Delete | Xóa entry cũ khỏi index |
 | **⑧.5** | Add | Thêm entry mới với vector cập nhật |
@@ -248,9 +248,11 @@ flowchart TB
 |---------|-------------|
 | **Vision-Enhanced RAG** | Agent có khả năng "xem" và phân tích hình ảnh |
 | **Multimodal Query** | User có thể query bằng text + image |
-| **Hybrid Search** | Text chunks + Full-page images trong cùng database |
+| **Hybrid Search** | BM25 + Vector kết hợp cho exact + semantic match |
+| **Multi-Query (msearch)** | Tìm kiếm đa queries, merge bằng RRF |
+| **Knowledge Management** | Thêm mô tả/annotation vào documents |
 | **Self-Improving** | Feedback loop (⑧) giúp database chính xác hơn theo thời gian |
-| **Tag Boosting** | Lặp lại tag 3x để tăng semantic weight khi re-embed |
+| **Tag Boosting** | Lặp lại tag 5x để tăng semantic weight khi re-embed |
 
 ---
 

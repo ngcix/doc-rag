@@ -505,28 +505,286 @@ Example:
 - 1,000,000 vectors ≈ 3 GB
 ```
 
-## 9. Hybrid Search (Tags + Semantic)
+## 9. Hybrid Search (BM25 + Vector)
 
-### 9.1 How Tag Boosting Works
+### 9.1 Tổng Quan Hybrid Search
 
-Khi process images, tags được repeat 3 lần:
+Hybrid Search kết hợp **BM25** (lexical search) và **Vector Search** (semantic) để tận dụng ưu điểm của cả hai:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         HYBRID SEARCH PIPELINE                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Query: "Figure 4.1: Media payload format"                                   │
+│           │                                                                  │
+│           ├─────────────────────┬────────────────────────┐                   │
+│           │                     │                        │                   │
+│           ▼                     ▼                        ▼                   │
+│  ┌────────────────┐    ┌────────────────┐       ┌────────────────┐          │
+│  │  BM25 Search   │    │ Vector Search  │       │   RRF Fusion   │          │
+│  │  (Exact Match) │    │  (Semantic)    │   →   │ (Merge Ranks)  │          │
+│  │  Rank: [1,2,5] │    │ Rank: [3,1,2]  │       │ Final: [1,2,3] │          │
+│  └────────────────┘    └────────────────┘       └────────────────┘          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Khi nào dùng Hybrid?**
+- Tìm exact term như "Figure 4.1" → BM25 match chính xác
+- Tìm concept như "connection diagram" → Vector match semantic
+
+### 9.2 BM25 Algorithm (Internal Implementation)
+
+BM25 (Best Matching 25) là thuật toán ranking dựa trên term frequency:
+
+```python
+# File: src/search/bm25.py
+
+class BM25Index:
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        """
+        k1: Term frequency saturation (default 1.5)
+        b:  Length normalization (default 0.75)
+        """
+        self.k1 = k1
+        self.b = b
+        self.doc_freqs = {}   # term → count docs containing term
+        self.term_freqs = {}  # doc_idx → {term: count}
+        self.idf = {}         # term → IDF score
+```
+
+**BM25 Score Formula:**
+
+```
+score(q, d) = Σ IDF(term) × (tf × (k1 + 1)) / (tf + k1 × (1 - b + b × |d|/avgdl))
+
+Where:
+- IDF(term) = log((N - df + 0.5) / (df + 0.5) + 1)
+- tf = term frequency in document
+- |d| = document length
+- avgdl = average document length
+- N = total documents
+- df = document frequency of term
+```
+
+**Python Implementation:**
+
+```python
+def search(self, query: str, top_k: int = 10) -> list[tuple[str, float]]:
+    query_tokens = self._tokenize(query)
+    scores = []
+    
+    for idx in range(self.N):
+        score = 0.0
+        doc_len = self.doc_lengths[idx]
+        tf_doc = self.term_freqs[idx]
+        
+        for term in query_tokens:
+            if term not in self.idf:
+                continue
+            tf = tf_doc.get(term, 0)
+            if tf == 0:
+                continue
+            
+            idf = self.idf[term]
+            
+            # BM25 scoring formula
+            numerator = tf * (self.k1 + 1)
+            denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avg_doc_length)
+            score += idf * numerator / denominator
+        
+        if score > 0:
+            scores.append((self.doc_ids[idx], score))
+    
+    scores.sort(key=lambda x: x[1], reverse=True)
+    return scores[:top_k]
+```
+
+### 9.3 Reciprocal Rank Fusion (RRF)
+
+RRF kết hợp kết quả từ nhiều nguồn bằng công thức:
+
+```
+RRF_score(d) = Σ (weight / (k + rank(d)))
+
+Where:
+- k = 60 (default, smoothing constant)
+- rank(d) = vị trí của document d trong danh sách kết quả
+- weight = trọng số của nguồn (vector: 0.5, bm25: 0.5)
+```
+
+**Ví dụ:**
+
+```
+Vector results:     BM25 results:
+1. doc_A            1. doc_B  
+2. doc_B            2. doc_A
+3. doc_C            3. doc_D
+
+RRF scores (k=60):
+doc_A: 0.5/(60+1) + 0.5/(60+2) = 0.0082 + 0.0081 = 0.0163
+doc_B: 0.5/(60+2) + 0.5/(60+1) = 0.0081 + 0.0082 = 0.0163  
+doc_C: 0.5/(60+3) = 0.0079
+doc_D: 0.5/(60+3) = 0.0079
+
+Final ranking: [doc_A, doc_B, doc_C, doc_D] (tie-break by appearance)
+```
+
+### 9.4 HybridSearchEngine Class
+
+```python
+# File: src/search/bm25.py
+
+class HybridSearchEngine:
+    def __init__(self, vector_store, vectorizer, rrf_k: int = 60):
+        self.vector_store = vector_store
+        self.vectorizer = vectorizer
+        self.rrf_k = rrf_k
+        self.bm25_index = None
+    
+    def search(self, query: str, top_k: int = 10,
+               vector_weight: float = 0.5, bm25_weight: float = 0.5):
+        
+        # 1. Vector search
+        query_embedding = self.vectorizer.vectorize(query)[0].tolist()
+        vector_results = self.vector_store.search_similar(query_embedding, top_k * 3)
+        
+        # 2. BM25 search
+        bm25_results = self.bm25_index.search(query, top_k * 3)
+        
+        # 3. RRF Fusion
+        rrf_scores = {}
+        for rank, result in enumerate(vector_results, 1):
+            doc_id = result["id"]
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + vector_weight / (self.rrf_k + rank)
+        
+        for rank, (doc_id, _) in enumerate(bm25_results, 1):
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + bm25_weight / (self.rrf_k + rank)
+        
+        # 4. Sort and return
+        sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+        return sorted_ids[:top_k]
+```
+
+### 9.5 CLI Usage
+
+```bash
+# Semantic only (default)
+python -m src.main search "connection state machine"
+
+# Hybrid search (BM25 + Vector)
+python -m src.main search -hy "Figure 4.1: Media payload format"
+
+# Hybrid + Images only
+python -m src.main search -hy -pic "state diagram"
+```
+
+---
+
+## 10. Multi-Query Search (msearch)
+
+### 10.1 Tổng Quan
+
+`msearch` cho phép tìm kiếm với nhiều queries và merge kết quả, cải thiện recall cho các câu hỏi phức tạp:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MULTI-QUERY SEARCH                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Input queries:                                                              │
+│  ├── "bluetooth reconnection"                                                │
+│  ├── "link loss"                                                             │
+│  └── "timeout recovery"                                                      │
+│           │                                                                  │
+│           ├──────────────┬──────────────┬──────────────┐                     │
+│           ▼              ▼              ▼              ▼                     │
+│      ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────────┐           │
+│      │ Search1 │    │ Search2 │    │ Search3 │    │ RRF Merge   │           │
+│      │ [A,B,C] │    │ [B,D,A] │    │ [C,A,E] │ →  │ [A,B,C,D,E] │           │
+│      └─────────┘    └─────────┘    └─────────┘    └─────────────┘           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 10.2 Implementation
+
+```python
+# File: src/main.py
+
+def multi_search(
+    queries: list[str],
+    top_k: int = 5,
+    images_only: bool = False,
+    use_hybrid: bool = False,
+    save_results: bool = True
+):
+    """Search with multiple queries and merge using RRF."""
+    
+    engine = get_search_engine()
+    all_results = []
+    
+    # Run each query
+    for query in queries:
+        if use_hybrid:
+            results = engine.hybrid_search(query, top_k=top_k * 2)
+        else:
+            results = engine.search(query, top_k=top_k * 2)
+        all_results.append(results)
+    
+    # RRF merge
+    rrf_scores = {}
+    for query_results in all_results:
+        for rank, result in enumerate(query_results, 1):
+            doc_id = result.chunk_id
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + 1 / (60 + rank)
+    
+    # Sort by RRF score
+    merged = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
+    
+    return merged[:top_k]
+```
+
+### 10.3 CLI Usage
+
+```bash
+# Multi-query semantic search
+python -m src.main msearch "bluetooth reconnection" "link loss" "timeout"
+
+# Multi-query với hybrid
+python -m src.main msearch -hy "Figure 4.1" "Media payload" "HID report"
+
+# Multi-query images only
+python -m src.main msearch -pic "state machine" "FSM" "transition diagram"
+```
+
+---
+
+## 11. Tag Boosting trong Search
+
+### 11.1 How Tag Boosting Works
+
+Khi process images, tags được repeat 5 lần:
+
 ```python
 # In ExtractedImage.get_vectorization_text()
 if self.tags:
-    parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}")
+    parts.append(f"Tags: {self.tags}, {self.tags}, {self.tags}, {self.tags}, {self.tags}")
 ```
 
 **Effect on embedding:**
+
 ```
 Original text:    "Figure 4.1: Media payload"
-Boosted text:     "Tags: Figure 4.1, Figure 4.1, Figure 4.1\nContext: ..."
+Boosted text:     "Tags: Figure 4.1, Figure 4.1, Figure 4.1, Figure 4.1, Figure 4.1\nContext: ..."
 
 → The phrase "Figure 4.1" appears more frequently
 → Embedding vector shifts toward "Figure 4.1" meaning
 → Query "Figure 4.1" gets higher similarity score
 ```
 
-### 9.2 Search Example
+### 11.2 Search Example
 
 ```
 Query: "Figure 4.1"
