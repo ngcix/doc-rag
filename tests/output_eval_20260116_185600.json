@@ -7,36 +7,36 @@
     "rag_response": "A2DP stands for Advanced Audio Distribution Profile.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; hallucinated incorrect expansion."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Perfect match with ground truth."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 80
     }
   },
   {
     "id": "a2dp_easy_02",
     "question": "Which codec is mandatory in A2DP?",
-    "ground_truth": "SBC (Sub Codec) is the mandatory codec for all A2DP devices",
+    "ground_truth": "SBC (Subband Codec) is the mandatory codec for all A2DP devices",
     "baseline_response": "SBC is the mandatory codec.",
     "rag_response": "The Low Complexity Subband Codec (SBC) is the mandatory codec that maintains interoperability.",
     "evaluation": {
       "baseline": {
-        "score_percent": 80,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct but less detailed."
+        "score_percent": 100,
+        "right_info": true,
+        "assessment": "Correct"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct and fully detailed."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 20
+      "improvement_delta": 0
     }
   },
   {
@@ -47,16 +47,16 @@
     "rag_response": "SBC codec trong A2DP hỗ trợ các sampling frequency sau: 16 kHz, 32 kHz, 44.1 kHz, và 48 kHz. Hai tần số 44.1 kHz và 48 kHz là bắt buộc phải hỗ trợ ở phía Sink.",
     "evaluation": {
       "baseline": {
-        "score_percent": 60,
-        "right_info (not hallucination)": true,
-        "assessment": "Partially correct; missing some frequencies."
+        "score_percent": 80,
+        "right_info": true,
+        "assessment": "Partially correct"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Complete and correct."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 40
+      "improvement_delta": 20
     }
   },
   {
@@ -67,16 +67,16 @@
     "rag_response": "A2DP defines two roles: the Source (SRC) which transmits digital audio streams, and the Sink (SNK) which receives the digital audio stream.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; uses unrelated terminology."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
-        "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Accurate description of roles."
+        "score_percent": 80,
+        "right_info": true,
+        "assessment": "Partially correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 60
     }
   },
   {
@@ -87,16 +87,16 @@
     "rag_response": "A2DP không chỉ định giá trị latency cụ thể, nhưng phụ thuộc vào implementation buffer và cấu hình AVDTP. Thông thường latency cao hơn HFP.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; provides a specific value not supported by spec."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
-        "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct; states no fixed value and explains variability."
+        "score_percent": 80,
+        "right_info": true,
+        "assessment": "Partially correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 60
     }
   },
   {
@@ -107,36 +107,36 @@
     "rag_response": "Quá trình gồm: 1. Setup L2CAP cho signaling. 2. AVDTP Discover để tìm SEPs. 3. Get Capabilities. 4. Set Configuration để chốt tham số codec. 5. AVDTP Open stream. 6. AVDTP Start để bắt đầu truyền media.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; oversimplified."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Accurate step‑by‑step description."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 80
     }
   },
   {
     "id": "a2dp_complex_02",
     "question": "So sánh SBC, AAC, và aptX codec trong context A2DP về mặt chất lượng âm thanh, latency, và licensing. Tại sao SBC là mandatory?",
-    "ground_truth": "SBC: Mandatory, royalty‑free, moderate quality (328 kbps max), higher latency. AAC: Optional, Apple‑centric, better compression efficiency, requires licensing. aptX: Proprietary Qualcomm, lower latency (~40ms vs SBC ~150ms), better quality, licensing required. SBC là mandatory vì: 1) Royalty‑free đảm bảo interoperability, 2) Không cần hardware đặc biệt, 3) Complexity thấp phù hợp mọi device.",
+    "ground_truth": "SBC: Mandatory, royalty-free, moderate quality (328 kbps max), higher latency. AAC: Optional, Apple-centric, better compression efficiency, requires licensing. aptX: Proprietary Qualcomm, lower latency (~40ms vs SBC ~150ms), better quality, licensing required. SBC là mandatory vì: 1) Royalty-free đảm bảo interoperability, 2) Không cần hardware đặc biệt, 3) Complexity thấp phù hợp mọi device.",
     "baseline_response": "SBC là codec cơ bản, AAC tốt hơn cho iPhone, aptX tốt hơn cho Android. SBC bắt buộc vì nó miễn phí.",
-    "rag_response": "SBC là mandatory để đảm bảo interoperability giữa mọi thiết bị (complexity thấp, royalty‑free). AAC tốt hơn SBC về compression nhưng cần license. aptX giảm latency và tăng chất lượng nhưng là proprietary (Qualcomm).",
+    "rag_response": "SBC là mandatory để đảm bảo interoperability giữa mọi thiết bị (complexity thấp, royalty-free). AAC tốt hơn SBC về compression nhưng cần license. aptX giảm latency và tăng chất lượng nhưng là proprietary (Qualcomm).",
     "evaluation": {
       "baseline": {
-        "score_percent": 50,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct core points but lacks detail."
+        "score_percent": 100,
+        "right_info": true,
+        "assessment": "Correct"
       },
       "rag": {
-        "score_percent": 80,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct and includes key reasons; slightly less detail than ground truth."
+        "score_percent": 100,
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 30
+      "improvement_delta": 0
     }
   },
   {
@@ -147,16 +147,16 @@
     "rag_response": "Không, A2DP (Advanced Audio Distribution Profile) chỉ dành cho truyền tải âm thanh. Video cần sử dụng profile khác như VDP.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; claims video streaming."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct denial."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 80
     }
   },
   {
@@ -167,16 +167,16 @@
     "rag_response": "A2DP là profile âm thanh Bluetooth, không liên quan đến việc nấu nướng.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Incorrect; fabricates functionality."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Correct denial."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 80
     }
   },
   {
@@ -187,16 +187,16 @@
     "rag_response": "Không tìm thấy thông tin về A2DP version 2.0 trong tài liệu specification. Tài liệu hiện tại là A2DP v1.4, và LE Audio thuộc về spec mới (Basic Audio Profile) chứ không phải là bản cập nhật trực tiếp của A2DP classic.",
     "evaluation": {
       "baseline": {
-        "score_percent": 0,
-        "right_info (not hallucination)": false,
-        "assessment": "Hallucinated non‑existent version."
+        "score_percent": 20,
+        "right_info": false,
+        "assessment": "Incorrect"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
-        "assessment": "Correctly states absence of version 2.0."
+        "right_info": true,
+        "assessment": "Correct"
       },
-      "improvement_delta": 100
+      "improvement_delta": 80
     }
   }
 ]

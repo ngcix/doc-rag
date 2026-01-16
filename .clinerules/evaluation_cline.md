@@ -52,12 +52,12 @@ Construct a new JSON structure containing the evaluation results.
     "evaluation": {
       "baseline": {
         "score_percent": 80,
-        "right_info (not hallucination)": true,
+        "right_info_no_hallucication": true,
         "assessment": "Correct but lacks detail"
       },
       "rag": {
         "score_percent": 100,
-        "right_info (not hallucination)": true,
+        "right_info_no_hallucication": true,
         "assessment": "Perfect match with ground truth"
       },
       "improvement_delta": 20
@@ -72,7 +72,8 @@ Construct a new JSON structure containing the evaluation results.
 - Generate filenames with timestamp: `tests/output_eval_{YYYYMMDD_HHMMSS}.json` and `.csv`.
 - Save the final JSON to `tests/output_eval_{timestamp}.json`.
 - **ADDITIONALLY**, save a CSV version to `tests/output_eval_{timestamp}.csv` for easier reading.
-  - Columns: `id`, `question`, `ground_truth`, `baseline_response`, `rag_response`, `baseline_score`, `baseline_right_info`, `rag_score`, `rag_right_info`, `improvement`.
+  - **IMPORTANT**: Use `utf-8-sig` (add BOM `\ufeff`) when writing CSV so Excel opens Vietnamese text correctly.
+  - Columns: `id`, `question`, `ground_truth`, `baseline_response`, `rag_response`, `baseline_score`, `baseline_right_info_no_hallucication`, `rag_score`, `rag_right_info_no_hallucication`, `improvement`.
 - Use `write_to_file` to save both files.
 - **Notify User**: Inform the user that evaluation is complete and point to both output files.
 
