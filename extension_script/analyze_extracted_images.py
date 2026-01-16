@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Script to add knowledge/tags to extracted images in RAG system.
+Script to add knowledge to extracted images in RAG system.
 
 This script:
 1. Browses all images in data/extracted_images directory
-2. Allows manual addition of knowledge and tags to RAG system
+2. Allows manual addition of knowledge to RAG system
 3. Can be extended to use RAG's built-in analysis capabilities
 """
 
@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import RAG system functions
-from src.main import add_knowledge, add_tag
+from src.main import add_knowledge
 
 # Gauss API Configuration
 GAUSS_CLIENT_KEY = os.environ.get("GAUSS_CLIENT_KEY")
@@ -119,8 +119,12 @@ def extract_content_from_response(response: Dict) -> str:
             elif "content" in action:
                 return str(action["content"])
         
+        # Handle direct content field (like the JSON example with userId, modelType, content)
+        elif "content" in response:
+            return str(response["content"])
+        
         # Fallback to existing logic
-        if "choices" in response and len(response["choices"]) > 0:
+        elif "choices" in response and len(response["choices"]) > 0:
             choice = response["choices"][0]
             if "message" in choice:
                 return choice["message"].get("content", "")
@@ -137,42 +141,6 @@ def extract_content_from_response(response: Dict) -> str:
         # Return empty string if extraction fails
         return ""
 
-def generate_tags_from_analysis(image_path: Path, analysis_result: Dict) -> List[str]:
-    """
-    Generate tags from image analysis result.
-
-    Args:
-        image_path: Path to the image file
-        analysis_result: Analysis result from Gauss AI
-
-    Returns:
-        List of tags
-    """
-    if "error" in analysis_result:
-        print(f"Error in analysis for {image_path}, cannot generate tags")
-        return []
-
-    # Extract only the content part from analysis result
-    analysis_text = extract_content_from_response(analysis_result)
-
-    # Create prompt for tag generation
-    tag_prompt = f"""
-Based on this detailed analysis of the image: '{analysis_text}', please provide EXACTLY 3-5 concise tags (2-5 words each) that best describe what this image represents. CRITICAL: Return ONLY a simple comma-separated list with NO additional text, explanations, formatting, or questions. Example format: bluetooth,connection diagram,audio streaming,device pairing. Your response must contain only tags in this exact format:
-    """.strip()
-
-    # Call Gauss API again to generate tags
-    tag_result = analyze_image_with_ai(image_path, tag_prompt)
-    
-    if "error" in tag_result:
-        print(f"Error generating tags for {image_path}")
-        return []
-
-    # Extract only the content part from tag result
-    tags_text = extract_content_from_response(tag_result)
-
-    # Parse tags (comma-separated)
-    tags = [tag.strip() for tag in tags_text.split(",") if tag.strip()]
-    return tags[:5]  # Limit to 5 tags maximum
 
 def get_chunk_id_from_image_path(image_path: Path) -> str:
     """
@@ -184,7 +152,7 @@ def get_chunk_id_from_image_path(image_path: Path) -> str:
 
 def process_single_image(image_path: Path, dry_run: bool = False, image_index: int = 0, total_images: int = 0) -> Tuple[bool, float]:
     """
-    Process a single image: analyze, generate tags, add to RAG system.
+    Process a single image: analyze and add knowledge to RAG system.
     
     Args:
         image_path: Path to the image file
@@ -199,7 +167,7 @@ def process_single_image(image_path: Path, dry_run: bool = False, image_index: i
     
     if dry_run:
         print(f"[{image_index}/{total_images}] Processing {image_path.name}")
-        print(f"  [DRY RUN] Would analyze image and add knowledge/tags")
+        print(f"  [DRY RUN] Would analyze image and add knowledge")
         return True, 0.0
 
     print(f"[{image_index}/{total_images}] Processing {image_path.name}")
@@ -234,15 +202,7 @@ Provide only factual descriptions of what is visible in the image.
 
     print(f"  Phân tích ảnh (thời gian: {analysis_time:.2f}s): {analysis_text[:200]}...")
 
-    # Step 2: Generate tags from analysis
-    tag_start = time.time()
-    tags = generate_tags_from_analysis(image_path, analysis_result)
-    tag_time = time.time() - tag_start
-    
-    tag_list = ", ".join(tags) if tags else "No tags generated"
-    print(f"  Generate tags (thời gian: {tag_time:.2f}s): {tag_list}")
-
-    # Step 3: Add knowledge to RAG system (only content part)
+    # Step 2: Add knowledge to RAG system (only content part)
     chunk_id = get_chunk_id_from_image_path(image_path)
     
     knowledge_start = time.time()
@@ -253,17 +213,6 @@ Provide only factual descriptions of what is visible in the image.
         print(f"  ❌ Failed to add knowledge: {e}")
         return False, time.time() - start_time
     knowledge_time = time.time() - knowledge_start
-
-    # Step 4: Add tags to RAG system (batch mode)
-    tag_add_start = time.time()
-    if tags:
-        # Join all tags with comma and add them in one call
-        tags_string = ",".join(tags)
-        try:
-            add_tag(chunk_id, tags_string)
-        except Exception as e:
-            print(f"    ❌ Failed to add tags '{tags_string}': {e}")
-    tag_add_time = time.time() - tag_add_start
 
     total_time = time.time() - start_time
     print(f"  Total time: {total_time:.2f}s")
@@ -348,7 +297,7 @@ def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[
 def main():
     """Main function to demonstrate usage."""
     parser = argparse.ArgumentParser(
-        description="Analyze extracted images using Gauss AI and add to RAG system"
+        description="Analyze extracted images using Gauss AI and add knowledge to RAG system"
     )
     parser.add_argument(
         "--images-dir", 
@@ -376,7 +325,7 @@ def main():
         print(f"Error: Directory {images_dir} does not exist")
         return
     
-    print("Starting image analysis and knowledge tagging process...")
+    print("Starting image analysis and knowledge addition process...")
     print(f"Images directory: {images_dir}")
     print(f"Dry run mode: {args.dry_run}")
     if args.limit:
