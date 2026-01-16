@@ -47,15 +47,17 @@ Construct a new JSON structure containing the evaluation results.
     "id": "original_id",
     "question": "original_question",
     "ground_truth": "original_ground_truth",
+    "baseline_response": "original_baseline_response",
+    "rag_response": "original_rag_response",
     "evaluation": {
       "baseline": {
         "score_percent": 80,
-        "fake_info (Hallucination)": false,
+        "right_info (not hallucination)": true,
         "assessment": "Correct but lacks detail"
       },
       "rag": {
         "score_percent": 100,
-        "fake_info (Hallucination)": false,
+        "right_info (not hallucination)": true,
         "assessment": "Perfect match with ground truth"
       },
       "improvement_delta": 20
@@ -70,7 +72,7 @@ Construct a new JSON structure containing the evaluation results.
 - Generate filenames with timestamp: `tests/output_eval_{YYYYMMDD_HHMMSS}.json` and `.csv`.
 - Save the final JSON to `tests/output_eval_{timestamp}.json`.
 - **ADDITIONALLY**, save a CSV version to `tests/output_eval_{timestamp}.csv` for easier reading.
-  - Columns: `id`, `question`, `ground_truth`, `baseline_score`, `baseline_fake`, `rag_score`, `rag_fake`, `improvement`.
+  - Columns: `id`, `question`, `ground_truth`, `baseline_response`, `rag_response`, `baseline_score`, `baseline_right_info`, `rag_score`, `rag_right_info`, `improvement`.
 - Use `write_to_file` to save both files.
 - **Notify User**: Inform the user that evaluation is complete and point to both output files.
 
