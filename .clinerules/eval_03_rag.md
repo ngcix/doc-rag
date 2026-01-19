@@ -1,67 +1,131 @@
 # Eval Step 3: RAG Recording
 
-Command: `/eval_rag [filename]`
+Command: `/eval_rag`
 
-## 🎯 Purpose
+---
 
-Read questions from a file and record Cline's answers **WITH RAG enabled**.
+## 🚫 STRICTLY FORBIDDEN - READ THIS FIRST 🚫
 
-> ⚠️ **DATA LEAKAGE PREVENTION**: Reads from questions file (NO ground_truth) to ensure fair evaluation.
+**YOU MUST NOT:**
 
-## 🔄 Workflow
+- Create any `.py` file
+- Create any script file
+- Use `python -c`
+- Use heredoc `<<`
+- Create `run_all_rag.py`
+- Create `scripts/` folder
+- Create any automation
+- Use `ask_followup_question`
+- Process multiple questions in one step
 
-**Command**: `/eval_rag [filename]`
+**IF YOU THINK**: "I should create a script to process all questions"
+**THEN**: You are WRONG. Stop. Read below.
 
-- If `filename` is provided: use `tests/<filename>`
-- If no filename: default to `tests/questions.json`
+---
 
-**Examples**:
+## ✅ WHAT YOU MUST DO
 
-- `/eval_rag` → reads `tests/questions.json`
-- `/eval_rag custom_questions.json` → reads `tests/custom_questions.json`
+You are Cline, an AI agent. You have tools. Use them DIRECTLY.
 
-### Step-by-Step:
+### Tool 1: run_command
 
-1. **Read Questions**:
+```
+.venv\Scripts\python.exe -m src.main msearch "your query"
+```
 
-   - Open file `tests/<filename>` using `view_file`.
-   - Parse JSON to get list of questions (only `id` and `question`).
+### Tool 2: view_file
 
-2. **Answer Each Question (WITH RAG)**:
+```
+view_file process/output/query_YYYYMMDD_HHMMSS.json
+```
 
-   - For each item in dataset:
-     - Read `question`.
-     - **MUST use `msearch`** to find relevant context.
-     - Answer based on RAG context + model knowledge.
-     - Record the answer in `rag_response`.
+### Tool 3: write_to_file
 
-3. **Save Output**:
-   - Create file `tests/rag_record.json` with structure:
+```
+write_to_file tests/rag_record.json
+```
 
-```json
+---
+
+## 📋 EXACT PROCEDURE (Follow This Literally)
+
+### STEP A: Read questions.json
+
+```
+Tool: view_file
+Path: tests/questions.json
+```
+
+→ You now see all questions.
+
+### STEP B: Process Question 1
+
+```
+Tool: run_command
+Command: .venv\Scripts\python.exe -m src.main msearch "keywords from question 1"
+```
+
+Wait for output.
+
+```
+Tool: view_file
+Path: process/output/query_*.json (the latest one)
+```
+
+Read the RAG context.
+
+**Think**: Based on RAG context, what is the answer?
+
+```
+Tool: write_to_file
+Path: tests/rag_record.json
+Content:
 [
   {
-    "id": "q_01",
-    "question": "What does A2DP stand for?",
-    "rag_response": "According to A2DP_v1.4 specification, A2DP stands for Advanced Audio Distribution Profile..."
+    "id": 1,
+    "question": "...",
+    "rag_response": "Your answer based on RAG context"
   }
 ]
 ```
 
-## 📁 Input/Output
+### STEP C: Process Question 2
 
-- **Input**: `tests/<filename>` (default: `tests/questions.json`)
-- **Output**: `tests/rag_record.json`
+Repeat STEP B for question 2.
+After getting answer, UPDATE rag_record.json to add question 2.
 
-## ⚠️ Critical Rules
+### STEP D: Continue
 
-- **MUST USE RAG**: Always use `msearch` before answering each question.
-- **NO GOLDEN FILE**: Do not read the ground_truth file.
-- **Cite Sources**: Reference the document/section where information was found.
-- **If No Context Found**: State "No relevant context found in RAG" but still attempt to answer.
+Repeat for questions 3, 4, 5, ...
 
-## 🔍 msearch Usage
+---
 
-```
-msearch "<question keywords>"
-```
+## 📝 EXAMPLE SESSION
+
+**Turn 1:**
+
+- run_command: msearch "A2DP scope definition"
+- view_file: process/output/query_20260119_114500.json
+- write_to_file: tests/rag_record.json with [{ id: 1, ... }]
+
+**Turn 2:**
+
+- run_command: msearch "A2DP dependency profiles"
+- view_file: process/output/query_20260119_114510.json
+- write_to_file: tests/rag_record.json with [{ id: 1, ... }, { id: 2, ... }]
+
+**Turn 3:**
+
+- run_command: msearch "advanced audio vs bluetooth audio"
+- ...
+
+---
+
+## ⚠️ REMEMBER
+
+- ONE question per turn
+- Use YOUR agent tools
+- NO scripts
+- NO automation
+- NO asking user for permission to continue
+- Just DO IT step by step

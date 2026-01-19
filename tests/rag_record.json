@@ -1,0 +1,502 @@
+[
+  {
+    "id": 1,
+    "question": "What is the primary scope of the Advanced Audio Distribution Profile (A2DP)?",
+    "rag_response": "The primary scope of A2DP is to define the protocols and procedures that enable distribution of high‑quality audio content (mono, stereo, or multi‑channel) over Bluetooth."
+  },
+  {
+    "id": 2,
+    "question": "A2DP phụ thuộc vào những profile nào khác để hoạt động?",
+    "rag_response": "A2DP depends on the Generic Access Profile (GAP) and the Generic Audio/Video Distribution Profile (GAVDP). These profiles provide the underlying connection and streaming procedures required for A2DP operation."
+  },
+  {
+    "id": 3,
+    "question": "What is the difference between 'advanced audio' and 'Bluetooth audio' as defined in the profile?",
+    "rag_response": "Trong hồ sơ A2DP, advanced audio được định nghĩa là luồng âm thanh kỹ thuật số chất lượng cao (có thể là mono, stereo hoặc đa kênh) mà A2DP hỗ trợ. Ngược lại, Bluetooth audio được dùng để chỉ việc truyền âm thanh hẹp (narrow‑band) – tức là âm thanh có chất lượng thấp hơn."
+  },
+  {
+    "id": 4,
+    "question": "Trong A2DP, vai trò của thiết bị Source (SRC) là gì?",
+    "rag_response": "Trong A2DP, thiết bị Source (SRC) là thiết bị đóng vai trò nguồn phát luồng âm thanh kỹ thuật số. Nó tạo và truyền dữ liệu âm thanh tới thiết bị Sink (SNK) trong cùng piconet."
+  },
+  {
+    "id": 5,
+    "question": "Does A2DP support synchronized point-to-multipoint distribution?",
+    "rag_response": "No. A2DP is defined as a point‑to‑point audio streaming profile; it does not provide synchronized distribution to multiple sinks."
+  },
+  {
+    "id": 6,
+    "question": "Tại sao tốc độ dữ liệu âm thanh nên nhỏ hơn đáng kể so với tốc độ bit khả dụng trên liên kết Bluetooth?",
+    "rag_response": "Bluetooth links have limited bandwidth and overhead (e.g., packet headers, error‑correction). To ensure reliable transmission and leave room for control traffic, the audio payload must be compressed to a rate well below the maximum link capacity."
+  },
+  {
+    "id": 7,
+    "question": "At which level is Content Protection provided in A2DP?",
+    "rag_response": "Content Protection is provided at the application layer, via a Content Protection (CP) header that is inserted into the A2DP media payload."
+  },
+  {
+    "id": 8,
+    "question": "Nếu phiên bản AVDTP của thiết bị từ xa không xác định, thiết bị cần làm gì trước khi thiết lập kết nối?",
+    "rag_response": "Thiết bị phải thực hiện quá trình đàm phán AVDTP thông qua Service Discovery Protocol (SDP) để xác định phiên bản AVDTP của thiết bị từ xa trước khi thiết lập kết nối."
+  },
+  {
+    "id": 9,
+    "question": "Which state must the SRC and SNK be in to send or receive an audio stream?",
+    "rag_response": "Both SRC and SNK must be in the OPEN state (and then transition to STREAMING) before they can exchange audio packets."
+  },
+  {
+    "id": 10,
+    "question": "Codec nào là bắt buộc (Mandatory) phải được hỗ trợ bởi cả SRC và SNK?",
+    "rag_response": "Codec bắt buộc là SBC (Subband Codec); cả SRC và SNK phải hỗ trợ codec này."
+  },
+  {
+    "id": 11,
+    "question": "What happens if the SRC and SNK do not support the same optional codec?",
+    "rag_response": "If no common optional codec is found, the devices fall back to the mandatory SBC codec for audio streaming."
+  },
+  {
+    "id": 12,
+    "question": "Tiêu chí chất lượng đầu ra cho bộ giải mã SBC tại SNK là gì?",
+    "rag_response": "Bộ giải mã SBC tại SNK phải hỗ trợ tối thiểu các tham số: tần số mẫu 16 kHz, 8 subbands, 4 chế độ kênh, và giá trị bitpool tối thiểu cho phép chất lượng âm thanh chấp nhận được."
+  },
+  {
+    "id": 13,
+    "question": "Which sampling frequencies are mandatory for the SBC decoder in the SNK?",
+    "rag_response": "Các tần số mẫu bắt buộc cho bộ giải mã SBC tại SNK là 16 kHz, 32 kHz, 44.1 kHz và 48 kHz."
+  },
+  {
+    "id": 14,
+    "question": "Bộ mã hóa SBC tại SRC phải hỗ trợ ít nhất các chế độ kênh (Channel Mode) nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 15,
+    "question": "What Block Length values must be supported by the SBC encoder and decoder?",
+    "rag_response": ""
+  },
+  {
+    "id": 16,
+    "question": "Số lượng dải con (Subbands) tối thiểu mà bộ mã hóa SBC tại SRC phải hỗ trợ là bao nhiêu?",
+    "rag_response": ""
+  },
+  {
+    "id": 17,
+    "question": "Which Allocation Method is mandatory for the SBC encoder in the SRC?",
+    "rag_response": ""
+  },
+  {
+    "id": 18,
+    "question": "Giá trị Minimum Bitpool Value mà decoder của SNK phải hỗ trợ tối thiểu là bao nhiêu?",
+    "rag_response": ""
+  },
+  {
+    "id": 19,
+    "question": "What is the maximum available bit rate for SBC in mono mode defined by this profile?",
+    "rag_response": ""
+  },
+  {
+    "id": 20,
+    "question": "Tốc độ bit tối đa cho phép đối với chế độ hai kênh (two-channel) trong SBC là bao nhiêu?",
+    "rag_response": ""
+  },
+  {
+    "id": 21,
+    "question": "How is the Timestamp (TS) in the SBC media packet header calculated?",
+    "rag_response": ""
+  },
+  {
+    "id": 22,
+    "question": "Khi một khung SBC bị phân mảnh, trường 'Number of frames' trong header tải trọng có ý nghĩa gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 23,
+    "question": "What is the required value for the Marker (M) bit in the SBC media packet header?",
+    "rag_response": ""
+  },
+  {
+    "id": 24,
+    "question": "SRC và SNK phải hỗ trợ ít nhất một trong những Layer nào của MPEG-1,2 Audio?",
+    "rag_response": ""
+  },
+  {
+    "id": 25,
+    "question": "Is CRC Protection mandatory for the SNK when using MPEG-1,2 Audio?",
+    "rag_response": ""
+  },
+  {
+    "id": 26,
+    "question": "Định dạng tải trọng phương tiện (MPF) nào là bắt buộc đối với MPEG-1,2 Audio?",
+    "rag_response": ""
+  },
+  {
+    "id": 27,
+    "question": "Is support for VBR (Variable Bit Rate) in MPEG-1,2 Audio mandatory for the SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 28,
+    "question": "Object Type nào của MPEG-2,4 AAC là bắt buộc đối với cả SRC và SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 29,
+    "question": "What new MPEG-2,4 AAC Object Types were added in A2DP version 1.4?",
+    "rag_response": ""
+  },
+  {
+    "id": 30,
+    "question": "Việc hỗ trợ MPEG-D DRC trong MPEG-2,4 AAC là bắt buộc hay tùy chọn?",
+    "rag_response": ""
+  },
+  {
+    "id": 31,
+    "question": "Which sampling frequencies must the SNK support for MPEG-2,4 AAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 32,
+    "question": "SNK phải hỗ trợ tối đa bao nhiêu kênh cho MPEG-2,4 AAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 33,
+    "question": "What does a value of 0 in the MPEG-2,4 AAC Bit rate field indicate?",
+    "rag_response": ""
+  },
+  {
+    "id": 34,
+    "question": "Tham số muxConfigPresent phải được đặt giá trị bao nhiêu cho MPEG-2,4 AAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 35,
+    "question": "Who should be contacted for license details regarding the ATRAC family codec?",
+    "rag_response": ""
+  },
+  {
+    "id": 36,
+    "question": "Trường Version trong codec ATRAC family xác định điều gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 37,
+    "question": "What does the Maximum SUL field in the ATRAC family codec indicate?",
+    "rag_response": ""
+  },
+  {
+    "id": 38,
+    "question": "Cấu trúc của Vendor ID trong Vendor Specific A2DP Codec là gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 39,
+    "question": "Which Object Type is supported for the MPEG-D USAC codec?",
+    "rag_response": ""
+  },
+  {
+    "id": 40,
+    "question": "Tần số lấy mẫu nào là bắt buộc đối với SNK khi sử dụng MPEG-D USAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 41,
+    "question": "Which GAVDP signaling roles (INT/ACP) are mandatory for the SRC?",
+    "rag_response": ""
+  },
+  {
+    "id": 42,
+    "question": "Trong A2DP, vai trò báo hiệu GAVDP nào là bắt buộc đối với SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 43,
+    "question": "Who acts as the Initiator (INT) for Delay Reporting?",
+    "rag_response": ""
+  },
+  {
+    "id": 44,
+    "question": "Dịch vụ vận chuyển AVDTP nào là bắt buộc phải hỗ trợ trong A2DP?",
+    "rag_response": ""
+  },
+  {
+    "id": 45,
+    "question": "What does the error code 0xC1 (INVALID_CODEC_TYPE) signify?",
+    "rag_response": ""
+  },
+  {
+    "id": 46,
+    "question": "Mã lỗi nào được dùng khi Tần số lấy mẫu (Sampling Frequency) không hợp lệ?",
+    "rag_response": ""
+  },
+  {
+    "id": 47,
+    "question": "What does error code 0xC6 (NOT_SUPPORTED_CHANNEL_MODE) indicate?",
+    "rag_response": ""
+  },
+  {
+    "id": 48,
+    "question": "MTU tối thiểu mà một triển khai L2CAP cho profile này phải hỗ trợ là bao nhiêu?",
+    "rag_response": ""
+  },
+  {
+    "id": 49,
+    "question": "Which baseband packets must be supported by both SNK and SRC?",
+    "rag_response": ""
+  },
+  {
+    "id": 50,
+    "question": "Việc hỗ trợ thủ tục Inquiry scan là bắt buộc hay tùy chọn đối với SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 51,
+    "question": "Which bit must be set in the Class of Device field for the SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 52,
+    "question": "Bit nào phải được thiết lập trong trường Class of Device cho thiết bị SRC?",
+    "rag_response": ""
+  },
+  {
+    "id": 53,
+    "question": "Which connectability mode is mandatory for both SRC and SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 54,
+    "question": "Chế độ Non-Connectable có được phép sử dụng trong A2DP không?",
+    "rag_response": ""
+  },
+  {
+    "id": 55,
+    "question": "Is the Bondable mode mandatory or optional?",
+    "rag_response": ""
+  },
+  {
+    "id": 56,
+    "question": "Trong chế độ IDLE, SRC bắt buộc phải hỗ trợ khởi tạo thủ tục nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 57,
+    "question": "What is the fixed value of the syncword in the SBC frame header?",
+    "rag_response": ""
+  },
+  {
+    "id": 58,
+    "question": "SBC sử dụng loại CRC nào để phát hiện lỗi?",
+    "rag_response": ""
+  },
+  {
+    "id": 59,
+    "question": "How many bits is the bitpool field in SBC?",
+    "rag_response": ""
+  },
+  {
+    "id": 60,
+    "question": "Công thức tính tốc độ bit (bit_rate) của SBC là gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 61,
+    "question": "What does a value of 1 in the SBC join[sb] field mean?",
+    "rag_response": ""
+  },
+  {
+    "id": 62,
+    "question": "Ai là người khởi tạo thủ tục Stream Endpoint Discovery?",
+    "rag_response": ""
+  },
+  {
+    "id": 63,
+    "question": "Which procedure is used to change the state from OPEN to STREAMING?",
+    "rag_response": ""
+  },
+  {
+    "id": 64,
+    "question": "Nếu trường 'Reserved for Future Use' (RFU) nhận giá trị 1, thiết bị nhận phải xử lý thế nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 65,
+    "question": "How should a device handle a field marked as 'Prohibited'?",
+    "rag_response": ""
+  },
+  {
+    "id": 66,
+    "question": "Nhiệm vụ chính của lớp Ứng dụng (Application layer) đối với dữ liệu âm thanh là gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 67,
+    "question": "Where is the Content Protection header located in the packet?",
+    "rag_response": ""
+  },
+  {
+    "id": 68,
+    "question": "Trong AVDTP_GET_ALL_CAPABILITIES_RSP, có thể thiết lập bao nhiêu bit trong mỗi trường?",
+    "rag_response": ""
+  },
+  {
+    "id": 69,
+    "question": "Is the MONO channel mode mandatory for the SNK in SBC?",
+    "rag_response": ""
+  },
+  {
+    "id": 70,
+    "question": "Phương pháp phân bổ SNR trong SBC là bắt buộc hay tùy chọn đối với SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 71,
+    "question": "What is the recommended High Quality Bitpool value for SBC Joint Stereo at 44.1kHz?",
+    "rag_response": ""
+  },
+  {
+    "id": 72,
+    "question": "Payload type (PT) trong media packet header của SBC phải được chọn như thế nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 73,
+    "question": "What should the F bit be set to if an SBC frame is fragmented?",
+    "rag_response": ""
+  },
+  {
+    "id": 74,
+    "question": "Layer I (mp1) của MPEG-1,2 Audio là bắt buộc hay tùy chọn?",
+    "rag_response": ""
+  },
+  {
+    "id": 75,
+    "question": "Which device must mandatory support the 44.1kHz sampling frequency in MPEG-1,2 Audio?",
+    "rag_response": ""
+  },
+  {
+    "id": 76,
+    "question": "Có được hỗ trợ MPEG-D DRC cùng với MPEG-2 AAC LC không?",
+    "rag_response": ""
+  },
+  {
+    "id": 77,
+    "question": "Are 5.1 and 7.1 channels mandatory in MPEG-2,4 AAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 78,
+    "question": "Mã lỗi 0xE0 (INVALID_CP_TYPE) có ý nghĩa gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 79,
+    "question": "What does error code 0xD7 (NOT_SUPPORTED_OBJECT_TYPE) mean for MPEG-2,4 AAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 80,
+    "question": "Dịch vụ Recovery trong AVDTP là bắt buộc hay tùy chọn?",
+    "rag_response": ""
+  },
+  {
+    "id": 81,
+    "question": "How are the 'Supported Features' bits set in the Source's SDP record?",
+    "rag_response": ""
+  },
+  {
+    "id": 82,
+    "question": "Nếu thiết bị hỗ trợ 'limited discoverable mode', thì chế độ 'non-discoverable' là bắt buộc hay tùy chọn?",
+    "rag_response": ""
+  },
+  {
+    "id": 83,
+    "question": "What does the symbol 'O' stand for in the requirement status?",
+    "rag_response": ""
+  },
+  {
+    "id": 84,
+    "question": "Ký hiệu 'C' trong bảng trạng thái yêu cầu nghĩa là gì?",
+    "rag_response": ""
+  },
+  {
+    "id": 85,
+    "question": "What does the symbol 'M' stand for in the requirement status?",
+    "rag_response": ""
+  },
+  {
+    "id": 86,
+    "question": "Các khả năng bị loại trừ ('Excluded') có được phép kích hoạt trong profile này không?",
+    "rag_response": ""
+  },
+  {
+    "id": 87,
+    "question": "Which layer is responsible for adapting encoded audio data into the media payload format?",
+    "rag_response": ""
+  },
+  {
+    "id": 88,
+    "question": "Tốc độ dữ liệu âm thanh nên như thế nào so với băng thông Bluetooth để giảm thiểu mất gói tin?",
+    "rag_response": ""
+  },
+  {
+    "id": 89,
+    "question": "What causes delay between the SRC and SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 90,
+    "question": "Lệnh AVDTP nào được SRC dùng để cấu hình tham số âm thanh cho SNK?",
+    "rag_response": ""
+  },
+  {
+    "id": 91,
+    "question": "What does the Bit rate field indicate when VBR is supported for MPEG-D USAC?",
+    "rag_response": ""
+  },
+  {
+    "id": 92,
+    "question": "Độ dài của trường 'Number of frames' trong SBC payload header là bao nhiêu bit?",
+    "rag_response": ""
+  },
+  {
+    "id": 93,
+    "question": "What is the maximum number of subbands supported by SBC?",
+    "rag_response": ""
+  },
+  {
+    "id": 94,
+    "question": "Trong chế độ Joint Stereo của SBC, quyết định sử dụng joint stereo dựa trên bit nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 95,
+    "question": "What error code is returned if MPF-2 is not supported in MPEG-1,2 Audio?",
+    "rag_response": ""
+  },
+  {
+    "id": 96,
+    "question": "Để tối ưu hóa hiệu quả truyền tải L2CAP, độ dài khung SBC có thể được điều chỉnh bằng cách nào?",
+    "rag_response": ""
+  },
+  {
+    "id": 97,
+    "question": "When is the 'S' bit set to 1 in the SBC media payload header?",
+    "rag_response": ""
+  },
+  {
+    "id": 98,
+    "question": "Thuật ngữ 'Bluetooth audio' dùng để chỉ điều gì, phân biệt với A2DP?",
+    "rag_response": ""
+  },
+  {
+    "id": 99,
+    "question": "Which MPEG-4 AAC object types allow the use of MPEG-D DRC?",
+    "rag_response": ""
+  },
+  {
+    "id": 100,
+    "question": "Bitpool High Quality được khuyến nghị cho SBC Mono ở 48kHz là bao nhiêu?",
+    "rag_response": ""
+  }
+]
