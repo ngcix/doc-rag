@@ -62,7 +62,7 @@
   {
     "id": 13,
     "question": "Which sampling frequencies are mandatory for the SBC decoder in the SNK?",
-    "rag_response": "Các tần số mẫu bắt buộc cho bộ giải mã SBC tại SNK là 16 kHz, 32 kHz, 44.1 kHz và 48 kHz."
+    "rag_response": "Các tần số mẫu bắt buộc cho bộ giải mã SBC tại SNK là 44.1 kHz và 48 kHz."
   },
   {
     "id": 14,
