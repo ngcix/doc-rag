@@ -1600,11 +1600,6 @@ The decision algorithm for setting the `join[sb]` bits typically involves analyz
   {
     "id": 95,
     "question": "What error code is returned if MPF-2 is not supported in MPEG-1,2 Audio?",
-    "rag_response": ""
-  },
-  {
-    "id": 96,
-    "question": "Để tối ưu hóa hiệu quả truyền tải L2CAP, độ dài khung SBC có thể được điều chỉnh bằng cách nào?",
     "rag_response": "Based on my analysis of the A2DP v1.4.1 specification, when MPF-2 is not supported in MPEG-1,2 Audio, the error code **0xE3 (NOT_SUPPORTED_CODEC_PARAMETER)** would be returned.
 
 This error code is defined as:
@@ -1615,6 +1610,79 @@ This error code is defined as:
 - Error Description: "The codec parameter is not supported. Used if a more specific error code does not exist for the codec in use."
 
 This makes sense because MPF-2 support is treated as a codec parameter in the MPEG-1,2 Audio configuration, and when a device doesn't support MPF-2, it would return this general "not supported" error code since there isn't a more specific error code defined specifically for MPF-2 support."
+  },
+  {
+    "id": 96,
+    "question": "Để tối ưu hóa hiệu quả truyền tải L2CAP, độ dài khung SBC có thể được điều chỉnh bằng cách nào?",
+    "rag_response": "# Cách tối ưu hóa hiệu quả truyền tải L2CAP bằng cách điều chỉnh độ dài khung SBC
+
+Dựa trên thông tin từ tài liệu A2DP v1.4.1, độ dài khung SBC có thể được điều chỉnh để tối ưu hóa hiệu quả truyền tải L2CAP thông qua các cơ chế sau:
+
+## 1. Cơ chế điều chỉnh độ dài khung SBC
+
+### Định dạng payload phương tiện (Media payload format)
+Theo Figure 4.2 trong tài liệu, media payload cho SBC bao gồm:
+- **Header đặc biệt cho SBC** (8-bit)
+- **Một hoặc nhiều khung SBC** được định nghĩa trong đặc tả SBC
+
+### Hai định dạng payload:
+
+**(a) Khi payload chứa số nguyên các khung SBC:**
+```
++--------+-----------+-----------+-----------+
+| Header | SBC frame | SBC frame | SBC frame |
++--------+-----------+-----------+-----------+
+```
+
+**(b) Khi khung SBC bị phân mảnh:**
+```
++--------+------------------------+
+| Header | First fragment         |
+|        | of SBC frame           |
++--------+------------------------+
+
++--------+----------------------------+
+| Header | Subsequent fragments of   |
+|        | SBC frame                 |
++--------+----------------------------+
+```
+
+## 2. Cơ chế tối ưu hóa L2CAP
+
+### Điều kiện tối ưu:
+- Nếu kích thước MTU được cấu hình cho kênh truyền ≥ (kích thước khung SBC + tổng kích thước header payload phương tiện, header bảo vệ nội dung (nếu có), header gói phương tiện)
+- **Thì payload phương tiện nên chứa số nguyên các khung SBC hoàn chỉnh** để sử dụng hiệu quả nhất
+
+### Cơ chế phân mảnh:
+- Khi không đáp ứng điều kiện trên và không sử dụng dịch vụ multiplexing của AVDTP
+- **Khung SBC sẽ được phân mảnh qua nhiều payload phương tiện**
+- Tất cả các gói phân mảnh, trừ gói cuối cùng, phải có cùng kích thước dữ liệu tổng
+
+## 3. Header format và điều khiển phân mảnh
+
+Header 8-bit của payload phương tiện SBC (Figure 4.3):
+```
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+| F  | S  | L  | RFU | Number of frames    | Octet0
++----+----+----+----+----+----+----+----+
+```
+
+**Các bit điều khiển:**
+- **F bit**: Đặt = 1 nếu khung SBC bị phân mảnh, ngược lại = 0
+- **S bit**: Đặt = 1 cho gói đầu tiên của khung SBC bị phân mảnh, ngược lại = 0  
+- **L bit**: Đặt = 1 cho gói cuối cùng của khung SBC bị phân mảnh, ngược lại = 0
+- **Number of frames (4 bits)**: 
+  - Nếu F = 0: chỉ số khung chứa trong gói này
+  - Nếu F = 1: chỉ số phân mảnh còn lại (bao gồm cả phân mảnh cuối cùng)
+
+## 4. Khuyến nghị tối ưu hóa
+
+1. **Ưu tiên không phân mảnh**: Khi sử dụng dịch vụ multiplexing của AVDTP, khuyến nghị không phân mảnh khung SBC qua nhiều payload phương tiện, vì AVDTP sẽ tự động phân mảnh payload phương tiện qua nhiều gói L2CAP nếu cần.
+
+2. **Điều chỉnh bitpool**: Theo Table 4.7, độ dài khung thể hiện trong bảng là biến đổi theo giá trị bitpool, do đó có thể điều chỉnh độ dài khi xây dựng payload phương tiện để sử dụng hiệu quả nhất.
+
+3. **Cân bằng kích thước MTU**: Tối ưu hóa bằng cách cấu hình MTU phù hợp để chứa số nguyên các khung SBC hoàn chỉnh, tránh phân mảnh không cần thiết."
   },
   {
     "id": 97,
