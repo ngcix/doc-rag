@@ -67,187 +67,731 @@
   {
     "id": 14,
     "question": "Bộ mã hóa SBC tại SRC phải hỗ trợ ít nhất các chế độ kênh (Channel Mode) nào?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the SBC encoder at the SRC (Source) must support at least the following channel modes:
+
+**Mandatory Channel Modes for SBC Encoder (SRC):**
+1. **MONO** - Single channel audio
+2. **At least one of the following stereo modes:**
+   - **DUAL CHANNEL** - Two independent mono channels
+   - **STEREO** - Standard stereo with left and right channels
+   - **JOINT STEREO** - Stereo with joint encoding for better compression
+
+**Technical Details from the Specification:**
+- According to Table 4.3 in the A2DP v1.4 specification, the SBC encoder in the SRC must support:
+  - **MONO** (marked as "M" - Mandatory)
+  - **At least one** of DUAL CHANNEL, STEREO, or JOINT STEREO (marked as "C1" - At least one of the values shall be supported)
+
+**Channel Mode Technical Specifications:**
+- **MONO (00)**: 1 channel
+- **DUAL CHANNEL (01)**: 2 independent channels
+- **STEREO (10)**: 2 channels (standard stereo)
+- **JOINT STEREO (11)**: 2 channels with joint encoding
+
+This requirement ensures that the SRC device can provide basic mono audio compatibility while also supporting at least one stereo mode for higher quality audio transmission. The SNK (Sink) device must support all channel modes, but the SRC has this minimum requirement of at least MONO plus one stereo mode."
   },
   {
     "id": 15,
     "question": "What Block Length values must be supported by the SBC encoder and decoder?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, here are the SBC Block Length requirements for both encoder and decoder:
+
+**SBC Block Length Support Requirements:**
+
+**Both SRC (Encoder) and SNK (Decoder) MUST support ALL Block Length values:**
+- **4 blocks**
+- **8 blocks** 
+- **12 blocks**
+- **16 blocks**
+
+**Technical Details from the Specification:**
+- According to Table 4.4 in the A2DP v1.4 specification, both the encoder in the SRC and the decoder in the SNK shall support **all of the parameters** for Block Length.
+- All block length values are marked as "M" (Mandatory) for both SRC and SNK support.
+
+**Block Length Technical Specifications (from Table 8.17):**
+- **00**: 4 blocks
+- **01**: 8 blocks  
+- **10**: 12 blocks
+- **11**: 16 blocks
+
+**Key Points:**
+1. **Full Compatibility**: Unlike some other SBC parameters where the SRC has minimum requirements and the SNK must support all, the Block Length parameter requires **complete support from both encoder and decoder**.
+2. **Four Options**: The SBC codec supports four different block length configurations, providing flexibility for different audio quality and latency requirements.
+3. **Mandatory Support**: All devices implementing SBC must support all four block length values to ensure interoperability.
+
+This comprehensive support requirement ensures that any SBC-capable device can communicate with any other SBC-capable device regardless of the block length configuration chosen, providing maximum flexibility for audio streaming optimization."
   },
   {
     "id": 16,
     "question": "Số lượng dải con (Subbands) tối thiểu mà bộ mã hóa SBC tại SRC phải hỗ trợ là bao nhiêu?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the minimum number of subbands that the SBC encoder at the SRC must support is **8 subbands**.
+
+**SBC Subbands Support Requirements:**
+
+**SRC (Encoder) Requirements:**
+- **Mandatory Support**: 8 subbands (marked as "M" - Mandatory)
+- **Optional Support**: 4 subbands (marked as "O" - Optional)
+
+**SNK (Decoder) Requirements:**
+- **Mandatory Support**: Both 4 subbands and 8 subbands (both marked as "M")
+
+**Technical Details from the Specification:**
+- According to Table 4.5 in the A2DP v1.4 specification, the encoder in the SRC shall support **at least the 8 subbands case**.
+- The specification explicitly states: "The encoder in the SRC shall support at least 8 subbands case."
+- For the decoder in the SNK, all features shall be supported (both 4 and 8 subbands).
+
+**Subbands Technical Specifications (from Table 8.20):**
+- **0**: 4 subbands
+- **1**: 8 subbands
+
+**Key Points:**
+1. **Minimum Requirement**: The SRC encoder must support at least 8 subbands - this is the minimum mandatory requirement.
+2. **Optional Enhancement**: The SRC encoder may also support 4 subbands optionally for additional flexibility.
+3. **Full Compatibility**: The SNK decoder must support both 4 and 8 subbands to ensure complete interoperability.
+4. **Technical Reasoning**: 8 subbands generally provide better audio quality and frequency resolution compared to 4 subbands, which is why it's the minimum requirement for encoding.
+
+This requirement ensures that all SRC devices can produce high-quality audio streams while maintaining compatibility with SNK devices that can decode both subband configurations."
   },
   {
     "id": 17,
     "question": "Which Allocation Method is mandatory for the SBC encoder in the SRC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the **LOUDNESS** allocation method is mandatory for the SBC encoder in the SRC.
+
+**SBC Allocation Method Support Requirements:**
+
+**SRC (Encoder) Requirements:**
+- **Mandatory Support**: LOUDNESS method (marked as "M")
+- **Optional Support**: SNR method (marked as "O")
+
+**SNK (Decoder) Requirements:**
+- **Mandatory Support**: Both LOUDNESS and SNR methods (both marked as "M")
+
+**Technical Details from the Specification:**
+- According to Table 4.6 in the A2DP v1.4 specification, the encoder in the SRC shall support **at least the LOUDNESS method**.
+- The specification explicitly states: "The encoder in the SRC shall support at least the LOUDNESS method."
+- For the decoder in the SNK, all features shall be supported (both LOUDNESS and SNR methods).
+
+**Allocation Method Technical Specifications:**
+- **Octet1; b1 (SNR)**: Optional for SRC, Mandatory for SNK
+- **Octet1; b0 (Loudness)**: Mandatory for both SRC and SNK
+
+**Key Points:**
+1. **Minimum Requirement**: The SRC encoder must support at least the LOUDNESS allocation method - this is the mandatory minimum requirement.
+2. **Optional Enhancement**: The SRC encoder may also support the SNR method optionally for additional flexibility.
+3. **Full Compatibility**: The SNK decoder must support both LOUDNESS and SNR methods to ensure complete interoperability.
+4. **Technical Reasoning**: The LOUDNESS method is based on psychoacoustic principles and generally provides better audio quality for typical listening conditions, which is why it's the mandatory minimum for encoding.
+
+This requirement ensures that all SRC devices can produce high-quality audio streams using the psychoacoustically-optimized LOUDNESS method while maintaining compatibility with SNK devices that can decode both allocation methods."
   },
   {
     "id": 18,
     "question": "Giá trị Minimum Bitpool Value mà decoder của SNK phải hỗ trợ tối thiểu là bao nhiêu?",
-    "rag_response": ""
+    "rag_response": "I have successfully answered your question about the minimum Minimum Bitpool Value that the decoder of the SNK must support according to the A2DP v1.4 specification.
+
+Based on the RAG search results, the answer is clearly stated in the specification: **The decoder of the SNK shall support 2 as the Minimum Bitpool Value.**
+
+This is explicitly mentioned in the A2DP v1.4 specification text: "The decoder of the SNK shall support 2 as the Minimum Bitpool Value and High Quality Bitpool value in Table 4.7 as the Maximum Bitpool Value at a minimum."
+
+The specification also defines that bitpool values range from 2 to 250 (expressed by 8-bit UiMsbf), and that the SNK decoder must support all possible bitpool values that do not exceed the maximum bit rate limits (320kb/s for mono, 512kb/s for two-channel modes).
+
+So the answer to your Vietnamese question "Giá trị Minimum Bitpool Value mà decoder của SNK phải hỗ trợ tối thiểu là bao nhiêu?" is **2**."
   },
   {
     "id": 19,
     "question": "What is the maximum available bit rate for SBC in mono mode defined by this profile?",
-    "rag_response": ""
+    "rag_response": "I have successfully answered your question about the maximum available bit rate for SBC in mono mode defined by the A2DP v1.4 profile.
+
+Based on the RAG search results, the answer is clearly stated in the A2DP v1.4 specification:
+
+**The maximum available bit rate for SBC in mono mode is 320kb/s.**
+
+This is explicitly mentioned in the specification: "This profile limits the available maximum bit rate to 320kb/s for mono, and 512kb/s for two-channel modes."
+
+The specification also provides context about how this limit is implemented:
+- The decoder of the SNK shall support all possible bitpool values that do not result in excess of the maximum bit rate
+- For mono mode, the limit is 320kb/s
+- For two-channel modes, the limit is 512kb/s
+
+Additionally, Table 4.7 in the specification shows recommended SBC encoder settings, including mono mode bit rates of 193 kb/s (Middle Quality) and 328 kb/s (High Quality), both of which are below the 320kb/s maximum limit for mono mode."
   },
   {
     "id": 20,
     "question": "Tốc độ bit tối đa cho phép đối với chế độ hai kênh (two-channel) trong SBC là bao nhiêu?",
-    "rag_response": ""
+    "rag_response": "I have successfully answered your question about the maximum allowed bit rate for two-channel mode in SBC according to the A2DP v1.4 profile.
+
+Based on the RAG search results, the answer is clearly stated in the A2DP v1.4 specification:
+
+**The maximum allowed bit rate for two-channel mode in SBC is 512kb/s.**
+
+This is explicitly mentioned in the specification: "This profile limits the available maximum bit rate to 320kb/s for mono, and 512kb/s for two-channel modes."
+
+The specification also provides context about how this limit is implemented:
+- The decoder of the SNK shall support all possible bitpool values that do not result in excess of the maximum bit rate
+- For mono mode, the limit is 320kb/s
+- For two-channel modes, the limit is 512kb/s
+
+Additionally, Table 4.7 in the specification shows recommended SBC encoder settings for Joint Stereo (which is a two-channel mode) with bit rates of 229 kb/s (Middle Quality) and 328 kb/s (High Quality) at 44.1 kHz, and 237 kb/s (Middle Quality) and 345 kb/s (High Quality) at 48 kHz, all of which are below the 512kb/s maximum limit for two-channel modes."
   },
   {
     "id": 21,
     "question": "How is the Timestamp (TS) in the SBC media packet header calculated?",
-    "rag_response": ""
+    "rag_response": "I have successfully found the answer to your question about how the Timestamp (TS) in the SBC media packet header is calculated according to the A2DP v1.4 profile.
+
+Based on the RAG search results, the timestamp calculation is specified as follows:
+
+**The TS of the following SBC frames shall be calculated using the sample rate and the number of samples per frame per channel.**
+
+The complete specification states:
+1. **Clock Frequency**: The clock frequency necessary to create TS shall be set to the sample rate of the encoded audio data.
+
+2. **First Frame TS**: If a media payload consists of multiple SBC frames, the TS of the media packet header represents the TS of the first SBC frame.
+
+3. **Subsequent Frames TS**: The TS of the following SBC frames shall be calculated using the sample rate and the number of samples per frame per channel.
+
+This means that for SBC media packets containing multiple frames:
+- The first frame's timestamp is used as the base timestamp in the media packet header
+- Each subsequent frame's timestamp is calculated by adding the time increment based on the sample rate and the number of samples per frame per channel
+- The time increment is determined by: (number of samples per frame per channel) / (sample rate)
+
+This calculation ensures proper timing synchronization for audio playback and maintains the correct temporal relationship between consecutive SBC frames in the media stream."
   },
   {
     "id": 22,
     "question": "Khi một khung SBC bị phân mảnh, trường 'Number of frames' trong header tải trọng có ý nghĩa gì?",
-    "rag_response": ""
+    "rag_response": "I have successfully found the answer to your question about the meaning of the 'Number of frames' field in the SBC payload header when a frame is fragmented.
+
+Based on the A2DP v1.4 specification, when an SBC frame is fragmented, the 'Number of frames' field has a specific meaning:
+
+**When the F bit is set to 1 (indicating fragmentation), the 'Number of frames' field indicates the number of remaining fragments, including the current fragment.**
+
+The complete specification from the A2DP v1.4 document states:
+
+• **F bit** – Set to 1 if the SBC frame is fragmented, otherwise set to 0.
+• **S bit** – Set to 1 for the starting packet of a fragmented SBC frame, otherwise set to 0.
+• **L bit** – Set to 1 for the last packet of a fragmented SBC frame, otherwise set to 0
+• **Number of frames (4 bits)** – If the F bit is set to 0, this field indicates the number of frames contained in this packet. If the F bit is set to 1, this field indicates the number of remaining fragments, including the current fragment. Therefore, the last counter value shall be one.
+
+**Example**: If there are three fragments, then the counter has value 3, 2 and 1 for subsequent fragments.
+
+This means that when fragmentation occurs:
+1. The first fragment will have the 'Number of frames' field set to the total number of fragments
+2. Each subsequent fragment will decrement this counter by 1
+3. The last fragment will always have the 'Number of frames' field set to 1
+4. This allows the receiver to know how many more fragments to expect and when the complete SBC frame has been received
+
+This design ensures proper reassembly of fragmented SBC frames at the receiving end."
   },
   {
     "id": 23,
     "question": "What is the required value for the Marker (M) bit in the SBC media packet header?",
-    "rag_response": ""
+    "rag_response": "I have successfully found the answer to your question about the required value for the Marker (M) bit in the SBC media packet header.
+
+Based on the A2DP v1.4 specification, the requirement is clearly stated:
+
+**The Marker (M) bit shall be set to zero.**
+
+This is explicitly specified in the A2DP v1.4 specification in Section 4.3.3.3 Marker (M) bit, which states: "Shall be set to zero."
+
+The specification also mentions:
+- **Section 4.3.3.4 Extension (X) bit**: Not used and shall be set to zero.
+
+This means that for SBC media packet headers in the A2DP profile:
+1. The Marker (M) bit is required to be set to 0 (zero)
+2. The Extension (X) bit is also required to be set to 0 (zero)
+3. These bits are reserved and not used for SBC codec in A2DP
+
+This requirement ensures compatibility and proper handling of SBC media packets across different Bluetooth devices implementing the A2DP profile."
   },
   {
     "id": 24,
     "question": "SRC và SNK phải hỗ trợ ít nhất một trong những Layer nào của MPEG-1,2 Audio?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, both SRC (Source) and SNK (Sink) must support at least one of the following MPEG-1,2 Audio layers: Layer I (mp1), Layer II (mp2), or Layer III (mp3). This requirement is defined in Table 4.8 "Layers for MPEG-1,2 Audio" on page 23 of the specification, where each layer is marked as optional individually, but the overall requirement states that "At least one of the values shall be supported" for both SRC and SNK devices."
   },
   {
     "id": 25,
     "question": "Is CRC Protection mandatory for the SNK when using MPEG-1,2 Audio?",
-    "rag_response": ""
+    "rag_response": "Yes, CRC Protection is mandatory for the SNK (Sink) when using MPEG-1,2 Audio. According to the A2DP v1.4 specification (Section 4.4.2.2 "CRC Protection" and Table 4.9 "CRC Protection assignment for MPEG-1,2 Audio"):
+
+- For the **SNK (Sink)**: CRC Protection support is marked as **M (Mandatory)**
+- For the **SRC (Source)**: CRC Protection support is marked as **O (Optional)**
+
+The specification explicitly states: "Support of Cyclic Redundancy Check (CRC) Protection is mandatory in the SNK and optional in the SRC."
+
+This means that any device acting as a Sink (receiver) in an A2DP connection using MPEG-1,2 Audio must support CRC Protection, while Source (transmitter) devices may optionally support it."
   },
   {
     "id": 26,
     "question": "Định dạng tải trọng phương tiện (MPF) nào là bắt buộc đối với MPEG-1,2 Audio?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification search results, **MPF-1 is mandatory** for MPEG-1,2 Audio support.
+
+Key findings from the specification:
+
+1. **Mandatory Support**: According to Section 4.4.4, "This profile mandates support of the format in MPF-1."
+
+2. **MPF-2 as Optional**: The same section states that "MPF-2 provides more error-robustness for MPEG-1,2 Audio Layer III" but it is not mandatory - it's an additional option for enhanced error robustness.
+
+3. **MPF Field Configuration**: As detailed in Section 4.4.2.4, the MPF field indicates support for media payload formats:
+   - MPF-1 support is mandatory (as stated in Section 4.4.4)
+   - The MPF field is set to 1 if MPF-2 is also supported, or if MPF-2 is configured as a transferred media payload format
+   - Otherwise, the MPF field is set to 0 (indicating only MPF-1 support)
+
+4. **References**: The specification references documents [9] and [10] for MPF-1 and MPF-2 respectively, with MPF-1 being the baseline mandatory requirement.
+
+Therefore, any device implementing MPEG-1,2 Audio codec interoperability requirements must support MPF-1 as the mandatory media payload format, with MPF-2 being optional for enhanced error robustness."
   },
   {
     "id": 27,
     "question": "Is support for VBR (Variable Bit Rate) in MPEG-1,2 Audio mandatory for the SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification search results, **VBR (Variable Bit Rate) support IS mandatory** for MPEG-1,2 Audio in SNK (Sink) devices.
+
+Key findings from the specification:
+
+1. **Mandatory VBR Support for SNK**: According to Section 4.4.2.6, "support of variable bit rate (VBR) for MPEG-1,2 Audio is mandatory for the decoder in the SNK"
+
+2. **SRC Support is Optional**: The same section states that VBR support is "optional for the encoder in the SRC" (Source)
+
+3. **Layer Restrictions**: The specification notes that "Layer I and Layer II do not mandate this parameter" - meaning VBR support is specifically mandatory for Layer III of MPEG-1,2 Audio in SNK devices.
+
+4. **Table 4.12 Confirmation**: This is further confirmed in the support table which shows:
+   - VBR supported: Optional (O) for SRC
+   - VBR supported: Mandatory (M) for SNK
+
+5. **Consistent Pattern**: This pattern is consistent with other codec specifications in the document, as seen in Section 4.8.2.4 for MPEG-D USAC which also states "The decoder in the SNK shall support VBR."
+
+Therefore, any device implementing the A2DP profile as a Sink (SNK) for MPEG-1,2 Audio must support Variable Bit Rate decoding, while Source (SRC) devices have optional VBR encoding support."
   },
   {
     "id": 28,
     "question": "Object Type nào của MPEG-2,4 AAC là bắt buộc đối với cả SRC và SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification search results, the answer to your question is:
+
+**MPEG-2 AAC LC** is the only Object Type that is mandatory for both SRC (Source) and SNK (Sink) in MPEG-2,4 AAC.
+
+According to Table 4.14 in the A2DP specification:
+- **MPEG-2 AAC LC** (Low Complexity) - Mandatory (M) for both SRC and SNK
+- All other Object Types including:
+  - MPEG-4 AAC LC
+  - MPEG-4 AAC LTP  
+  - MPEG-4 AAC scalable
+  - MPEG-4 HE-AAC
+  - MPEG-4 HE-AACv2
+  - MPEG-4 AAC-ELDv2
+  - MPEG-D DRC
+
+These are all optional (O) for both SRC and SNK.
+
+The specification explicitly states: "The SRC and the SNK shall support MPEG-2 AAC LC, and other values are optional.""
   },
   {
     "id": 29,
     "question": "What new MPEG-2,4 AAC Object Types were added in A2DP version 1.4?",
-    "rag_response": ""
+    "rag_response": "Based on my analysis of the A2DP v1.4 specification, here are the new MPEG-2,4 AAC Object Types that were added in A2DP version 1.4:
+
+**New MPEG-2,4 AAC Object Types added in A2DP v1.4:**
+
+1. **MPEG-4 HE-AAC** (High Efficiency AAC Profile)
+2. **MPEG-4 HE-AACv2** (High Efficiency AAC v2 Profile)  
+3. **MPEG-4 AAC-ELDv2** (Low Delay AAC v2 Profile)
+
+**Evidence from the specification:**
+
+- **Page 11** of the A2DP v1.4 specification explicitly states in the "New features" section: "Addition of new Object Types for MPEG-2,4 AAC for MPEG-4 HE-AAC, HE-AACv2, and AAC-ELDv2"
+- **Table 4.14** on page 26 shows the complete list of Object Types for MPEG-2,4 AAC in A2DP v1.4, where these three Object Types are listed as optional (O) for both SRC and SNK
+- **Table 4.15** on page 26 provides the mapping of these A2DP Object Types to their corresponding ISO specification names
+
+**Complete list of MPEG-2,4 AAC Object Types in A2DP v1.4:**
+
+- MPEG-2 AAC LC (Mandatory - M for both SRC and SNK)
+- MPEG-4 AAC LC (Optional - O for both SRC and SNK)
+- MPEG-4 AAC LTP (Optional - O for both SRC and SNK)
+- MPEG-4 AAC scalable (Optional - O for both SRC and SNK)
+- **MPEG-4 HE-AAC** (Optional - O for both SRC and SNK) ← **NEW in v1.4**
+- **MPEG-4 HE-AACv2** (Optional - O for both SRC and SNK) ← **NEW in v1.4**
+- **MPEG-4 AAC-ELDv2** (Optional - O for both SRC and SNK) ← **NEW in v1.4**
+
+The specification clearly indicates that these three Object Types (HE-AAC, HE-AACv2, and AAC-ELDv2) were additions in version 1.4, as they are specifically mentioned in the change history as new features."
   },
   {
     "id": 30,
     "question": "Việc hỗ trợ MPEG-D DRC trong MPEG-2,4 AAC là bắt buộc hay tùy chọn?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4 specification, I can answer your question about MPEG-D DRC support in MPEG-2,4 AAC:
+
+**MPEG-D DRC support in MPEG-2,4 AAC is OPTIONAL, not mandatory.**
+
+The key evidence from the search results:
+
+1. **Rank 4 result** explicitly states: "Support of MPEG-D DRC is optional for both the encoder in the SRC and the decoder in the SNK."
+
+2. **Rank 3 result** provides additional context in Table 4.16, showing that "MPEG-D DRC is not supported with MPEG-2 AAC LC" - this further confirms that support is conditional and not mandatory across all MPEG-2,4 AAC configurations.
+
+3. The specification defines this in section 4.5.2.2 "MPEG-D DRC" of the A2DP profile, indicating it's a specific feature that implementations can choose to support or not.
+
+This means that when implementing MPEG-2,4 AAC codecs, vendors can decide whether to include MPEG-D DRC (Dynamic Range Control) support based on their product requirements, target market, and implementation complexity considerations."
   },
   {
     "id": 31,
     "question": "Which sampling frequencies must the SNK support for MPEG-2,4 AAC?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4 specification, I can answer your question about the required sampling frequencies for MPEG-2,4 AAC in SNK devices:
+
+**The SNK (Sink) device MUST support sampling frequencies of 44.1 kHz and 48 kHz for MPEG-2,4 AAC.**
+
+The key evidence from the search results:
+
+1. **Rank 1 result** explicitly states in section 4.5.2.3 "Sampling Frequency": "For the decoder in the SNK the sampling frequencies 44.1 kHz and 48 kHz are mandatory to support."
+
+2. The same section clarifies the complete sampling frequency support requirements:
+   - **Mandatory for SNK**: 44.1 kHz and 48 kHz
+   - **Optional for SNK**: All other sampling frequencies (8000 Hz, 11025 Hz, 16000 Hz, 22050 Hz, 24000 Hz, 32000 Hz, etc.)
+   - **SRC requirement**: The encoder in the SRC shall support at least one of the sampling frequencies of 44.1 kHz and 48 kHz
+
+3. This pattern is consistent across other audio codecs in the A2DP specification as shown in the other search results (MPEG-1,2 Audio, SBC, MPEG-D USAC), where 44.1 kHz and 48 kHz are consistently the mandatory sampling frequencies for SNK devices.
+
+This means that any Bluetooth device implementing MPEG-2,4 AAC as a sink (receiver) must be able to decode audio at both 44.1 kHz and 48 kHz sampling rates to be compliant with the A2DP profile specification."
   },
   {
     "id": 32,
     "question": "SNK phải hỗ trợ tối đa bao nhiêu kênh cho MPEG-2,4 AAC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification search results, here is the answer to your question about SNK (Sink) device channel support for MPEG-2,4 AAC:
+
+**Maximum channels SNK must support for MPEG-2,4 AAC: 2 channels (stereo)**
+
+Key findings from the specification:
+
+1. **Mandatory Support**: According to Table 4.18 "Channels field for MPEG-2,4 AAC" in the A2DP v1.4 specification:
+   - SNK (Sink) devices **shall support all configurations with up to two channels**
+   - This means SNK devices must support both mono (1 channel) and stereo (2 channels) configurations
+
+2. **Channel Configuration Details**:
+   - **1 channel (Mono)**: Mandatory support (M) for SNK
+   - **2 channels (Stereo)**: Mandatory support (M) for SNK  
+   - **6 channels (5.1 surround)**: Optional (O) for SNK
+   - **8 channels (7.1 surround)**: Optional (O) for SNK
+
+3. **SRC (Source) Requirement**:
+   - SRC devices must support at least one configuration with 1 or 2 channels
+   - This ensures compatibility between source and sink devices
+
+Therefore, the maximum number of channels that SNK devices **must** support for MPEG-2,4 AAC is **2 channels** (stereo). While higher channel configurations (5.1 and 7.1) are optional for SNK devices, the specification mandates support for up to 2-channel configurations to ensure basic audio compatibility."
   },
   {
     "id": 33,
     "question": "What does a value of 0 in the MPEG-2,4 AAC Bit rate field indicate?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification document, a value of 0 in the MPEG-2,4 AAC Bit rate field indicates that **the bit rate is not known**.
+
+From the technical specification on page 28:
+
+"Bit rate field is assigned for the bit rate in bits per second in case of a constant rate stream, or the maximum peak bit rate (measured per frame) in case of a VBR stream. A value of 0 indicates that the bit rate is not known."
+
+The bit rate field is expressed as a 23-bit UiMsbf (Unsigned integer Most Significant Bit first) as described in Table 4.19, which shows the bit order across Octet 3, 4, and 5 of the MPEG-2,4 AAC codec specification.
+
+This is a standard way to handle unknown or unspecified bit rate values in audio codec configurations, allowing the system to properly handle streams where the bit rate information is not available or not applicable."
   },
   {
     "id": 34,
     "question": "Tham số muxConfigPresent phải được đặt giá trị bao nhiêu cho MPEG-2,4 AAC?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification document, the **muxConfigPresent parameter must be set to 1** for MPEG-2,4 AAC.
+
+From the technical specification:
+
+"The value of the muxConfigPresent parameter (as defined in [13]) shall be set to 1."
+
+This is a mandatory requirement in the A2DP profile specification for MPEG-2,4 AAC codec configuration. The muxConfigPresent parameter is part of the media payload format definition referenced in Section 4.5.4 of the A2DP specification, and setting it to 1 is required for proper codec operation and interoperability."
   },
   {
     "id": 35,
     "question": "Who should be contacted for license details regarding the ATRAC family codec?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification document, for license details regarding the ATRAC family codec, you should contact **Sony Corporation** through the following email address:
+
+**bt-atrac3@jp.sony.com**
+
+From the technical specification:
+"The ATRAC family is a proprietary codec owned by Sony Corporation. Licensed users obtain the specifications of this codec. For details of license, contact Sony Corporation through the following e-mail address: bt-atrac3@jp.sony.com."
+
+This is the official contact point provided in the A2DP profile specification for obtaining licensing information and specifications for the ATRAC family of audio codecs, which are proprietary to Sony Corporation."
   },
   {
     "id": 36,
     "question": "Trường Version trong codec ATRAC family xác định điều gì?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification document, the **Version field in the ATRAC family codec determines the specific version of the ATRAC family codec** that is being used.
+
+From the technical specification in Section 4.6.2.1:
+
+"The Version field contains one specific version of the ATRAC family. Therefore, if for example, the device supports both ATRAC and ATRAC3, two different Stream Endpoints shall be used."
+
+The Version field is defined in Table 4.21 with specific bit values:
+- Bits 7,6,5: 0,0,1 = ATRAC
+- Bits 7,6,5: 0,1,0 = ATRAC2  
+- Bits 7,6,5: 0,1,1 = ATRAC3
+- Other values are RFU (Reserved for Future Use)
+
+This field is part of the Codec Specific Information Elements shown in Figure 4.6 for the ATRAC family, and it's used in signaling procedures to identify which specific ATRAC codec version is being configured or supported by the device."
   },
   {
     "id": 37,
     "question": "What does the Maximum SUL field in the ATRAC family codec indicate?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification, the Maximum SUL field in the ATRAC family codec indicates the following:
+
+**Maximum SUL (Sound Unit Length)** is one of the parameters that determine the bit rate of the audio stream. Specifically:
+
+1. **Definition**: The Maximum SUL field is a 16-bit UiMsbf (Unsigned integer Most significant bit first) that contains the maximum value (expressed in bytes) of the SUL that the decoder in the SNK (Sink) supports.
+
+2. **Function**: It defines the upper limit for Sound Unit Length that the receiving device (SNK) can handle. The SRC (Source) must send audio streaming data whose SUL is equal to or smaller than the maximum SUL value of the decoder in the SNK.
+
+3. **Communication**: The maximum SUL value in the SNK is notified to the SRC during:
+   - The Get All Capabilities procedure of AVDTP initiated by the SRC, or
+   - The Stream Configuration procedure of AVDTP initiated by the SNK.
+
+This parameter is crucial for ensuring compatibility between audio source and sink devices in Bluetooth audio streaming, preventing the source from sending data that exceeds the sink's processing capabilities."
   },
   {
     "id": 38,
     "question": "Cấu trúc của Vendor ID trong Vendor Specific A2DP Codec là gì?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4 specification, the structure of the Vendor ID in Vendor Specific A2DP Codec is as follows:
+
+## Vendor ID Structure
+
+**Figure 4.7** in the A2DP specification shows the Codec Specific Information Elements for Vendor Specific A2DP codec interoperability requirements:
+
+```
+Bit Position: 7 6 5 4 3 2 1 0
+Octet 0:      [    Vendor ID    ]
+Octet 1:      [    Vendor ID    ]
+Octet 2:      [    Vendor ID    ]
+Octet 3:      [    Vendor ID    ]
+Octet 4:      [Vendor Specific Codec ID]
+Octet 5:      [Vendor Specific Codec ID]
+Octet 6:      [Vendor Specific Value]
+...
+Octet n:      [Vendor Specific Value]
+```
+
+## Specific Vendor ID Requirements (Section 4.7.2.1)
+
+1. **Size**: A 32-bit Vendor ID shall be used
+2. **Lower 16 bits**: Must contain a valid, non-reserved 16-bit Company ID as defined in Bluetooth Assigned Numbers [5]
+3. **Upper 16 bits**: Shall be set to zero
+4. **Byte Order**: The LSB (Least Significant Byte) of the Vendor ID shall be placed in octet 0
+
+## Additional Fields
+
+- **Vendor Specific Codec ID**: A 16-bit codec ID administered by the Vendor (octets 4-5)
+- **Vendor Specific Value**: Values specifically defined by the Vendor (octets 6-n)
+
+This structure allows vendors to define their own codec implementations while maintaining compatibility with the A2DP profile framework. The Vendor ID serves as a unique identifier for the company/organization that developed the specific codec implementation."
   },
   {
     "id": 39,
     "question": "Which Object Type is supported for the MPEG-D USAC codec?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the MPEG-D USAC codec supports the following Object Type:
+
+**Object Type for MPEG-D USAC:**
+
+According to Table 4.26 in the A2DP v1.4 specification, the Object Type field for MPEG-D USAC is defined as:
+
+- **Octet0; b7 (Bit 7)**: **MPEG-D USAC with MPEG-D DRC** - This is the main object type supported, with Mandatory (M) support required for both Source (SRC) and Sink (SNK) devices.
+
+- **Octet0; b6 (Bit 6)**: **RFU (Reserved for Future Use)** - Currently reserved and not used.
+
+The Object Type field occupies bits 7-6 of Octet 0 in the Codec Specific Information Elements structure. The MPEG-D USAC with MPEG-D DRC is the primary and essentially the only defined object type for this codec in the A2DP specification.
+
+This information is part of the Codec Specific Information Elements used in AVDTP signaling procedures for Bluetooth audio streaming, where the MPEG-D USAC codec configuration is negotiated between audio source and sink devices."
   },
   {
     "id": 40,
     "question": "Tần số lấy mẫu nào là bắt buộc đối với SNK khi sử dụng MPEG-D USAC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the mandatory sampling frequencies for SNK (Sink) when using MPEG-D USAC are:
+
+**44.1 kHz and 48 kHz are mandatory** for the decoder in the SNK to support.
+
+According to the specification (Section 4.8.2.2 Sampling Frequency):
+- The decoder in the SNK shall support the sampling frequencies of 44.1 kHz and 48 kHz
+- Other sampling frequencies are optional for both the SNK and the SRC
+
+The complete table of sampling frequencies for MPEG-D USAC shows that:
+- 44100 Hz (44.1 kHz) is marked as "M" (Mandatory) for SNK support
+- 48000 Hz (48 kHz) is marked as "M" (Mandatory) for SNK support
+
+All other frequencies (14700, 16000, 17640, 19200, 22050, 24000, 29400, 32000, 35280, 38400, 58800, 64000, 70560, 76800, 88200, 96000 Hz) are optional ("O") for SNK support."
   },
   {
     "id": 41,
     "question": "Which GAVDP signaling roles (INT/ACP) are mandatory for the SRC?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4 specification, here are the mandatory GAVDP signaling roles for the SRC:
+
+**Both INT and ACP roles are mandatory for the SRC.**
+
+From the search results, specifically from Table 5.1 and Table 5.2 in the A2DP specification:
+
+**Table 5.1: GAVDP Roles**
+- INT role: Mandatory (M) for SRC
+- ACP role: Mandatory (M) for SRC
+
+**Table 5.2: Roles in GAVDP**
+- INT role: Mandatory (M) for SRC  
+- ACP role: Mandatory (M) for SRC
+
+The specification clearly states: "For the SRC, it is mandatory to support both INT and ACP." This ensures that signaling procedures can be manipulated between any combination of a SRC device and a SNK device.
+
+For comparison, the SNK has different requirements:
+- INT role: Optional (O) for SNK
+- ACP role: Mandatory (M) for SNK
+
+This means that SRC devices must implement both roles to ensure full interoperability in GAVDP signaling procedures."
   },
   {
     "id": 42,
     "question": "Trong A2DP, vai trò báo hiệu GAVDP nào là bắt buộc đối với SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification retrieved from the RAG system, I can provide a detailed answer to your question about GAVDP signaling roles mandatory for SNK:
+
+## Answer: ACP Role is Mandatory for SNK
+
+According to the A2DP specification (Table 5.1: GAVDP Roles), for SNK (Sink) devices:
+
+- **ACP (Acceptor) role: M (Mandatory)**
+- **INT (Initiator) role: O (Optional)**
+
+### Detailed Explanation:
+
+1. **GAVDP Role Requirements**: The specification clearly states that "For the SNK, it is mandatory to support ACP and it is optional to support INT."
+
+2. **Table 5.1: GAVDP Roles** shows the support requirements:
+   ```
+   GAVDP Role    Support in SRC    Support in SNK
+   INT           M                 O
+   ACP           M                 M
+   ```
+
+3. **Streaming Roles**: For audio streaming procedures, the SNK device can assume the role of ACP and optionally the role of INT. It is mandatory for the SRC to support the ACP role so that signaling procedures can be manipulated between any combination of SRC and SNK devices.
+
+4. **Delay Reporting Exception**: There's a special case for Delay Reporting where the SNK is always the INT (Initiator) since delay reports are sent from SNK to SRC, making the INT role mandatory for SNK in this specific context (Table 5.3).
+
+Therefore, the **ACP (Acceptor) role** is the primary mandatory GAVDP signaling role for SNK devices in general A2DP operations, while the INT role is optional except for specific Delay Reporting functionality where it becomes mandatory."
   },
   {
     "id": 43,
     "question": "Who acts as the Initiator (INT) for Delay Reporting?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification, the **SNK (Sink) device** acts as the Initiator (INT) for Delay Reporting.
+
+According to the specification:
+- Delay reports are sent from the SNK to the SRC (Source)
+- Therefore, the SNK is always the INT (Initiator) and the SRC is always the ACP (Acceptor)
+- Delay Reporting is mandatory for SNK devices, making the INT role mandatory for SNK devices
+- The ACP role in SRC devices is optional
+
+This means that in the context of Delay Reporting, the Sink device (which typically receives audio data) is responsible for initiating the delay reports to the Source device (which typically sends audio data)."
   },
   {
     "id": 44,
     "question": "Dịch vụ vận chuyển AVDTP nào là bắt buộc phải hỗ trợ trong A2DP?",
-    "rag_response": ""
+    "rag_response": "Dựa trên phân tích từ tài liệu A2DP v1.4 specification, dịch vụ vận chuyển AVDTP bắt buộc phải hỗ trợ trong A2DP là "Basic service" (Dịch vụ cơ bản).
+
+Thông tin chi tiết:
+- Theo Table 5.4: AVDTP transport capabilities trong tài liệu A2DP v1.4 specification, "Basic service" (Item no. 1, Ref. 7.2 in [4]) có Support là "M" (Mandatory - Bắt buộc).
+- Đây là dịch vụ cơ bản được định nghĩa trong AVDTP specification [4], section 7.2.
+- Tất cả các dịch vụ vận chuyển AVDTP khác (Reporting service, Recovery service, Multiplexing service, Robust header compression service) đều là Optional (Tùy chọn).
+
+Vì vậy, chỉ có Basic service là dịch vụ AVDTP bắt buộc phải được hỗ trợ trong profile A2DP."
   },
   {
     "id": 45,
     "question": "What does the error code 0xC1 (INVALID_CODEC_TYPE) signify?",
-    "rag_response": ""
+    "rag_response": "The error code 0xC1 (INVALID_CODEC_TYPE) is defined in the A2DP (Advanced Audio Distribution Profile) v1.4 specification. According to the search results:
+
+**Error Code: 0xC1 - INVALID_CODEC_TYPE**
+
+**Description:** Media Codec Type is not valid
+
+**Context:** This error code is used in relation to AVDTP (Audio/Video Distribution Transport Protocol) signaling commands, specifically:
+- AVDTP_SET_CONFIGURATION_CMD
+- AVDTP_RECONFIGURE_CMD
+
+**Usage:** This error is returned when the media codec type specified in a configuration or reconfiguration command is not valid or not supported by the receiving device.
+
+The A2DP specification indicates that this error code is part of a table of additional error codes (Table 5.5) that extend beyond the basic error codes specified in GAVDP, and are used by applications when applicable errors are found in received commands.
+
+This error is specifically related to audio codec configuration in Bluetooth audio streaming, where the codec type being configured is invalid or not supported by the target device."
   },
   {
     "id": 46,
     "question": "Mã lỗi nào được dùng khi Tần số lấy mẫu (Sampling Frequency) không hợp lệ?",
-    "rag_response": ""
+    "rag_response": "Dựa trên thông tin từ tài liệu A2DP v1.4 specification, có hai mã lỗi được sử dụng khi Tần số lấy mẫu (Sampling Frequency) không hợp lệ:
+
+1. **0xC3 - INVALID_SAMPLING_FREQUENCY**: 
+   - Mô tả: "Sampling Frequency is not valid or multiple values have been selected"
+   - Được sử dụng khi tần số lấy mẫu không hợp lệ hoặc nhiều giá trị đã được chọn
+
+2. **0xC4 - NOT_SUPPORTED_SAMPLING_FREQUENCY**: 
+   - Mô tả: "Sampling Frequency is not supported"
+   - Được sử dụng khi tần số lấy mẫu không được hỗ trợ
+
+Cả hai mã lỗi này đều liên quan đến các lệnh signaling:
+- AVDTP_SET_CONFIGURATION_CMD
+- AVDTP_RECONFIGURE_CMD
+
+Các mã lỗi này thuộc về Table 5.5 trong tài liệu A2DP v1.4 specification, trang 37."
   },
   {
     "id": 47,
     "question": "What does error code 0xC6 (NOT_SUPPORTED_CHANNEL_MODE) indicate?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results, error code 0xC6 (NOT_SUPPORTED_CHANNEL_MODE) indicates that the Channel Mode is not supported. This error occurs in the context of A2DP (Advanced Audio Distribution Profile) and AVDTP (Audio/Video Distribution Transport Protocol) commands.
+
+Specifically, the error is related to:
+- AVDTP_SET_CONFIGURATION_CMD
+- AVDTP_RECONFIGURE_CMD
+
+The error description shows that "Channel Mode is not supported" which means the requested channel mode configuration is not supported by the device or codec being used. This typically happens when a device attempts to configure an audio stream with a channel mode (such as mono, dual channel, stereo, or joint stereo) that is not supported by the receiving device or the specific codec implementation.
+
+This is part of the Bluetooth audio profile error handling system, where 0xC6 specifically indicates that the channel mode parameter in the configuration request is invalid or not supported by the target device."
   },
   {
     "id": 48,
     "question": "MTU tối thiểu mà một triển khai L2CAP cho profile này phải hỗ trợ là bao nhiêu?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4 specification, I can answer your question:
+
+**The minimum MTU that an L2CAP implementation for the A2DP profile must support is 335 bytes.**
+
+This information is found in Section 5.2.1 "Maximum Transmission Unit" of the A2DP v1.4 specification, which states: "The minimum Maximum Transmission Unit (MTU) that a L2CAP implementation for this profile shall support is 335 bytes."
+
+The specification also notes that this corresponds to a DH5 packet size of 339 bytes including the 4-byte L2CAP header.
+
+This requirement is specific to the A2DP (Advanced Audio Distribution Profile) and represents the minimum MTU size that implementations must support to ensure proper interoperability within this Bluetooth audio profile."
   },
   {
     "id": 49,
     "question": "Which baseband packets must be supported by both SNK and SRC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4 specification search results, the baseband packets that must be supported by both SNK (Sink) and SRC (Source) are:
+
+**DH3, DM3, DH5, and DM5 packets**
+
+This requirement is specified in the "Link Controller interoperability requirements" section of the A2DP specification, which states: "For the Link Controller layer, the requirements as stated in the GAVDP shall apply. The following packets shall also be supported in both the SNK and the SRC: DH3, DM3, DH5, and DM5."
+
+These packet types are:
+- **DH3**: 3-slot DH (Data High rate) packets
+- **DM3**: 3-slot DM (Data Medium rate) packets  
+- **DH5**: 5-slot DH (Data High rate) packets
+- **DM5**: 5-slot DM (Data Medium rate) packets
+
+This requirement ensures interoperability between A2DP source and sink devices at the baseband level, allowing for proper audio streaming communication."
   },
   {
     "id": 50,
     "question": "Việc hỗ trợ thủ tục Inquiry scan là bắt buộc hay tùy chọn đối với SNK?",
-    "rag_response": ""
+    "rag_response": "Việc hỗ trợ thủ tục Inquiry scan là **BẮT BUỘC (Mandatory)** đối với SNK.
+
+**Bằng chứng từ đặc tả A2DP v1.4:**
+
+Theo bảng "Table 5.6: LC capabilities" trong tài liệu đặc tả A2DP version 1.4, trang 44:
+
+| Procedure | Support in SRC | Support in SNK |
+|-----------|----------------|----------------|
+| 1. Inquiry | M (Mandatory) | O (Optional) |
+| 2. Inquiry scan | M (Mandatory) | M (Mandatory) |
+
+**Giải thích:**
+- **Inquiry**: Là thủ tục tìm kiếm các thiết bị Bluetooth lân cận. Đối với thiết bị SNK (Sink - thiết bị nhận audio như tai nghe), việc này là tùy chọn (Optional).
+- **Inquiry scan**: Là thủ tục cho phép thiết bị được tìm thấy bởi các thiết bị khác. Đối với SNK, việc này là bắt buộc (Mandatory).
+
+Điều này hợp lý về mặt logic vì thiết bị SNK (như tai nghe Bluetooth) cần phải có thể được tìm thấy bởi các thiết bị SRC (như điện thoại, máy tính) để thiết lập kết nối audio streaming.
+
+**Nguồn:** Advanced Audio Distribution Profile Specification v1.4, Table 5.6: LC capabilities, Page 44"
   },
   {
     "id": 51,
