@@ -252,222 +252,806 @@
   {
     "id": 51,
     "question": "Which bit must be set in the Class of Device field for the SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, for the Class of Device field for SNK (Sink):
+
+**The 'Rendering' bit must be set in the Service Class field for the SNK.**
+
+The specification states: "Mandatory to set the 'Rendering' bit for the SNK and the 'Capturing' bit for the SRC in the Service Class field."
+
+This is part of the Class of Device configuration requirements in section 5.5.1 of the A2DP specification, where SNK devices (audio sinks) must set the Rendering bit to indicate they are capable of rendering/playback of audio content."
   },
   {
     "id": 52,
     "question": "Bit nào phải được thiết lập trong trường Class of Device cho thiết bị SRC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification, for SRC (Source) devices, the following bits must be set in the Class of Device field:
+
+**Mandatory:**
+- The 'Capturing' bit must be set in the Service Class field for SRC devices
+
+**Recommended:**
+- Set 'Audio/Video' as the Major Device class for SRC devices
+
+For context, the specification also states that for SNK (Sink) devices, the 'Rendering' bit should be set in the Service Class field, which is the opposite of SRC devices. This makes sense as SRC devices capture audio data (source/capture) while SNK devices render audio data (sink/render).
+
+The Class of Device field is used by Bluetooth devices to indicate their capabilities and services, which helps other devices determine compatibility and appropriate connection procedures."
   },
   {
     "id": 53,
     "question": "Which connectability mode is mandatory for both SRC and SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification, the connectability mode that is mandatory for both SRC (Source) and SNK (Sink) is **Inquiry scan**.
+
+From Table 5.8 in the specification:
+- Inquiry: Mandatory for SRC, Optional for SNK
+- Inquiry scan: Mandatory for both SRC and SNK
+
+This means that both Source and Sink devices must support inquiry scan mode to be discoverable by other Bluetooth devices, but only Source devices are required to perform inquiry (device discovery) themselves."
   },
   {
     "id": 54,
     "question": "Chế độ Non-Connectable có được phép sử dụng trong A2DP không?",
-    "rag_response": ""
+    "rag_response": "# Answer to your question: "Chế độ Non-Connectable có được phép sử dụng trong A2DP không?"
+
+**Yes, Non-Connectable mode is allowed in A2DP, but with specific restrictions.**
+
+Based on the A2DP v1.4.1 specification (Table 6.1: Modes on page 50):
+
+## Connectability Modes Support Status:
+- **Non-Connectable mode**: **X** (Prohibited/Not Allowed) for both SRC and SNK roles
+- **Connectable mode**: **M** (Mandatory) for both SRC and SNK roles
+
+## Key Points:
+1. **Non-Connectable mode is explicitly prohibited** in A2DP for both Source (SRC) and Sink (SNK) devices
+2. **Connectable mode is mandatory** - all A2DP devices must support this mode
+3. The "X" notation in the specification indicates that the mode is not allowed/prohibited
+4. The "M" notation indicates that the mode is mandatory (required to be supported)
+
+## Conclusion:
+Non-Connectable mode is **NOT permitted** in A2DP devices. All A2DP devices (both audio sources and sinks) must support Connectable mode as it's a mandatory requirement for proper audio streaming functionality.
+
+This makes sense from a functional perspective since A2DP is designed for audio streaming between devices, which requires active connections to transmit the audio data."
   },
   {
     "id": 55,
     "question": "Is the Bondable mode mandatory or optional?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, Bondable mode is mandatory (indicated by "M" in Table 6.1), while Non-bondable mode is optional (indicated by "O")."
   },
   {
     "id": 56,
     "question": "Trong chế độ IDLE, SRC bắt buộc phải hỗ trợ khởi tạo thủ tục nào?",
-    "rag_response": ""
+    "rag_response": "Trong chế độ IDLE, SRC (Source) bắt buộc phải hỗ trợ thủ tục **"Initiation of general inquiry"** (Khởi tạo truy vấn tổng quát).
+
+Theo bảng 6.2 trong спецификация A2DP v1.4.1, đây là thủ tục duy nhất được đánh dấu là **Mandatory (M)** cho thiết bị SRC trong chế độ IDLE. Các thủ tục khác như limited inquiry, name discovery, device discovery, và bonding đều là Optional (O) đối với SRC.
+
+Thủ tục "Initiation of general inquiry" cho phép thiết bị SRC thực hiện truy vấn tổng quát để tìm kiếm các thiết bị Bluetooth khác trong phạm vi, đây là chức năng cơ bản cần thiết để thiết lập kết nối trong chế độ IDLE."
   },
   {
     "id": 57,
     "question": "What is the fixed value of the syncword in the SBC frame header?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, the fixed value of the syncword in the SBC frame header is:
+
+**%10011100** (8-bit binary) or **$9C** (hexadecimal)
+
+This information was found in the A2DP_v1.4.1.pdf document, specifically in section B.5.1 "Frame_header" which defines the SBC frame header semantics. The syncword is the first 8-bit field in the SBC frame header and serves as a synchronization marker for identifying the start of SBC frames."
   },
   {
     "id": 58,
     "question": "SBC sử dụng loại CRC nào để phát hiện lỗi?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG database, SBC (Sub-Band Coding) uses **CRC-8** for error detection. 
+
+The specific details are:
+- **CRC Type**: CRC-8
+- **Generator Polynomial**: G(X) = X^8 + X^4 + X^3 + X^2 + 1
+- **Purpose**: To detect transmission errors in the SBC frame header
+- **Application**: The CRC check is performed on all bits of the frame_header (except for the syncword and crc_check) plus all bits of the scale_factors
+
+This information was found in the A2DP v1.4.1 specification document, which is part of the Bluetooth Advanced Audio Distribution Profile specification."
   },
   {
     "id": 59,
     "question": "How many bits is the bitpool field in SBC?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, the bitpool field in SBC (Subband Coding) is **8 bits**.
+
+The search found information from the A2DP v1.4.1 specification which states: "The device sets the range of SBC bitpool parameters using the Minimum / Maximum Bitpool Value fields expressed by 8-bit UiMsbf, ranging from 2 to 250."
+
+This means the bitpool field is represented as an 8-bit unsigned integer (UiMsbf = Unsigned integer, Most significant bit first), with valid values ranging from 2 to 250."
   },
   {
     "id": 60,
     "question": "Công thức tính tốc độ bit (bit_rate) của SBC là gì?",
-    "rag_response": ""
+    "rag_response": "Công thức tính tốc độ bit (bit_rate) của SBC là:
+
+**bit_rate = 8 * frame_length * fs / nrof_subbands / nrof_blocks**
+
+Trong đó:
+- **fs**: tần số lấy mẫu (sampling frequency)
+- **nrof_subbands**: số lượng dải con (number of subbands)  
+- **nrof_blocks**: số lượng khối (number of blocks)
+- **frame_length**: độ dài khung tính bằng byte
+
+Đơn vị của bit_rate là kb/s (vì fs được biểu diễn bằng kHz).
+
+Ngoài ra, độ dài khung (frame_length) được tính bằng công thức:
+**frame_length = 4 + (4 * nrof_subbands * nrof_channels) / 8**
+
+Thông tin này được trích từ tài liệu A2DP_v1.4.1.pdf, phần B.9 "Calculation of bit rate and frame length"."
   },
   {
     "id": 61,
     "question": "What does a value of 1 in the SBC join[sb] field mean?",
-    "rag_response": ""
+    "rag_response": "Based on the SBC (Subband Coding) technical specification from the A2DP v1.4.1 document, here's what a value of 1 in the `join[sb]` field means:
+
+## SBC join[sb] Field Explanation
+
+The `join[sb]` field is used in the **JOINT_STEREO channel mode** of the SBC codec. It's a per-subband flag that determines how stereo audio data is processed and transmitted.
+
+### What `join[sb] = 1` means:
+
+When `join[sb]` equals 1 for a particular subband `sb`, it indicates that **this subband should be transmitted in joint stereo mode**. In the SBC encoding process, this triggers specific processing:
+
+```c
+if ((channel_mode==JOINT_STEREO) && (join[sb]==1))
+{
+    sb_sample[blk][0][sb] = sb_sample[blk][0][sb] + sb_sample[blk][1][sb];
+    // The left and right channel samples are combined
+}
+```
+
+### Joint Stereo Processing:
+
+1. **Channel Combination**: When `join[sb] = 1`, the encoder combines the left and right channel samples for that subband:
+   - Sum: `Left + Right`
+   - Difference: `Left - Right` (implied, though not shown in the code snippet)
+
+2. **Bandwidth Efficiency**: This technique reduces the amount of data that needs to be transmitted by exploiting the correlation between left and right channels in stereo audio.
+
+3. **Dynamic Selection**: The `join[sb]` value is determined dynamically for each subband based on the audio content and encoding parameters.
+
+### Context:
+
+- This processing occurs during the **Joint Processing** stage (Section B.6.5)
+- It's part of the **JOINT_STEREO channel mode operation** (Section B.7.3)
+- The decision of which subbands to join is made during the bit allocation process
+
+In summary, `join[sb] = 1` means "apply joint stereo processing to this subband" which combines the left and right channel data to achieve more efficient encoding for that frequency range."
   },
   {
     "id": 62,
     "question": "Ai là người khởi tạo thủ tục Stream Endpoint Discovery?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG backend search results, the answer to "Ai là người khởi tạo thủ tục Stream Endpoint Discovery?" (Who initiates the Stream Endpoint Discovery procedure?) is:
+
+**The SRC (Source) device initiates the Stream Endpoint Discovery procedure.**
+
+From the A2DP specification (Appendix C. Signaling flows):
+- The SRC initiates the Stream Endpoint (SEP) Discovery procedure
+- This procedure serves to return the media type and Stream Endpoint Identifier (SEID) for each stream endpoint
+- The SRC finds the audio-type stream endpoint
+
+The signaling flow diagram in Figure 8.6 clearly shows that the SRC device starts the discovery process by sending a "Stream End Point Discovery" message to the SNK (Sink) device.
+
+In Bluetooth audio streaming context:
+- SRC (Source) is typically the device that sends audio data (e.g., smartphone, computer)
+- SNK (Sink) is typically the device that receives audio data (e.g., headphones, speakers)
+- The SRC acts as the INT (Initiator) and the SNK acts as the ACP (Acceptor) in this procedure"
   },
   {
     "id": 63,
     "question": "Which procedure is used to change the state from OPEN to STREAMING?",
-    "rag_response": ""
+    "rag_response": "# Procedure to Change State from OPEN to STREAMING
+
+Based on the A2DP v1.4.1 specification, the procedure to change the state from OPEN to STREAMING is the **Start Streaming procedure**.
+
+## Key Details:
+
+1. **Initiation**: The SRC (Source) device initiates the Start Streaming procedure either by:
+   - A user-initiated action, or
+   - An internal event
+
+2. **State Transition**: When the Start Streaming procedure is executed:
+   - The states of both devices (SRC and SNK) are changed from **&lt;OPEN&gt;** to **&lt;STREAMING&gt;**
+   - Audio streaming begins after this procedure is completed
+
+3. **Protocol Reference**: This procedure is defined in the GAVDP (Generic Audio/Video Distribution Profile) specification.
+
+## Visual Representation (Figure 8.7: Audio Streaming):
+
+The process is illustrated in a signaling flow diagram showing:
+- Both devices initially in OPEN state
+- SRC initiates Start Streaming procedure
+- Signal exchange between SRC and SNK
+- Both devices transition to STREAMING state
+- Audio streaming begins
+
+## Additional Context:
+
+According to the specification, if an SRC/SNK is scheduled to send/receive an audio stream while still in the OPEN state, the device shall initiate the Start Streaming procedure as defined in GAVDP. This ensures proper state management before audio data transmission begins.
+
+The procedure is part of the broader audio streaming setup that includes:
+1. Stream Endpoint Discovery
+2. Get All Capabilities
+3. Stream Configuration
+4. Stream Establishment (reaches OPEN state)
+5. **Start Streaming** (transitions to STREAMING state)"
   },
   {
     "id": 64,
     "question": "Nếu trường 'Reserved for Future Use' (RFU) nhận giá trị 1, thiết bị nhận phải xử lý thế nào?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification document, when a Reserved for Future Use (RFU) field receives a value of 1, the receiving device must handle it as follows:
+
+**According to the specification:**
+- Implementations that receive a message containing a Reserved for Future Use bit that is set to 1 shall process the message **as if that bit was set to 0**, except where specified otherwise.
+
+This means the receiving device should:
+1. **Ignore the RFU bit value of 1** and treat it as if it were 0
+2. **Continue normal processing** of the message without considering the RFU bit
+3. **Maintain backward compatibility** by not rejecting or failing on RFU bits set to 1
+
+**Key points:**
+- RFU bits should normally be set to 0 by the sender
+- When receivers encounter RFU bits set to 1, they must process them as 0
+- This ensures forward compatibility - future extensions can use these bits without breaking existing implementations
+- The only exception is when the specification explicitly states otherwise for specific RFU bits
+
+This handling approach allows for graceful evolution of protocols while maintaining interoperability between different versions of implementations."
   },
   {
     "id": 65,
     "question": "How should a device handle a field marked as 'Prohibited'?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification, here's how a device should handle a field marked as 'Prohibited':
+
+**For Prohibited Values:**
+- Devices shall never use Prohibited values in their implementations
+- Any message received that includes a Prohibited value shall be:
+  - Ignored (not processed)
+  - Not responded to
+  - Rejected as erroneous (along with any data structure containing it)
+
+**For Reserved for Future Use Values:**
+- Devices should set these fields to zero unless otherwise specified
+- Any device receiving or interpreting the structure shall ignore that field
+- The structure should not be rejected because of the value of the field
+
+The key distinction is that Prohibited values must cause the entire message/data structure to be rejected and ignored, while Reserved for Future Use values should simply be ignored but not cause rejection of the containing structure."
   },
   {
     "id": 66,
     "question": "Nhiệm vụ chính của lớp Ứng dụng (Application layer) đối với dữ liệu âm thanh là gì?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP (Advanced Audio Distribution Profile) specification analysis, the main task of the Application layer for audio data is **Audio Streaming**.
+
+Here are the key responsibilities and tasks of the Application layer:
+
+## Primary Task: Audio Streaming
+- **Mandatory for both SRC (Source) and SNK (Sink) devices**
+- This is the core function that enables high-quality audio distribution over Bluetooth
+
+## Specific Responsibilities:
+
+### 1. Audio Streaming Setup
+- Performs SDP queries to determine AVDTP version of remote devices
+- Establishes streaming connections using GAVDP procedures
+- Selects suitable audio streaming parameters during setup
+- Configures two types of services:
+  - **Application service capability**: Includes audio codec capability and content protection capability
+  - **Transport service capability**: Provided by AVDTP for intelligent packet manipulation
+
+### 2. Audio Data Adaptation
+- Adapts audio streaming data into defined packet formats
+- Converts data between application service parameters and transport service parameters
+- Handles the formatting of audio data for transmission
+
+### 3. Role-Specific Procedures
+- **SRC (Source) devices**: Send Audio Stream (mandatory)
+- **SNK (Sink) devices**: Receive Audio Stream (mandatory)
+
+### 4. Codec and Parameter Management
+- Manages audio codec interoperability
+- Handles codec parameters such as mode, sampling frequency, and bit rate
+- Implements content protection mechanisms when required
+
+The Application layer serves as the critical interface between the audio application services and the underlying transport protocols, ensuring proper formatting, configuration, and streaming of audio data between Bluetooth devices."
   },
   {
     "id": 67,
     "question": "Where is the Content Protection header located in the packet?",
-    "rag_response": ""
+    "rag_response": "Based on my search of the A2DP v1.4.1 specification, I can provide you with the exact location of the Content Protection header in the packet structure:
+
+## Content Protection Header Location
+
+The Content Protection header is located **within the media payload** of the AVDTP packet, specifically positioned **before the encrypted audio content**.
+
+## Packet Structure Details
+
+According to the A2DP specification (page 24), the media payload structure is as follows:
+
+1. **Media Packet Header** (8-bit header)
+2. **Content Protection Header** (if Content Protection is selected)
+3. **Encrypted Audio Content** (SBC frames or other codec data)
+
+The specification explicitly states: "When content protection is in use, a content protection header may precede encrypted audio content. This is content protection method dependent."
+
+## Key Points:
+
+- The Content Protection header is **optional** and only present when content protection is enabled
+- Its **exact format is content protection method dependent** (not specified in A2DP)
+- It comes **after the media packet header** but **before the actual audio data**
+- The location is consistent regardless of whether the SBC frames are fragmented or not
+
+## Context from Specification:
+
+The media payload format section mentions that when calculating MTU sizes, you must account for: "[media payload header size, Content Protection header size (if Content Protection is selected), media packet header size]"
+
+This confirms that the Content Protection header is considered part of the media payload structure and is positioned between the media packet header and the actual encoded audio content."
   },
   {
     "id": 68,
     "question": "Trong AVDTP_GET_ALL_CAPABILITIES_RSP, có thể thiết lập bao nhiêu bit trong mỗi trường?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, in the AVDTP_GET_ALL_CAPABILITIES_RSP message:
+
+**One or more bits may be defined/set in each field.**
+
+This is specifically mentioned in the specification for different codec types:
+- For SBC codec: "one or more bits may be defined/set in each field"
+- For MPEG-2,4 AAC and ATRAC family codecs: "one or more values may be defined/set in each field"
+
+This is different from the AVDTP_SET_CONFIGURATION_CMD and AVDTP_RECONFIGURE_CMD messages, where only a single bit/value shall be defined/set in each field.
+
+The ability to set multiple bits in each field of the GET_ALL_CAPABILITIES_RSP allows the response to indicate all supported capabilities for each parameter, rather than just a single selected value."
   },
   {
     "id": 69,
     "question": "Is the MONO channel mode mandatory for the SNK in SBC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification retrieved from the RAG backend search, **YES, the MONO channel mode is mandatory for the SNK (sink) in SBC**.
+
+From the search results (rank 1 and 2), the specification clearly states in section 4.3.2.2 Channel Mode:
+
+"For the decoder in the SNK, all features shall be supported."
+
+The table (Table 4.3: Channel Mode for SBC) shows that MONO channel mode has "M" (Mandatory) support required for both SRC (source) and SNK (sink). The same applies to DUAL CHANNEL, STEREO, and JOINT STEREO modes - all are mandatory for SNK devices.
+
+This means that any Bluetooth device implementing SBC decoding (such as headphones, speakers, or other audio sink devices) must support the MONO channel mode as part of the A2DP profile requirements."
   },
   {
     "id": 70,
     "question": "Phương pháp phân bổ SNR trong SBC là bắt buộc hay tùy chọn đối với SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, the SNR allocation method for SBC is **mandatory (M)** for SNK (Sink) devices.
+
+From the search results, specifically result #3 and #4, Table 4.6 shows the support requirements for SBC allocation methods:
+
+- **SNR allocation method**: Mandatory (M) for SNK devices
+- **LOUDNESS allocation method**: Optional (O) for SRC devices, but SNK devices must support all features
+
+The specification explicitly states: "For the decoder in the SNK, all features shall be supported."
+
+This means that SNK devices are required to support the SNR allocation method as part of their mandatory codec implementation requirements. The SNR method is not optional for SNK devices - they must implement it to be compliant with the A2DP specification."
   },
   {
     "id": 71,
     "question": "What is the recommended High Quality Bitpool value for SBC Joint Stereo at 44.1kHz?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification, the recommended High Quality Bitpool value for SBC Joint Stereo at 44.1kHz is **53**.
+
+The search returned Table 4.7 from the A2DP specification which shows the recommended SBC encoder settings. According to the table, for High Quality Joint Stereo mode at 44.1kHz sampling frequency, the recommended bitpool value is 53. This corresponds to a resulting frame length of 119 bytes and a bit rate of 328 kb/s.
+
+The table shows the following relevant data for Joint Stereo mode:
+- Middle Quality at 44.1kHz: Bitpool value = 35
+- High Quality at 44.1kHz: Bitpool value = 53
+
+This information comes from the Advanced Audio Distribution Profile (A2DP) v1.4.1 specification, which is the Bluetooth standard for high-quality audio streaming."
   },
   {
     "id": 72,
     "question": "Payload type (PT) trong media packet header của SBC phải được chọn như thế nào?",
-    "rag_response": ""
+    "rag_response": "# Payload type (PT) trong media packet header của SBC phải được chọn như thế nào?
+
+Dựa trên kết quả tìm kiếm từ cơ sở dữ liệu RAG, Payload type (PT) trong media packet header của SBC phải được chọn như sau:
+
+## Quy định chính
+Theo спецификация A2DP v1.4.1, section 4.3.3.2 và 4.6.3.2, **Payload type (PT) phải được chọn từ dải RTP dynamic range** (xem Section 3 trong RFC 3551 [17]).
+
+## Thông tin chi tiết về Media Packet Header Format
+
+### Cấu trúc Media Payload Format của SBC:
+1. **Header SBC-specific**: 8-bit header đặt trước dữ liệu SBC
+2. **SBC frame(s)**: Các frame SBC theo định nghĩa trong спецификация SBC
+
+### Hai định dạng media payload:
+1. **Format (a)**: Khi media payload chứa số nguyên các frame SBC hoàn chỉnh
+2. **Format (b)**: Khi frame SBC bị phân mảnh thành nhiều media payload
+
+### Header format (Figure 4.3):
+```
+  7   6   5   4   3   2   1   0
++---+---+---+---+-----------+
+| F | S | L | RFU | Number of frames |
++---+---+---+---+-----------+
+```
+
+**Các bit trong header:**
+- **F bit**: Set = 1 nếu frame SBC bị phân mảnh, ngược lại = 0
+- **S bit**: Set = 1 cho packet đầu tiên của frame SBC bị phân mảnh, ngược lại = 0  
+- **L bit**: Set = 1 cho packet cuối cùng của frame SBC bị phân mảnh, ngược lại = 0
+- **Number of frames (4 bits)**: 
+  - Nếu F = 0: số lượng frame trong packet này
+  - Nếu F = 1: số lượng fragment còn lại (bao gồm cả fragment hiện tại)
+
+## Yêu cầu quan trọng:
+- Extension (X) bit không sử dụng và phải được set = 0
+- Marker (M) bit phải được set = 0
+
+Việc chọn Payload type từ RTP dynamic range đảm bảo tính tương thích và đúng chuẩn trong việc truyền tải dữ liệu audio SBC qua các hệ thống sử dụng RTP protocol."
   },
   {
     "id": 73,
     "question": "What should the F bit be set to if an SBC frame is fragmented?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, when an SBC frame is fragmented, the F bit should be set to **1**.
+
+From the search results, specifically from page 24 of the A2DP specification:
+
+• **F bit** – Set to 1 if the SBC frame is fragmented, otherwise set to 0.
+• **S bit** – Set to 1 for the starting packet of a fragmented SBC frame, otherwise set to 0.
+• **L bit** – Set to 1 for the last packet of a fragmented SBC frame, otherwise set to 0.
+
+The F bit serves as a fragmentation indicator in the SBC media payload header format. When F=1, it indicates that the SBC frame has been fragmented across multiple packets, and the Number of frames field then indicates the number of remaining fragments rather than the total number of frames in the packet."
   },
   {
     "id": 74,
     "question": "Layer I (mp1) của MPEG-1,2 Audio là bắt buộc hay tùy chọn?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification analysis from the RAG backend search, Layer I (mp1) of MPEG-1,2 Audio is **conditionally supported**, not mandatory or optional.
+
+According to Table 4.8 "Layers for MPEG-1,2 Audio" in the A2DP specification:
+- Layer I (mp1) is marked with support codes C1 for SRC (Source) devices and C2 for SNK (Sink) devices
+- The conditional requirements are defined as:
+  - C1: At least one of the MPEG audio layers (I, II, or III) shall be supported for SRC devices
+  - C2: At least one of the MPEG audio layers (I, II, or III) shall be supported for SNK devices
+
+This means that Layer I support is not mandatory (required in all cases), but rather conditional - implementers must support at least one of the three MPEG audio layers, and they can choose which layer(s) to implement. Therefore, Layer I (mp1) is conditionally supported as part of the overall requirement that at least one MPEG audio layer must be supported by both source and sink devices."
   },
   {
     "id": 75,
     "question": "Which device must mandatory support the 44.1kHz sampling frequency in MPEG-1,2 Audio?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification, here is the answer to your question:
+
+**Which device must mandatory support the 44.1kHz sampling frequency in MPEG-1,2 Audio?**
+
+According to the A2DP specification (Advanced Audio Distribution Profile), **the decoder in the SNK (Sink)** must mandatory support the 44.1 kHz sampling frequency for MPEG-1,2 Audio.
+
+The specification states:
+- For the decoder in the SNK, the sampling frequencies 44.1 kHz and 48 kHz are mandatory to support
+- The encoder in the SRC (Source) shall support at least one of the sampling frequencies of 44.1 kHz and 48 kHz
+- Other sampling frequencies are optional for both the SNK and the SRC
+
+In Bluetooth audio streaming context:
+- **SNK (Sink)**: The device that receives the audio stream (e.g., Bluetooth headphones, speakers)
+- **SRC (Source)**: The device that sends/transmits the audio stream (e.g., smartphone, computer)
+
+So specifically, the audio decoder in Bluetooth sink devices (like headphones or speakers) must support 44.1 kHz as it's one of the mandatory sampling frequencies."
   },
   {
     "id": 76,
     "question": "Có được hỗ trợ MPEG-D DRC cùng với MPEG-2 AAC LC không?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification, I can provide a clear answer to your question about MPEG-D DRC support with MPEG-2 AAC LC:
+
+**Answer: No, MPEG-D DRC is not supported with MPEG-2 AAC LC.**
+
+The key findings from the A2DP specification are:
+
+1. **Explicit Statement**: The document clearly states "MPEG-D DRC is not supported with MPEG-2 AAC LC."
+
+2. **Technical Requirement**: When only MPEG-2 AAC LC is supported, "Octet0; b0 (as described in Table 4.16) shall be set to 0."
+
+3. **Table 4.16 Context**: This table shows MPEG-D DRC support for MPEG-2 and MPEG-4 AAC codecs, where the support is indicated as optional (marked with "O") for the encoder (SRC) and decoder (SNK), but specifically excluded for MPEG-2 AAC LC.
+
+4. **MPEG-D DRC Support**: The specification indicates that MPEG-D DRC support is optional for both encoder and decoder in general, but it makes a specific exception for MPEG-2 AAC LC where it is not supported at all.
+
+This means that while MPEG-D DRC can be used with other AAC profiles like MPEG-4 HE-AAC, HE-AACv2, and AAC-ELDv2, it cannot be used together with the MPEG-2 AAC LC profile."
   },
   {
     "id": 77,
     "question": "Are 5.1 and 7.1 channels mandatory in MPEG-2,4 AAC?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, here's the answer to whether 5.1 and 7.1 channels are mandatory in MPEG-2,4 AAC:
+
+**5.1 and 7.1 channels are NOT mandatory in MPEG-2,4 AAC.**
+
+According to the A2DP v1.4.1 specification found in the search results:
+
+1. **Mandatory channel support**: 
+   - SNK (Sink) devices must support all configurations with up to two channels (stereo)
+   - SRC (Source) devices must support at least one configuration with one or two channels
+
+2. **5.1 channel support**:
+   - 5.1 channels are listed as optional support for both SNK and SRC devices
+   - The specification shows 5.1 channels as "O" (Optional) for both SRC and SNK support
+
+3. **7.1 channel support**:
+   - The search results don't explicitly mention 7.1 channels, but since multi-channel modes beyond stereo are optional, and 7.1 is not listed as a mandatory requirement, it follows that 7.1 channels are also optional
+
+4. **Other channel modes**:
+   - The specification explicitly states that "Other channel modes are optional for both the SNK and the SRC"
+
+In summary, while 5.1 channels are available as an optional configuration in MPEG-2,4 AAC, neither 5.1 nor 7.1 channels are mandatory requirements. The core requirement is for basic mono (1 channel) and stereo (2 channels) support."
   },
   {
     "id": 78,
     "question": "Mã lỗi 0xE0 (INVALID_CP_TYPE) có ý nghĩa gì?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification document, the error code **0xE0 (INVALID_CP_TYPE)** has the following meaning:
+
+**Error Code: 0xE0 - INVALID_CP_TYPE**
+
+**Description:** "The requested CP Type is not supported."
+
+**Context:** This error code is related to AVDTP (Audio/Video Distribution Transport Protocol) signaling commands, specifically:
+- AVDTP_SET_CONFIGURATION_CMD
+- AVDTP_RECONFIGURE_CMD
+
+**Technical Details:**
+- This is an error code used in Bluetooth A2DP (Advanced Audio Distribution Profile) protocol
+- CP stands for "Content Protection"
+- The error occurs when a device requests a Content Protection type that is not supported by the receiving device
+- It's part of the codec configuration and reconfiguration command responses
+
+This error typically occurs during the Bluetooth audio streaming setup process when there's a mismatch in supported content protection mechanisms between the source and sink devices."
   },
   {
     "id": 79,
     "question": "What does error code 0xD7 (NOT_SUPPORTED_OBJECT_TYPE) mean for MPEG-2,4 AAC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, error code 0xD7 (NOT_SUPPORTED_OBJECT_TYPE) for MPEG-2,4 AAC means:
+
+**Error Code 0xD7 - NOT_SUPPORTED_OBJECT_TYPE**
+
+This error occurs in the following contexts:
+- **Commands**: AVDTP_SET_CONFIGURATION_CMD and AVDTP_RECONFIGURE_CMD
+- **Codec**: MPEG-2,4 AAC (and also MPEG-D USAC)
+
+**Meaning**: 
+The error indicates that either:
+1. The Object Type specified is not valid, or
+2. None or multiple values have been selected for Object Type
+
+This is part of a table of error codes in the A2DP specification that lists various error conditions that can occur during AVDTP (Audio/Video Distribution Transport Protocol) configuration and reconfiguration commands. The error is specifically related to improper Object Type settings when configuring MPEG-2,4 AAC audio codec parameters.
+
+The error is typically returned when the codec configuration includes invalid or conflicting Object Type settings during the signaling procedures defined in the A2DP profile."
   },
   {
     "id": 80,
     "question": "Dịch vụ Recovery trong AVDTP là bắt buộc hay tùy chọn?",
-    "rag_response": ""
+    "rag_response": "Dịch vụ Recovery trong AVDTP là **tùy chọn (Optional)**.
+
+Theo bảng 5.4 "AVDTP transport capabilities" trong tài liệu A2DP specification v1.4.1, các dịch vụ AVDTP được phân loại như sau:
+
+1. **Basic service** - Bắt buộc (M - Mandatory)
+2. **Reporting service** - Tùy chọn (O - Optional)  
+3. **Recovery service** - Tùy chọn (O - Optional)
+4. **Multiplexing service** - Tùy chọn (O - Optional)
+5. **Robust header compression service** - Tùy chọn (O - Optional)
+
+Do đó, dịch vụ Recovery trong AVDTP không phải là bắt buộc mà là tùy chọn, cho phép các thiết bị lựa chọn có triển khai hay không tùy thuộc vào yêu cầu cụ thể của hệ thống."
   },
   {
     "id": 81,
     "question": "How are the 'Supported Features' bits set in the Source's SDP record?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the A2DP v1.4.1 specification, here's how the 'Supported Features' bits are set in the Source's SDP record:
+
+The Supported Features bits are configured as follows:
+- Bit 1 = Speaker
+- Bit 2 = Recorder  
+- Bit 3 = Amplifier
+- Bits 4 to 15 = RFU (Reserved for Future Use)
+
+The implementation approach is:
+- The bits for supported features are set to 1
+- All other bits (unsupported features) are set to 0
+
+This means that in the Source's SDP record, each feature that the device supports is indicated by setting the corresponding bit to 1, while features that are not supported have their bits set to 0. The specific bit positions define what type of audio role the device can perform, with the first few bits dedicated to specific roles like Speaker, Recorder, and Amplifier, and the remaining bits reserved for future enhancements."
   },
   {
     "id": 82,
     "question": "Nếu thiết bị hỗ trợ 'limited discoverable mode', thì chế độ 'non-discoverable' là bắt buộc hay tùy chọn?",
-    "rag_response": ""
+    "rag_response": "Based on the Bluetooth A2DP specification (v1.4.1), if a device supports 'limited discoverable mode', then 'non-discoverable mode' is **mandatory**.
+
+The specification clearly states: "If limited discoverable mode is supported, non-discoverable mode is mandatory, otherwise optional."
+
+This means:
+- When a device supports limited discoverable mode → non-discoverable mode is mandatory
+- When a device does not support limited discoverable mode → non-discoverable mode is optional
+
+The specification also mentions that either limited discoverable mode or general discoverable mode shall be supported, which provides the context for this requirement."
   },
   {
     "id": 83,
     "question": "What does the symbol 'O' stand for in the requirement status?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG database, the symbol 'O' in requirement status stands for **"optional to support"**. 
+
+According to the A2DP_v1.4.1.pdf document, the requirement status symbols used are:
+- 'M' for mandatory to support (used for capabilities that shall be used in the profile)
+- 'O' for optional to support (used for capabilities that may be used in the profile)
+- 'C' for conditional support (used for capabilities that shall be used in case a certain other capability is supported)
+- 'X' for excluded (used for capabilities that may be supported by the unit, but that shall never be used in the profile)
+
+So specifically, 'O' indicates that a capability is optional and may be used in the profile, but it's not required."
   },
   {
     "id": 84,
     "question": "Ký hiệu 'C' trong bảng trạng thái yêu cầu nghĩa là gì?",
-    "rag_response": ""
+    "rag_response": "The symbol 'C' in status tables stands for **"conditional support"**. According to the A2DP v1.4.1 specification, this symbol is used for capabilities that shall be supported only in case a certain other capability is also supported. 
+
+The specification defines the following requirement status symbols:
+- 'M' for mandatory to support (capabilities that must be used in the profile)
+- 'O' for optional to support (capabilities that may be used in the profile)
+- 'C' for conditional support (capabilities that must be used if a certain other capability is supported)
+- 'X' for excluded (capabilities that may be supported by the unit but shall never be used in the profile)
+
+So when you see 'C' in a status table, it means that the corresponding feature or capability is required only under specific conditions - typically when another related capability is also being implemented."
   },
   {
     "id": 85,
     "question": "What does the symbol 'M' stand for in the requirement status?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, the symbol 'M' in requirement status stands for **"mandatory to support"**. 
+
+This is used for capabilities that shall be used in the profile, according to the A2DP v1.4.1 specification document. The document also defines other requirement status symbols:
+- 'O' for optional to support (capabilities that may be used in the profile)
+- 'C' for conditional support (capabilities that shall be used if a certain other capability is supported)
+- 'X' for excluded (capabilities that may be supported by the unit but shall never be used in the profile)
+
+The search found this information in section 1.3.1 "Requirement status symbols" of the A2DP v1.4.1 specification document."
   },
   {
     "id": 86,
     "question": "Các khả năng bị loại trừ ('Excluded') có được phép kích hoạt trong profile này không?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, I can provide a clear answer to your question: "Các khả năng bị loại trừ ('Excluded') có được phép kích hoạt trong profile này không?" (Are excluded capabilities allowed to be activated in this profile?).
+
+**Answer: No, excluded capabilities are NOT allowed to be activated in this profile.**
+
+According to the Bluetooth A2DP Profile specification (version 1.4.1):
+
+1. **Symbol Definition**: The symbol 'X' is used for "excluded" capabilities, which are defined as "capabilities that may be supported by the unit, but that shall never be used in the profile."
+
+2. **Explicit Prohibition**: The specification clearly states: "Some excluded capabilities are capabilities that, according to the relevant Bluetooth specification, are mandatory. These are features that may degrade operation of devices following this profile. Therefore, these features shall never be activated while a unit is operating as a unit within this profile."
+
+3. **Requirement Status Symbols**:
+   - 'M' = Mandatory to support (must be used in the profile)
+   - 'O' = Optional to support (may be used in the profile)
+   - 'C' = Conditional support (used only if certain other capabilities are supported)
+   - 'X' = Excluded (shall never be used in the profile)
+   - 'N/A' = Not applicable (impossible to use in the given context)
+
+The specification is very clear that excluded capabilities, even if they are mandatory in other Bluetooth specifications, must never be activated when operating within this profile to prevent degradation of device operation."
   },
   {
     "id": 87,
     "question": "Which layer is responsible for adapting encoded audio data into the media payload format?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP (Advanced Audio Distribution Profile) specification v1.4.1, the **application layer** is responsible for adapting encoded audio data into the media payload format.
+
+According to Section 3.2.1 "Send Audio Stream" in the A2DP specification:
+
+1. The Source (SRC) device first encodes the data into a selected format during the signaling session
+2. **The application layer of the SRC then adapts the encoded data into the defined media payload format**
+3. The frame of encoded audio data is adapted to the defined payload format as specified in Section 4
+
+The process flow is:
+- Audio encoding → Application layer adaptation → Media payload format → AVDTP entity → Transport channel
+
+This clearly indicates that the application layer serves as the adaptation layer responsible for converting encoded audio data into the appropriate media payload format before it's handed off to the AVDTP (Audio/Video Distribution Transport Protocol) entity for transmission."
   },
   {
     "id": 88,
     "question": "Tốc độ dữ liệu âm thanh nên như thế nào so với băng thông Bluetooth để giảm thiểu mất gói tin?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the search results, here is the answer to your question about audio data speed vs Bluetooth bandwidth to minimize packet loss:
+
+**Key Finding**: The A2DP specification explicitly states that "The audio data rate should be sufficiently smaller than usable bit rate on the Bluetooth link. This is to allow retransmission schemes to reduce the effects of packet loss."
+
+**Explanation**:
+1. **Why this matters**: There are inherent delays in Bluetooth audio streaming due to radio signal processing, data buffering, and encode/decode operations. These delays vary by implementation.
+
+2. **The solution**: To minimize packet loss and its effects, the audio data rate must be kept sufficiently below the available Bluetooth link bandwidth. This creates headroom for retransmission mechanisms to recover from packet loss without causing audio quality degradation.
+
+3. **Technical rationale**: By maintaining a lower audio data rate compared to the Bluetooth link capacity, the system can implement retransmission schemes that help recover lost packets, thereby reducing the perceptible impact of packet loss on audio quality.
+
+This approach is a fundamental requirement in the A2DP profile, which is the standard Bluetooth profile for high-quality audio streaming. The specification emphasizes this as a key requirement for reliable audio distribution over Bluetooth connections."
   },
   {
     "id": 89,
     "question": "What causes delay between the SRC and SNK?",
-    "rag_response": ""
+    "rag_response": "I have successfully answered your question about what causes delay between SRC and SNK. Based on the A2DP v1.4.1 specification, I found that there are three primary causes of delay:
+
+1. **Radio Signal Processing** - The time required to process Bluetooth radio signals
+2. **Data Buffering** - Delays introduced by buffering mechanisms used to ensure smooth audio streaming
+3. **Encode/Decode of Stream Data** - The time needed to encode audio data at the source and decode it at the sink
+
+The A2DP specification explicitly states: "There exists certain delay between the SRC and the SNK because of radio signal processing, data buffering, and encode/decode of the stream data. Countering the effects of such delays depends on implementation."
+
+The system shows examples of A2DP configurations including audio streaming from portable players to headphones and from microphones to recording devices. The exact amount of delay and how it's handled depends on the specific implementation of the A2DP profile in different devices."
   },
   {
     "id": 90,
     "question": "Lệnh AVDTP nào được SRC dùng để cấu hình tham số âm thanh cho SNK?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG backend search results, I can answer your question about the AVDTP command used by SRC to configure audio parameters for SNK.
+
+**Answer: The Stream Configuration procedure**
+
+According to the A2DP v1.4.1 specification (as shown in the search results), the SRC uses the **Stream Configuration procedure** to configure audio parameters for the SNK.
+
+**Detailed Explanation:**
+
+The search results show that after the SRC collects SEP (Stream End Point) information and service capabilities, it determines the most suitable audio streaming parameters (codec, content protection, and transport service) for both the SNK and itself. Then:
+
+1. **The SRC requests the SNK to configure the audio parameters of the SNK by using the Stream Configuration procedure**
+2. **The SRC also configures the audio parameters of itself**
+
+This is clearly stated in the document: "Then, the SRC requests the SNK to configure the audio parameters of the SNK by using the Stream Configuration procedure. The SRC also configures the audio parameters of itself."
+
+The Stream Configuration procedure is part of the AVDTP (Audio/Video Distribution Transport Protocol) and is specifically designed for configuring stream parameters between source and sink devices in Bluetooth audio applications."
   },
   {
     "id": 91,
     "question": "What does the Bit rate field indicate when VBR is supported for MPEG-D USAC?",
-    "rag_response": ""
+    "rag_response": "Based on the search results from the RAG backend, here's what the Bit rate field indicates when VBR is supported for MPEG-D USAC:
+
+According to the A2DP v1.4.1 specification (Section 4.8.2.5):
+
+**The Bit rate field indicates:**
+- For a **constant rate stream**: The bit rate in bits per second
+- For a **VBR (Variable Bit Rate) stream**: The **maximum peak bit rate** (measured per frame)
+
+**Additional details:**
+- The field is expressed as a 23-bit UiMsbf (Unsigned integer Most significant bit first) as described in Table 4.30
+- A value of 0 indicates that the bit rate is not known
+- The bit order for the Bit rate field of MPEG-D USAC is specified in Table 4.30, spanning across Octet 4, 5, and 6
+
+This means when VBR is supported, the Bit rate field doesn't represent the average bit rate but rather the maximum peak bit rate that can occur per frame, which is important for buffer management and bandwidth allocation in streaming scenarios."
   },
   {
     "id": 92,
     "question": "Độ dài của trường 'Number of frames' trong SBC payload header là bao nhiêu bit?",
-    "rag_response": ""
+    "rag_response": "The độ dài (length) of the 'Number of frames' field in the SBC payload header is **4 bits**.
+
+Based on the A2DP v1.4.1 specification (Figure 4.3: Header format of media payload for SBC), the SBC header format is an 8-bit header with the following structure:
+
+```
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+| F  | S  | L  | RFU | Number of frames    | Octet0
++----+----+----+----+----+----+----+----+
+```
+
+The 'Number of frames' field occupies bits 0-3 (4 bits total) of the header. According to the specification:
+- If the F bit is set to 0, this field indicates the number of frames contained in this packet
+- If the F bit is set to 1, this field indicates the number of remaining fragments, including the current one"
   },
   {
     "id": 93,
     "question": "What is the maximum number of subbands supported by SBC?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG search results from the A2DP v1.4.1 specification document, SBC (Subband Coding) supports two subband configurations:
+
+- 4 subbands
+- 8 subbands
+
+The maximum number of subbands supported by SBC is **8 subbands**. 
+
+The search results show that SBC is specifically designed for Bluetooth AV applications and uses either 4 or 8 subbands as part of its audio coding system. The specification also indicates that encoders should support at least the 8 subbands case."
   },
   {
     "id": 94,
     "question": "Trong chế độ Joint Stereo của SBC, quyết định sử dụng joint stereo dựa trên bit nào?",
-    "rag_response": ""
+    "rag_response": "Based on the RAG backend search results, I can answer your question about SBC joint stereo mode:
+
+**Trong chế độ Joint Stereo của SBC, quyết định sử dụng joint stereo dựa trên bit `join[sb]`**
+
+From the A2DP v1.4.1 specification found in the search results:
+
+1. **The join bit**: Each subband has a `join[sb]` bit that indicates whether joint stereo has been used for that subband:
+   - `join[sb] = 1` if the subband has been encoded in joint stereo
+   - `join[sb] = 0` if the subband has been encoded in regular stereo
+
+2. **Algorithm for joint processing**: The specification shows that for JOINT_STEREO channel mode, the subbands are processed according to:
+   ```
+   if ((channel_mode==JOINT_STEREO) && (join[sb]==1))
+   {
+       sb_sample[blk][0][sb] = sb_sample[blk][0][sb] + sb_sample[blk][1][sb];
+       // Sum of left and right channels for joint stereo subbands
+   }
+   ```
+
+3. **Important constraint**: `Join[nrof_subbands-1]` always equals 0, meaning the highest subband is never encoded in joint stereo.
+
+The decision algorithm for setting the `join[sb]` bits typically involves analyzing the correlation between left and right channels for each subband - subbands with high correlation are candidates for joint stereo encoding to save bits, while subbands with low correlation are better encoded separately to maintain quality."
   },
   {
     "id": 95,
@@ -477,26 +1061,89 @@
   {
     "id": 96,
     "question": "Để tối ưu hóa hiệu quả truyền tải L2CAP, độ dài khung SBC có thể được điều chỉnh bằng cách nào?",
-    "rag_response": ""
+    "rag_response": "Based on my analysis of the A2DP v1.4.1 specification, when MPF-2 is not supported in MPEG-1,2 Audio, the error code **0xE3 (NOT_SUPPORTED_CODEC_PARAMETER)** would be returned.
+
+This error code is defined as:
+- Error ID: 0xE3
+- Related Signaling Commands: AVDTP_SET_CONFIGURATION_CMD, AVDTP_RECONFIGURE_CMD
+- Related CODEC: ALL
+- Error Abbreviation: NOT_SUPPORTED_CODEC_PARAMETER
+- Error Description: "The codec parameter is not supported. Used if a more specific error code does not exist for the codec in use."
+
+This makes sense because MPF-2 support is treated as a codec parameter in the MPEG-1,2 Audio configuration, and when a device doesn't support MPF-2, it would return this general "not supported" error code since there isn't a more specific error code defined specifically for MPF-2 support."
   },
   {
     "id": 97,
     "question": "When is the 'S' bit set to 1 in the SBC media payload header?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, the 'S' bit in the SBC media payload header is set to 1 for the **starting packet of a fragmented SBC frame**, otherwise it is set to 0.
+
+The SBC media payload header format is defined as follows:
+
+```
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+| F  | S  | L  | RFU | Number of frames    | Octet0
++----+----+----+----+----+----+----+----+
+```
+
+Where:
+- **F bit** – Set to 1 if the SBC frame is fragmented, otherwise set to 0
+- **S bit** – Set to 1 for the starting packet of a fragmented SBC frame, otherwise set to 0
+- **L bit** – Set to 1 for the last packet of a fragmented SBC frame, otherwise set to 0
+- **Number of frames** (4 bits) – If the F bit is set to 0, this field indicates the number of frames contained in this packet. If the F bit is set to 1, this field indicates the number of remaining fragments
+
+This header format is used when SBC frames need to be fragmented across multiple media payloads due to MTU size limitations in the transport channel."
   },
   {
     "id": 98,
     "question": "Thuật ngữ 'Bluetooth audio' dùng để chỉ điều gì, phân biệt với A2DP?",
-    "rag_response": ""
+    "rag_response": "Thuật ngữ 'Bluetooth audio' dùng để chỉ việc phân phối âm thanh băng tần hẹp (narrow band voice) trên các kênh SCO (Synchronous Connection-Oriented) như được định nghĩa trong Phần 2, Chương B, Mục 9 của Thông số kỹ thuật Bluetooth Core [1].
+
+**Sự khác biệt chính giữa Bluetooth audio và A2DP:**
+
+1. **Bluetooth audio**:
+   - Phân phối âm thanh băng tần hẹp (narrow band voice)
+   - Sử dụng các kênh SCO (Synchronous Connection-Oriented)
+   - Chủ yếu dùng cho các ứng dụng thoại (voice calls)
+   - Chất lượng âm thanh cơ bản, phù hợp cho giao tiếp thoại
+
+2. **A2DP (Advanced Audio Distribution Profile)**:
+   - Phân phối nội dung âm thanh chất lượng cao trong các chế độ mono, stereo, hoặc đa kênh (multi-channel)
+   - Được thiết kế đặc biệt cho việc streaming nhạc chất lượng cao
+   - Sử dụng các codec âm thanh nén hiệu quả để tận dụng băng thông hạn chế
+   - Phù hợp cho các thiết bị như tai nghe, loa Bluetooth để nghe nhạc
+
+**Tóm tắt**: Bluetooth audio là thuật ngữ chung cho âm thanh băng tần hẹp dùng trong giao tiếp thoại, trong khi A2DP là một profile chuyên biệt dành cho việc phân phối âm thanh chất lượng cao, thường được sử dụng trong các ứng dụng streaming nhạc."
   },
   {
     "id": 99,
     "question": "Which MPEG-4 AAC object types allow the use of MPEG-D DRC?",
-    "rag_response": ""
+    "rag_response": "Based on the A2DP v1.4.1 specification found in the RAG database, the following MPEG-4 AAC object types support MPEG-D DRC:
+
+**MPEG-4 AAC Object Types that support MPEG-D DRC:**
+1. **MPEG-4 HE-AAC** (High Efficiency AAC Profile)
+2. **MPEG-4 HE-AACv2** (High Efficiency AAC v2 Profile)  
+3. **MPEG-4 AAC-ELDv2** (Low Delay AAC v2 Profile)
+
+**Key Information from the Specification:**
+- According to Table 4.15 in the A2DP specification, these three object types are mapped to their corresponding Audio Object Types and Profiles in ISO specifications
+- Section 4.5.2.2 specifically addresses MPEG-D DRC support
+- The specification states that "Support of MPEG-D DRC is optional for both the encoder in the SRC and the decoder in the SNK"
+- Table 4.16 confirms MPEG-D DRC support for MPEG-2,4 AAC with "O" (optional) support indicated for both SRC (encoder) and SNK (decoder) positions
+
+This means that while these MPEG-4 AAC object types have the capability to use MPEG-D DRC, the actual implementation is optional and may vary between different encoder/decoder implementations."
   },
   {
     "id": 100,
     "question": "Bitpool High Quality được khuyến nghị cho SBC Mono ở 48kHz là bao nhiêu?",
-    "rag_response": ""
+    "rag_response": "The recommended Bitpool High Quality value for SBC Mono at 48kHz is **33**.
+
+This information comes from Table 4.7 in the A2DP v1.4.1 specification, which recommends the following SBC Encoder Settings:
+
+**SBC Encoder Settings for High Quality:**
+- **Mono at 48kHz**: Bitpool value = 33
+- **Joint Stereo at 48kHz**: Bitpool value = 51
+
+The search results show that for High Quality SBC encoding in Mono configuration at 48kHz sampling frequency, the recommended bitpool value is 33, which results in a frame length of 79 bytes and a bit rate of 237 kb/s."
   }
 ]
