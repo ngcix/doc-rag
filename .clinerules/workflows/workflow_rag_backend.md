@@ -44,7 +44,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 ## 2. Environment Setup
 
-1. Always activate the virtual environment in first time before running any commands using the `execute_command` tool:
+1. Activate the virtual environment only once at the beginning of the session before running any commands:
    ```bash
    source .venv/bin/activate
    ```

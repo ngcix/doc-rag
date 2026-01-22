@@ -15,6 +15,8 @@ from pathlib import Path
 import sys
 import argparse
 import time
+import gc
+import psutil
 from typing import Dict, List, Optional, Tuple
 
 # Add project root to path
@@ -52,13 +54,14 @@ def get_llm_config() -> str:
         "repetition_penalty": 1.04,
     })
 
-def analyze_image_with_ai(image_path: Path, prompt: str) -> Dict:
+def analyze_image_with_ai(image_path: Path, prompt: str, session: requests.Session = None) -> Dict:
     """
     Analyze an image using Gauss AI model.
     
     Args:
         image_path: Path to the image file
         prompt: Prompt to send to the AI model
+        session: Optional requests Session for connection reuse
         
     Returns:
         JSON response from the AI model
@@ -78,9 +81,12 @@ def analyze_image_with_ai(image_path: Path, prompt: str) -> Dict:
     
     api_endpoint_url = f"{GAUSS_ENDPOINT_URL}/openapi/chat/v1/messages-with-models"
     
+    # Use provided session or create new request
+    request_func = session.post if session else requests.post
+    
     try:
         with image_path.open("rb") as f:
-            response = requests.post(
+            response = request_func(
                 api_endpoint_url, 
                 headers=headers, 
                 data=form_data, 
@@ -150,7 +156,7 @@ def get_chunk_id_from_image_path(image_path: Path) -> str:
     filename = image_path.stem  # Remove extension
     return filename
 
-def process_single_image(image_path: Path, dry_run: bool = False, image_index: int = 0, total_images: int = 0) -> Tuple[bool, float]:
+def process_single_image(image_path: Path, dry_run: bool = False, image_index: int = 0, total_images: int = 0, session: requests.Session = None) -> Tuple[bool, float]:
     """
     Process a single image: analyze and add knowledge to RAG system.
     
@@ -159,6 +165,7 @@ def process_single_image(image_path: Path, dry_run: bool = False, image_index: i
         dry_run: If True, only print what would be done without actually calling APIs
         image_index: Current image index (1-based) for display
         total_images: Total number of images being processed
+        session: Optional requests Session for connection reuse
         
     Returns:
         Tuple of (success, processing_time_seconds)
@@ -186,7 +193,7 @@ Provide only factual descriptions of what is visible in the image.
     """.strip()
 
     analysis_start = time.time()
-    analysis_result = analyze_image_with_ai(image_path, detailed_prompt)
+    analysis_result = analyze_image_with_ai(image_path, detailed_prompt, session)
     analysis_time = time.time() - analysis_start
     
     if "error" in analysis_result:
@@ -198,6 +205,9 @@ Provide only factual descriptions of what is visible in the image.
 
     if not analysis_text:
         print("  ❌ No analysis text received")
+        # Active cleanup
+        if 'analysis_result' in locals():
+            del analysis_result
         return False, time.time() - start_time
 
     print(f"  Phân tích ảnh (thời gian: {analysis_time:.2f}s): {analysis_text[:200]}...")
@@ -211,12 +221,33 @@ Provide only factual descriptions of what is visible in the image.
         add_knowledge(chunk_id, analysis_text)
     except Exception as e:
         print(f"  ❌ Failed to add knowledge: {e}")
+        # Active cleanup
+        if 'analysis_result' in locals():
+            del analysis_result
+        if analysis_text:
+            del analysis_text
+        if 'chunk_id' in locals():
+            del chunk_id
         return False, time.time() - start_time
+    
     knowledge_time = time.time() - knowledge_start
+
+    # Active cleanup of large objects
+    if 'analysis_result' in locals():
+        del analysis_result
+    if analysis_text:
+        del analysis_text
+    if 'chunk_id' in locals():
+        del chunk_id
 
     total_time = time.time() - start_time
     print(f"  Total time: {total_time:.2f}s")
     return True, total_time
+
+def get_memory_usage() -> float:
+    """Get current memory usage in MB."""
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 / 1024
 
 def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[int] = None) -> None:
     """
@@ -258,6 +289,9 @@ def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[
             print(f"  {i}. {image_path.name}")
         return
 
+    # Create session for connection reuse
+    session = requests.Session()
+    
     # Process each image
     successful = 0
     failed = 0
@@ -266,14 +300,31 @@ def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[
     print(f"\n=== Processing {len(image_files)} images ===")
     start_time = time.time()
     
+    # Memory monitoring
+    start_memory = get_memory_usage()
+    print(f"Starting memory usage: {start_memory:.2f} MB")
+    
     for i, image_path in enumerate(image_files, 1):
         try:
-            success, processing_time = process_single_image(image_path, dry_run=False, image_index=i, total_images=len(image_files))
+            success, processing_time = process_single_image(image_path, dry_run=False, image_index=i, total_images=len(image_files), session=session)
             total_processing_time += processing_time
             if success:
                 successful += 1
             else:
                 failed += 1
+                
+            # Memory monitoring and garbage collection every 10 images
+            if i % 10 == 0:
+                current_memory = get_memory_usage()
+                memory_increase = current_memory - start_memory
+                gc.collect()
+                print(f"  [Memory cleanup] Processed {i}/{len(image_files)} images")
+                print(f"  Current memory: {current_memory:.2f} MB (+{memory_increase:.2f} MB)")
+                
+                # Warning if memory usage is too high
+                if memory_increase > 500:  # 500MB threshold
+                    print(f"  ⚠️  Warning: High memory usage detected ({memory_increase:.2f} MB)")
+                
         except Exception as e:
             if not dry_run:
                 print(f"[{i}/{len(image_files)}] Processing {image_path.name}")
@@ -281,6 +332,11 @@ def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[
             failed += 1
 
     total_time = time.time() - start_time
+    
+    # Final garbage collection and memory report
+    gc.collect()
+    end_memory = get_memory_usage()
+    print(f"Final memory usage: {end_memory:.2f} MB")
     
     # Summary
     print(f"\n=== Processing Summary ===")
