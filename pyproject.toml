@@ -1,0 +1,72 @@
+# Please don't delete this file, we're still using for linting and formatting rules
+[project]
+name = "simple-rag"
+version = "0.1.0"
+description = "A simple RAG system with chunking, vectorization, and semantic search"
+authors = [
+    { name = "Simple RAG", email = "dev@example.com" },
+]
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.35.0",
+    "sentence-transformers>=2.2.0",
+    "chromadb>=0.4.0",
+    "faiss-cpu>=1.7.4",
+    "langchain>=0.1.0",
+    "langchain-community>=0.0.10",
+    "langchain-text-splitters>=0.0.1",
+    "pydantic>=2.0.0",
+    "python-docx>=0.8.11",
+    "PyPDF2>=3.0.0",
+    "Pillow>=10.0.0",
+    "tqdm>=4.66.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+rag = "src.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+# https://docs.astral.sh/ruff/configuration/
+[tool.ruff]
+line-length = 180 # I don't want to hard wrap long-line
+
+[tool.ruff.format]
+quote-style = "double" # Use double quotes for strings.
+indent-style = "space" # Indent with spaces, rather than tabs.
+
+[tool.ruff.lint]
+ignore = ["F401", "F403", "F405"] # Ignore import warning
+
+
+#https://microsoft.github.io/pyright/#/configuration?id=sample-pyprojecttoml-file
+[tool.pyright]
+exclude = ["**/__pycache__"]
+extraPaths = []
+typeCheckingMode = "standard"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportOptionalMemberAccess = false
+reportFunctionMemberAccess = false
+reportAttributeAccessIssue = false
+reportGeneralTypeIssues = false
