@@ -11,7 +11,6 @@ from src.image_extraction.image_info import ExtractedImage
 import src.image_extraction.extractor as paddle
 import src.image_extraction.docling as docling
 import src.image_extraction.docling_extractor as doclingv1
-import src.image_extraction.pymu_extractor as pymu
 
 __all__ = [
     # Image extraction
@@ -28,8 +27,6 @@ def get_image_extractor(mode, force_new: bool = False, image_format: str = None)
         return docling.get_image_extractor()
     if mode == "dl1":
         return doclingv1.get_image_extractor()
-    if mode == "pymu":
-        return pymu.get_image_extractor()
     return None  # Should not happen
 
 def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:

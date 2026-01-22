@@ -1243,11 +1243,6 @@ def main():
         help="Capture full pages as images (Context-rich, best for RAG)"
     )
     strategy_group.add_argument(
-        "--pymupdf", "-pymu",
-        action="store_true",
-        help="Extract individual images using PyMuPDF (Precise, best for assets)"
-    )
-    strategy_group.add_argument(
         "--docling", "-dl",
         action="store_true",
         help="Extract individual images using Docling"
@@ -1488,13 +1483,11 @@ def main():
     if args.command == "process":
         # Manual Validation for Strategy
         if not args.no_images:
-            if not (args.fullpage or args.pymupdf or args.docling or args.docling1):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --pymupdf (-pymu) OR --docling (-dl) OR --docling1 (-dl1)")
+            if not (args.fullpage or args.docling or args.docling1):
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --docling (-dl) OR --docling1 (-dl1)")
                 
         mode = "fp"
-        if args.pymupdf:
-            mode = "pymu"
-        elif args.docling:
+        if args.docling:
             mode = "dl"
         elif args.docling1:
             mode = "dl1"
