@@ -40,6 +40,7 @@ data/faiss_index/*
 
 # Data directories - Documents (user input)
 data/documents/*
+data/documents_bak/*
 !data/documents/.gitkeep
 
 # Data directories - Extracted images (generated output)
@@ -66,3 +67,6 @@ temp/
 
 # Pyinstaller
 *.spec
+
+# Test tmp Folder
+tests/tmp/*
