@@ -43,7 +43,7 @@ class ModelConfig(BaseModel):
 class ChunkingConfig(BaseModel):
     """Configuration for document chunking."""
     chunk_size: int = 512
-    chunk_overlap: int = 50
+    chunk_overlap: int = 150
     separators: list[str] = Field(default=["\n\n", "\n", ". ", " ", ""])
     length_function: str = "len"  # or "tiktoken" for token-based
 

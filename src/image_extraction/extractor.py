@@ -339,11 +339,27 @@ class ImageExtractor:
                         r'table\s+\d+',       # Table 1
                         r'hình\s+\d+',        # Vietnamese: Hình 1
                         r'bảng\s+\d+',        # Vietnamese: Bảng 1
+                        r'error\s+id',        # Error ID column (for error code tables)
+                        r'0x[0-9a-f]{2}',     # Hex error codes like 0xD2
+                        r'signaling\s+command',  # Column header in spec tables
                     ]
                     for pattern in figure_patterns:
                         if re.search(pattern, text):
                             has_images = True
                             break
+                
+                # Tertiary check: detect table structure by line count
+                if not has_images and self.extract_tables:
+                    drawings = page.get_drawings()
+                    line_count = 0
+                    for d in drawings:
+                        items = d.get("items", [])
+                        for item in items:
+                            if item[0] in ("l", "re"):  # line or rectangle
+                                line_count += 1
+                    # If many lines/rectangles, likely a table
+                    if line_count > 50:
+                        has_images = True
 
                 if not has_images:
                     continue

@@ -7,9 +7,11 @@ Expected output: Search results with optional image descriptions and improved ta
 </task_objective>
 
 <detailed_sequence_steps>
+
 # RAG Backend Search and Analysis Process - Detailed Sequence of Steps
 
 ## Recommended Rule
+
 Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 **NEVER read file in ./data/documents**
 
@@ -31,6 +33,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
      - Entity requests: "system entities", "component entities", "architecture entities", "protocol entities", "interface entities"
 
 3. **Present Suggestions to User** using `ask_followup_question`:
+
    ```xml
    <ask_followup_question>
    <question>Your question "{original_question}" is quite general. Here are some more specific options:</question>
@@ -42,26 +45,36 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Use the selected specific question for the search
    - If user chooses to rephrase, wait for their new question
 
-## 2. Search Operations
+## 2. Environment Setup
+
+**Windows**: Use `.venv\Scripts\python.exe` directly in all commands (no activation needed).
+**Linux/Mac**: Use `.venv/bin/python` directly in all commands (no activation needed).
+
+> **Note**: Avoid using `activate && python` pattern as it may fail to properly set PATH before the second command runs.
+
+## 3. Search Operations
 
 1. **Basic Search** - Use for general queries:
+
    ```bash
-   python -m src.main search "your query" --top-k 5
+   .venv\Scripts\python.exe -m src.main search "your query" --top-k 5
    ```
 
 2. **Image-Only Search** - Use when looking for diagrams or figures:
+
    ```bash
-   python -m src.main search -pic "diagram or figure name"
+   .venv\Scripts\python.exe -m src.main search -pic "diagram or figure name"
    ```
 
 3. **Hybrid Search** - Use for specific figure/table names with exact-match priority:
+
    ```bash
-   python -m src.main search -hy "Figure 4.1: Media Payload"
+   .venv\Scripts\python.exe -m src.main search -hy "Figure 4.1: Media Payload"
    ```
 
 4. **Combined Search** - Best for finding specific diagrams:
    ```bash
-   python -m src.main search -pic -hy "Interrupt IN Flow Chart"
+   .venv\Scripts\python.exe -m src.main search -pic -hy "Interrupt IN Flow Chart"
    ```
 
 ## 3. View and Analyze Results
@@ -83,6 +96,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 2. **Check search results** - First examine the JSON output to verify the top result is an image using the `read_file` tool
 
 3. **Read the image file** using the `read_file` tool only when the rank 1 search result has "content_type": "image" in the JSON output:
+
    ```xml
    <read_file>
    <path>/path/to/image.png</path>
@@ -139,14 +153,14 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Architectural elements (e.g., "Protocol stack layers") - phrase
    - **Avoid single words like: "protocol", "figure", "stack"**
 
-1. **Identify key concepts** from the image description:
+3. **Identify key concepts** from the image description:
    - Figure numbers and names (e.g., "Figure 2.1 A2DP") - phrase
    - Protocol names and stacks (e.g., "AVDTP SDP stack") - phrase
    - Specific entities and components (e.g., "Audio Source Sink") - phrase
    - Architectural elements (e.g., "Protocol stack layers") - phrase
    - **Avoid single words like: "protocol", "figure", "stack"**
 
-2. **Generate multiple tag options** (3-5 different combinations):
+4. **Generate multiple tag options** (3-5 different combinations):
    - Each option should be specific and focused (5-15 tags per option)
    - **IMPORTANT: Tags must be phrases (multi-word terms) not single words**
    - **Good phrases**: "AVDTP signaling entity", "Audio streaming flow", "Protocol stack layers"
@@ -156,7 +170,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Include both specific technical phrases and broader architectural phrases
    - Vary the focus (e.g., one option focuses on protocols, another on architecture)
 
-3. **Present options to user** using `ask_followup_question`:
+5. **Present options to user** using `ask_followup_question`:
    - Show 2-3 tag options plus "No tags" option
    - Include brief descriptions of what each option emphasizes
    - **Show actual tags for each option** to help user make informed decisions
@@ -168,9 +182,9 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
      </ask_followup_question>
      ```
 
-4. **Add selected tags** using the addtag command with the chunk_id from search results:
+6. **Add selected tags** using the addtag command with the chunk_id from search results:
    ```bash
-   python -m src.main addtag <chunk_id> "selected,tag,option"
+   .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
    ```
 
 ## 7. Cleanup Query Files
@@ -180,6 +194,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - `process/output/` - Contains search results
 
 2. **Ask user for cleanup preference** using `ask_followup_question`:
+
    ```xml
    <ask_followup_question>
    <question>Found X query files. Would you like to delete them?</question>
@@ -196,6 +211,6 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 4. **Verify deletion** by checking directories are empty when expected using the `list_files` tool
 
 5. Use the `attempt_completion` tool to present the final results
-</detailed_sequence_steps>
+   </detailed_sequence_steps>
 
 </task>

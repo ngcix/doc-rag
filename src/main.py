@@ -249,14 +249,14 @@ def process_documents(
     log(f"  Text chunks: {len(chunks)}")
     log(f"  Images extracted: {total_images}")
     log(f"  Total items in database: {vector_store.count()}")
-    log("⏱️  Time Report:")
+    log("[TIME] Time Report:")
     log(f"  Chunking:      {_format_duration(chunking_time)}")
     if include_images:
         log(f"  Image Extract: {_format_duration(extraction_time)}")
     if include_charts:
         log(f"  Charts:        {_format_duration(chart_time)}")
     log(f"  Vectorization: {_format_duration(vectorize_time)}")
-    log(f"  ─────────────────")
+    log(f"  -----------------")
     log(f"  Total:         {_format_duration(total_time)}")
 
 
@@ -391,7 +391,7 @@ def search_documents(
     else:
         print("No results found.")
     
-    print(f"\n⏱️  Search completed in {_format_duration(search_time)}")
+    print(f"\n[TIME] Search completed in {_format_duration(search_time)}")
     
     return results
 
@@ -523,7 +523,7 @@ def multi_search(
             print(f"    Content: {result.document[:150] if result.document else 'N/A'}...")
             print()
     
-    print(f"⏱️  Multi-search completed in {_format_duration(search_time)}")
+    print(f"[TIME] Multi-search completed in {_format_duration(search_time)}")
     
     # Save results if requested
     if save_results and final_results:
@@ -772,7 +772,7 @@ def add_tag(doc_id: str, tag: str):
         print(f"  User tags:     {new_user_tags}")
         print(f"  Combined:      {new_combined_tags}")
         print("Vector embedding updated.")
-        print(f"\n⏱️  Time Report:")
+        print(f"\n[TIME] Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
         
