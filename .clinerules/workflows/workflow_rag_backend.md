@@ -1,7 +1,7 @@
 <task name="RAG Backend Search and Analysis">
 
 <task_objective>
-Search information in RAG database and analyze results, including image description and tagging. The workflow provides a complete process from environment setup through search operations, image analysis, interactive tagging, and cleanup. Uses the RAG backend tools and follows the standardized Cline workflow conventions.
+Search information in RAG database and analyze results, including image description and tagging. The workflow provides a complete process from search operations through image analysis, interactive tagging, and cleanup. Uses the RAG backend tools and follows the standardized Cline workflow conventions.
 
 Expected output: Search results with optional image descriptions and improved tagging for better discoverability.
 </task_objective>
@@ -42,14 +42,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Use the selected specific question for the search
    - If user chooses to rephrase, wait for their new question
 
-## 2. Environment Setup
-
-1. Activate the virtual environment only once at the beginning of the session before running any commands:
-   ```bash
-   source .venv/bin/activate
-   ```
-
-## 3. Search Operations
+## 2. Search Operations
 
 1. **Basic Search** - Use for general queries:
    ```bash
@@ -71,7 +64,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    python -m src.main search -pic -hy "Interrupt IN Flow Chart"
    ```
 
-## 4. View and Analyze Results
+## 3. View and Analyze Results
 
 1. Results are saved in `process/output/query_*.json`
 
@@ -83,7 +76,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 3. Use the `read_file` tool to examine the JSON output for detailed results
 
-## 5. Describe Images
+## 4. Describe Images
 
 1. ONLY read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
 
@@ -100,7 +93,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Provide a detail description** based on the analysis results
 
-## 6. Present Answer Based on Analysis
+## 5. Present Answer Based on Analysis
 
 1. **Synthesize information** from search results and image analysis:
    - Extract key information from `process/output/query_*.json`
@@ -132,7 +125,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - If top result IS an image → Continue to step 6 (Generate and Add Tags for Images)
    - If top result is NOT an image → Continue to step 7 (Cleanup Query Files)
 
-## 7. Generate and Add Tags for Images
+## 6. Generate and Add Tags for Images
 
 1. **Verify analysis presentation**:
    - Confirm that search results have been displayed to user
@@ -180,7 +173,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    python -m src.main addtag <chunk_id> "selected,tag,option"
    ```
 
-## 8. Cleanup Query Files
+## 7. Cleanup Query Files
 
 1. **Identify query files** in both directories:
    - `process/input/` - Contains query parameter files
