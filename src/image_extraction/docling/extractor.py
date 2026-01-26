@@ -1,16 +1,15 @@
-from typing import List, Tuple
+from typing import List
 from pathlib import Path
 
 from .document import MyDocument, MyItem, Label
 from ..image_info import ExtractedImage
-
+from config.settings import BASE_DIR
 
 class DoclingExtractorV2:
     def __init__(self, debug: bool = False):
         self.debug = debug
 
-        file_dir = Path(__file__).resolve().parents[3]
-        self.output_dir = file_dir / "data"
+        self.output_dir = BASE_DIR / "data"
         self.temp_dir = self.output_dir / "temp"
         self.pic_dir = self.output_dir / "extracted_images"
 

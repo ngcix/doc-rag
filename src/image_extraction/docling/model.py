@@ -1,6 +1,5 @@
-import os
 import torch
-from pathlib import Path
+from config.settings import BASE_DIR
 from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
 
@@ -9,8 +8,7 @@ class MyModel:
         self.threshold = threshold
         self.dpi = dpi
 
-        file_dir = Path(__file__).resolve().parents[3]
-        model_path = file_dir / "models" / "docling-project--docling-layout-heron"
+        model_path = BASE_DIR / "models" / "docling-project--docling-layout-heron"
 
         self.device_name = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(self.device_name)
