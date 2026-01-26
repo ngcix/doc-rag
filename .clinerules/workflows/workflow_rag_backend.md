@@ -153,14 +153,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Architectural elements (e.g., "Protocol stack layers") - phrase
    - **Avoid single words like: "protocol", "figure", "stack"**
 
-3. **Identify key concepts** from the image description:
-   - Figure numbers and names (e.g., "Figure 2.1 A2DP") - phrase
-   - Protocol names and stacks (e.g., "AVDTP SDP stack") - phrase
-   - Specific entities and components (e.g., "Audio Source Sink") - phrase
-   - Architectural elements (e.g., "Protocol stack layers") - phrase
-   - **Avoid single words like: "protocol", "figure", "stack"**
-
-4. **Generate multiple tag options** (3-5 different combinations):
+3. **Generate multiple tag options** (3-5 different combinations):
    - Each option should be specific and focused (5-15 tags per option)
    - **IMPORTANT: Tags must be phrases (multi-word terms) not single words**
    - **Good phrases**: "AVDTP signaling entity", "Audio streaming flow", "Protocol stack layers"
@@ -170,7 +163,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Include both specific technical phrases and broader architectural phrases
    - Vary the focus (e.g., one option focuses on protocols, another on architecture)
 
-5. **Present options to user** using `ask_followup_question`:
+4. **Present options to user** using `ask_followup_question`:
    - Show 2-3 tag options plus "No tags" option
    - Include brief descriptions of what each option emphasizes
    - **Show actual tags for each option** to help user make informed decisions
@@ -182,7 +175,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
      </ask_followup_question>
      ```
 
-6. **Add selected tags** using the addtag command with the chunk_id from search results:
+5. **Add selected tags** using the addtag command with the chunk_id from search results:
    ```bash
    .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
    ```
