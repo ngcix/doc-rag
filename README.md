@@ -119,6 +119,49 @@ python -m src.main clean --yes          # Reset everything
 
 ---
 
+## 🧠 Models
+
+The `models/` directory stores NLP models for embedding and searching. SpecRAG uses the **Alibaba-NLP/gte-multilingual-base** model from Hugging Face.
+
+### Model Specifications
+
+| Specification | Value |
+|---------------|-------|
+| **Model** | [Alibaba-NLP/gte-multilingual-base](https://huggingface.co/Alibaba-NLP/gte-multilingual-base) |
+| **Parameters** | 305M |
+| **Embedding Dimension** | 768 |
+| **Max Input Tokens** | 8,192 |
+| **Languages** | 75 languages |
+| **Architecture** | Transformer++ (BERT + RoPE + GLU) |
+| **License** | Apache 2.0 |
+
+### Why This Model?
+
+| Feature | Benefit |
+|---------|---------|
+| **Multilingual** | Supports 75 languages including Vietnamese and English |
+| **Long Context** | 8K tokens allows embedding entire pages |
+| **Fast Inference** | Encoder-only (10x faster than decoder LLMs) |
+| **State-of-the-Art** | Top performance on multilingual retrieval benchmarks |
+| **Elastic Embedding** | Reduces storage costs with dimension flexibility |
+
+### Model Directory Structure
+
+```
+models/
+└── models--Alibaba-NLP--gte-multilingual-base/
+    └── snapshots/
+        └── <snapshot-id>/
+            ├── config.json
+            ├── model.safetensors
+            ├── tokenizer.json
+            └── ...
+```
+
+> 📖 **Paper:** [mGTE: Generalized Long-Context Text Representation](https://arxiv.org/abs/2407.19669) (2024)
+
+---
+
 ## 🤖 Cline Integration
 
 SpecRAG includes ready-to-use rules for **Cline** AI agent in `.clinerules/`:
@@ -148,6 +191,7 @@ SpecRAG/
 │   ├── extracted_images/ # Output images
 │   └── faiss_index/      # Vector database
 ├── docs/                 # Documentation
+├── models/               # NLP models (gte-multilingual-base)
 ├── src/                  # Source code
 │   ├── chunking/         # Text splitting
 │   ├── image_extraction/ # PDF image extraction
