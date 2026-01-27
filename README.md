@@ -1,10 +1,8 @@
 # 🚀 SpecRAG
 
-![Project Structure](docs/pic/structure.png)
-
 **High-performance RAG for Technical Specifications**
 
-A Retrieval-Augmented Generation system optimized for technical documents (PDF, DOCX, MD) with **multimodal AI agent** support.
+> Turn your PDF specs into a searchable knowledge base that AI agents can query instantly.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -88,11 +86,17 @@ python -m src.main clean --yes          # Reset everything
 
 ## 🏗️ How It Works
 
-```
-PDF/DOCX/MD  →  Chunking + Image Extraction  →  GTE Embedding (768-dim)  →  FAISS Index
-                                                                                  ↓
-User Query  →  Vectorize  →  Similarity Search  →  Top-K Results  →  Agent/User
-```
+![System Architecture](docs/pic/structure.png)
+
+### Three-Stage Pipeline
+
+| Stage | Steps | Description |
+|-------|-------|-------------|
+| **⬛ Ingestion** | 1→3 | Documents are chunked, images extracted with context, then embedded into FAISS |
+| **🔵 Inference** | 4→9 | User query → encode → similarity search → retrieve Top-K → build prompt → answer |
+| **🟡 Knowledge Enrichment** | 10→11 | Add tags/descriptions → re-embed → improve future searches |
+
+### Tech Stack
 
 | Component | Technology |
 |-----------|------------|
