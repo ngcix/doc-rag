@@ -77,7 +77,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    .venv\Scripts\python.exe -m src.main search -pic -hy "Interrupt IN Flow Chart"
    ```
 
-## 3. View and Analyze Results
+## 4. View and Analyze Results
 
 1. Results are saved in `process/output/query_*.json`
 
@@ -89,7 +89,35 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 3. Use the `read_file` tool to examine the JSON output for detailed results
 
-## 4. Describe Images
+## 5. Re-rank Results
+
+**CRITICAL**: Before presenting results, mentally re-rank them based on actual relevance to the user's question.
+
+1. **Evaluate each result** against the original question:
+   - Does this result directly answer the question?
+   - Is the content specifically about what the user asked?
+   - Rate relevance: HIGH (directly answers) / MEDIUM (related) / LOW (tangential)
+
+2. **Filter out noise**:
+   - Remove results with LOW relevance
+   - Remove duplicate or near-duplicate content
+   - Remove results that only mention keywords but don't provide useful information
+
+3. **Re-order by actual relevance**:
+   - Place HIGH relevance results first
+   - Consider content quality, not just similarity score
+   - If an image better answers the question than text, prioritize the image
+
+4. **Document your re-ranking** (internal reasoning):
+   ```
+   Original order: [1, 2, 3, 4, 5]
+   After re-rank:  [3, 1, 5] (removed 2, 4 as low relevance)
+   Reason: Result 3 directly shows the diagram user asked for
+   ```
+
+> **Note**: The vector similarity score measures semantic similarity, not answer quality. A result with 0.75 score may be more useful than one with 0.85 if it better addresses the specific question.
+
+## 6. Describe Images
 
 1. ONLY read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
 
@@ -107,7 +135,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Provide a detail description** based on the analysis results
 
-## 5. Present Answer Based on Analysis
+## 7. Present Answer Based on Analysis
 
 1. **Synthesize information** from search results and image analysis:
    - Extract key information from `process/output/query_*.json`
@@ -136,10 +164,10 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 4. **Proceed to next steps after user acknowledgment**:
    - Wait for user confirmation after presenting complete analysis
-   - If top result IS an image → Continue to step 6 (Generate and Add Tags for Images)
-   - If top result is NOT an image → Continue to step 7 (Cleanup Query Files)
+   - If top result IS an image → Continue to step 8 (Generate and Add Tags for Images)
+   - If top result is NOT an image → Continue to step 9 (Cleanup Query Files)
 
-## 6. Generate and Add Tags for Images
+## 8. Generate and Add Tags for Images
 
 1. **Verify analysis presentation**:
    - Confirm that search results have been displayed to user
@@ -180,7 +208,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
    ```
 
-## 7. Cleanup Query Files
+## 9. Cleanup Query Files
 
 1. **Identify query files** in both directories:
    - `process/input/` - Contains query parameter files
