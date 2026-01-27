@@ -1,440 +1,160 @@
-# 🚀 SpecRag - Specification RAG System
+# 🚀 SpecRAG
 
-A **high-performance** Retrieval-Augmented Generation (RAG) system optimized for **technical specification documents** (PDF, DOCX, MD).
+**High-performance RAG for Technical Specifications**
 
-Designed for **multimodal AI agents** (ClineSR, GaussO MM) with **vision capabilities** to analyze and retrieve diagrams, flowcharts, and technical figures.
+A Retrieval-Augmented Generation system optimized for technical documents (PDF, DOCX, MD) with **multimodal AI agent** support.
 
-![Python](https://img.shields.io/badge/Python-3.11.0-blue)
-
----
-
-## 💪 Key Strengths
-
-| Strength | Description |
-|----------|-------------|
-| **🎯 Spec-Optimized** | Designed for technical specs (Bluetooth, HID, A2DP). Auto-detects `Figure X.Y`, `Table X.Y` captions. |
-| **🖼️ Full-Page Context** | Captures entire page as image + ALL text context (up to 10,000 chars) for maximum retrieval accuracy. |
-| **� Hybrid Search** | Combines **Semantic (Vector)** + **Exact Match (BM25)** for both concept and keyword searches. |
-| **🧩 Multi-Query RRF** | Run multiple query variants and fuse results with **Reciprocal Rank Fusion** algorithm. |
-| **� Vision-Ready** | Returns image paths for agents with vision capability to analyze diagrams directly. |
-| **🏷️ Self-Improving** | Tag images with custom keywords → Auto **re-embed** → Future searches rank higher. |
-| **📊 Built-in Eval** | Measure accuracy with Hit Rate / MRR on golden datasets. |
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![FAISS](https://img.shields.io/badge/Vector_DB-FAISS-orange)
 
 ---
 
-## � Search Mechanisms Explained
+## ✨ Why SpecRAG?
 
-### 1. Semantic Search (Default)
-
-```bash
-python -m src.main search "what is HID protocol?"
-```
-
-**How it works:**
-- Query → **GTE Embedding** (768-dim vector)
-- FAISS cosine similarity search
-- Returns top-K documents by **semantic meaning**
-
-**Best for:** Conceptual questions, "What is...", "Explain..."
-
----
-
-### 2. Hybrid Search (`--hybrid` / `-hy`)
-
-```bash
-python -m src.main search -hy "Figure 4.2: Media Payload Format"
-```
-
-**How it works:**
-- **Vector Search**: Semantic similarity (40% weight)
-- **BM25 Search**: Exact keyword matching (60% weight)
-- Results merged with **RRF (Reciprocal Rank Fusion)**
-
-**Best for:** Exact names, figure/table titles, specific terms
-
----
-
-### 3. Image-Only Search (`--pic` / `-pic`)
-
-```bash
-python -m src.main search -pic "connection diagram"
-```
-
-**How it works:**
-- Normal search but **filters** for `content_type = image`
-- Returns only extracted images/pages with image paths
-
-**Best for:** Finding diagrams, charts, flowcharts
-
----
-
-### 4. Multi-Query Search (`msearch`)
-
-```bash
-python -m src.main msearch "bluetooth reconnection" "link loss" "timeout recovery"
-```
-
-**How it works:**
-- Runs **N queries** in parallel
-- Each result gets **RRF score** based on rank across queries
-- Documents appearing in multiple queries rank higher
-
-**Best for:** Complex/vague questions, "How to...", "Why does..."
-
----
-
-### 5. Combined Modes
-
-```bash
-# Find diagrams with exact title match
-python -m src.main search -pic -hy "Interrupt IN Flow Chart"
-
-# Multi-query for images only
-python -m src.main msearch -pic "state machine" "connection flow" "FSM diagram"
-```
+| Feature | Description |
+|---------|-------------|
+| 🎯 **Spec-Optimized** | Auto-detects `Figure X.Y`, `Table X.Y` captions in technical docs |
+| 🖼️ **Full-Page Context** | Captures entire page + 10,000 chars of text context |
+| 🔀 **Hybrid Search** | Semantic + BM25 exact match with RRF fusion |
+| 👁️ **Vision-Ready** | Returns image paths for AI agents to analyze diagrams |
+| 🏷️ **Self-Improving** | Tag images → Auto re-embed → Better future searches |
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Prepare Data
-
-```text
-data/documents/
-  ├── HID_SPEC_V10.pdf
-  ├── A2DP_v1.4.pdf
-  └── Core_v6.0.pdf
-```
-
-### 2. Process Documents
-
-You **MUST** specify an extraction strategy:
-
 ```bash
-# [RECOMMENDED] Full-Page Mode (-fp)
-# Best for RAG with diagrams - captures entire page context
+# 1. Setup
+git clone <repo-url> && cd SpecRAG
+python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Process documents
+cp your-specs/*.pdf data/documents/
 python -m src.main process -fp
 
-# Full-page with JPEG format (2-5x smaller files)
-python -m src.main process -fp --format jpeg
-
-# [ALTERNATIVE] Docling Mode (-dl)
-# Uses Docling layout model for intelligent extraction
-python -m src.main process -dl
+# 3. Search
+python -m src.main search "authentication flow"
 ```
 
-> ⚠️ **Note**: You MUST specify either `-fp` or `-dl`. The system will error if neither is provided.
+---
 
-### 3. Search
+## 🔍 Search Types
+
+Choose the right search for your question:
+
+| Question Type | Command | Example |
+|---------------|---------|---------|
+| **Conceptual** | `search` | `search "what is HID protocol"` |
+| **Exact match** | `search -hy` | `search -hy "Figure 4.1"` |
+| **Find diagrams** | `search -pic` | `search -pic "state machine"` |
+| **Complex query** | `msearch` | `msearch "reconnect" "link loss" "timeout"` |
+
+**Combine them:** `search -pic -hy "Figure 4.1"` finds the exact diagram.
+
+> 📖 **Deep dive:** [Search Guide](docs/guides/searching.md)
+
+---
+
+## 🛠️ Core Commands
 
 ```bash
-# General question (semantic search)
-python -m src.main search "what is the system architecture?"
+# Process
+python -m src.main process -fp          # Full-page extraction (recommended)
+python -m src.main process -dl          # Docling AI extraction
 
-# Find specific figure (hybrid for exact match)
-python -m src.main search -hy "Figure 4.1"
+# Search  
+python -m src.main search "query"       # Semantic search
+python -m src.main search -hy "query"   # Hybrid (exact + semantic)
+python -m src.main search -pic "query"  # Images only
+python -m src.main msearch "q1" "q2"    # Multi-query with RRF
 
-# Find diagrams only
-python -m src.main search -pic "connection flow"
+# Improve
+python -m src.main addtag ID "tag"      # Add tag (triggers re-embed)
+python -m src.main addknowledge ID "text" # Add description
 
-# Complex question (multi-query)
-python -m src.main msearch "reconnection" "link loss" "recovery"
+# Manage
+python -m src.main list                 # Show indexed documents
+python -m src.main stats                # Database statistics
+python -m src.main clean --yes          # Reset everything
 ```
+
+> 📖 **Full reference:** [CLI Commands](docs/reference/cli-commands.md)
 
 ---
 
-## 🏃 Workflow Example
+## 🏗️ How It Works
 
-```bash
-# 1. Process documents
-python -m src.main process -fp
-
-# 2. Search for something
-python -m src.main search "system architecture"
-
-# 3. Check tags of an image
-python -m src.main listtag HID_SPEC_V10.pdf_p20
-
-# 4. Add a custom tag (system automatically re-embeds!)
-python -m src.main addtag HID_SPEC_V10.pdf_p20 "connection-diagram"
-
-# 5. Search with tag (use --hybrid for exact match)
-python -m src.main search -hy "connection-diagram"
-
-# 6. Remove wrong tag
-python -m src.main removetag HID_SPEC_V10.pdf_p20 "wrong-tag"
-
-# 7. Reset to original tags
-python -m src.main resettags HID_SPEC_V10.pdf_p20
 ```
+PDF/DOCX/MD  →  Chunking + Image Extraction  →  GTE Embedding (768-dim)  →  FAISS Index
+                                                                                  ↓
+User Query  →  Vectorize  →  Similarity Search  →  Top-K Results  →  Agent/User
+```
+
+| Component | Technology |
+|-----------|------------|
+| Embedding | `Alibaba-NLP/gte-multilingual-base` (768-dim) |
+| Vector DB | FAISS (IndexFlatIP, cosine similarity) |
+| PDF Processing | PyMuPDF (fitz) |
+| Layout Detection | Docling (RT-DETR model) |
+
+> 📖 **Architecture details:** [Overview](docs/architecture/overview.md)
 
 ---
 
-## 🛠️ CLI Reference
+## 🤖 Cline Integration
 
-| Command | Action | Example |
-|---------|--------|---------|
-| `process -fp` | Full-page extraction | `python -m src.main process -fp` |
-| `process -fp -fmt jpeg` | Full-page JPEG (smaller) | `python -m src.main process -fp -fmt jpeg` |
-| `process -dl` | Docling layout extraction | `python -m src.main process -dl` |
-| `search` | Semantic search | `python -m src.main search "query"` |
-| `search -pic` | Images only | `python -m src.main search -pic "diagram"` |
-| `search -hy` | Hybrid (BM25+Vector) | `python -m src.main search -hy "Figure 4.1"` |
-| `msearch` | Multi-Query (RRF) | `python -m src.main msearch "q1" "q2"` |
-| `listtag` | View tags (original vs user) | `python -m src.main listtag doc_id` |
-| `addtag` | Add tag & re-embed | `python -m src.main addtag doc_id "tag"` |
-| `removetag` | Remove user-added tag | `python -m src.main removetag doc_id "tag"` |
-| `resettags` | Reset to original tags | `python -m src.main resettags doc_id` |
-| `addknowledge` | Add knowledge to image | `python -m src.main addknowledge doc_id "text"` |
-| `getknowledge` | Get knowledge | `python -m src.main getknowledge doc_id` |
-| `eval` | Run accuracy evaluation | `python -m src.main eval` |
-| `list` | Show all indexed docs | `python -m src.main list` |
-| `stats` | View DB status | `python -m src.main stats` |
-| `clean` | Reset database | `python -m src.main clean --yes` |
-
----
-
-## 📊 Technical Specifications
-
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| **Embedding Model** | `gte-multilingual-base` | Alibaba-NLP, 768-dim |
-| **Vector Database** | FAISS | IndexFlatIP (cosine) |
-| **Distance Metric** | Cosine Similarity | Normalized inner product |
-| **Image Extraction** | PyMuPDF (fitz) | Full-page DPI 150 |
-| **Layout Model** | Docling Heron | `docling-project/docling-layout-heron` |
-| **Context Limit** | 10,000 chars | For full-page mode |
-
----
-
-## 🏗️ Architecture
-
-### Data Pipeline
+SpecRAG includes ready-to-use rules for **Cline** AI agent in `.clinerules/`:
 
 ```
-Documents (PDF/DOCX/MD)
-       ↓
-  ┌────┴────┐
-  │  Text   │  PDF
-  ↓         ↓
-Chunker   Image Extractor
-  │          │
-  └────┬─────┘
-       ↓
- Batch Vectorization (GTE)
-       ↓
-   FAISS Index
+.clinerules/
+├── rule_rag_backend.md        # Core rules: search first, no manual PDF reading
+└── workflows/
+    ├── workflow_rag_backend.md      # Standard search → analyze → answer
+    └── workflow_rag_with_knowledge.md # Use pre-analyzed knowledge
 ```
 
-### Extraction Strategies
+**How it works:** Cline automatically searches RAG before answering, analyzes images with vision, and adds tags to improve future searches.
 
-| Strategy | Flag | Model | Best For |
-|----------|------|-------|----------|
-| **Full-Page** | `-fp` | PyMuPDF | Complex layouts, diagrams |
-| **Docling** | `-dl` | Docling Heron | Intelligent layout detection |
-
----
-
-## 🖼️ Image Extraction Deep Dive
-
-### Full-Page Mode (`-fp`) - How It Works
-
-```
-PDF Document                    Processing Flow
-┌──────────────────┐
-│  Page 1          │           ┌─────────────────────────────────┐
-│  [No images]     │  ───────► │ Skip (no images/drawings)       │
-└──────────────────┘           └─────────────────────────────────┘
-
-┌──────────────────┐           ┌─────────────────────────────────┐
-│  Page 20         │           │ 1. Detect images/drawings       │
-│  ┌────────────┐  │           │ 2. Check area ≥ 5% of page      │
-│  │ [Diagram]  │  │  ───────► │ 3. Render full page (DPI 150)   │
-│  └────────────┘  │           │ 4. Extract ALL text (≤10,000)   │
-│  Figure 4.1:...  │           │ 5. Auto-tag (Figure X.Y regex)  │
-└──────────────────┘           └─────────────────────────────────┘
-```
-
-### Detection Criteria
-
-A page is captured if it has:
-- **Embedded images** ≥ `min_width` × `min_height` AND ≥ 5% of page area
-- **Vector drawings** with combined area ≥ 2% of page
-- **Caption patterns**: `Figure X.Y`, `Table X.Y`, `Hình X.Y`, etc.
-
-### Docling Mode (`-dl`) - How It Works
-
-Unlike `-fp` which captures the whole page, Docling uses **AI Computer Vision** (`RT-DETR` model) to surgically extract specific elements.
-
-```
-PDF Document                    Processing Flow
-┌──────────────────┐           ┌─────────────────────────────────┐
-│  Page 20         │           │ 1. Render Page to RGB Image     │
-│  ┌────────────┐  │           │ 2. AI Object Detection          │
-│  │ [Figure]   │  │  ───────► │    → Detect "Picture", "Table"  │
-│  └────────────┘  │           │    → Detect "Caption", "Text"   │
-│  Caption: ...    │           │ 3. Smart Grouping               │
-│  Text body...    │           │    → Link Caption to Picture    │
-└──────────────────┘           │    → Grab nearby Text context   │
-                               │ 4. Crop & Save Metadata         │
-                               └─────────────────────────────────┘
-```
-
-**Key Logic:**
-- **Smart Context**: Scans text *geometrically* close to the image (before/after), stopping at headers or other tables.
-- **Icon Filtering**: Automatically removes small icons or repetitive header/footer images.
-- **Precise Cropping**: Extracts the exact bounding box of the figure/chart.
-
-### Comparison: Full-Page vs Docling
-
-| Feature | Full-Page (`-fp`) | Docling (`-dl`) |
-|---------|-------------------|-----------------|
-| **Extraction Unit** | **Whole Page** as 1 Image | **Individual Figures** (Multiple per page) |
-| **Context Source** | All text on page (Broad) | Text nearby image (Focused) |
-| **Technology** | Regular Expression + PyMuPDF | **RT-DETR Vision Model** |
-| **Best For** | Complex flows traversing page | Charts, tables, distinct figures |
-| **Noise Level** | High (captures irrelevant text) | **Low** (filters unrelated text) |
-
-### ExtractedImage Data Structure
-
-Each extracted image is stored with these fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `image_id` | string | Unique ID: `{pdf_name}_p{page}` (e.g., `HID_v10.pdf_p20`) |
-| `image_path` | string | Path to saved image: `data/extracted_images/HID_v10.pdf_p20.png` |
-| `source_file` | string | Original PDF path |
-| `page_number` | int | 1-indexed page number |
-| `bbox` | tuple | Bounding box `(x1, y1, x2, y2)` |
-| `region_type` | string | `"fullpage"`, `"figure"`, `"table"`, `"chart"` |
-| `surrounding_text` | string | **Context**: ALL text from page (≤10,000 chars) |
-| `caption` | string | Auto-detected caption (e.g., `"Figure 4.1: Architecture"`) |
-| `tags` | string | Combined: `original_tags,user_tags` |
-| `original_tags` | string | Auto-extracted tags (immutable) |
-| `user_tags` | string | User-added tags via `addtag` (mutable) |
-| `knowledge` | string | User-added knowledge via `addknowledge` |
-
-### Vectorization Text Formula
-
-When indexing, the embedding is generated from:
-
-```
-Caption: {caption}
-Tags: {tags}, {tags}, {tags}, {tags}, {tags}   ← 5x boost
-Description: {description}
-Context: {surrounding_text}
-Type: {region_type}
-Source: {filename}, Page {page_number}
-```
-
-> 💡 **Tags are repeated 5x** to strongly boost their weight in semantic search.
-
-### Tag Management
-
-| Field | Source | Mutable? |
-|-------|--------|----------|
-| `original_tags` | Auto-extracted from page text (regex) | ❌ No |
-| `user_tags` | Added via `addtag` command | ✅ Yes |
-| `tags` | Combined: `original_tags,user_tags` | Auto-updated |
-
-**Commands:**
-```bash
-# View tags (shows original vs user)
-python -m src.main listtag HID_v10.pdf_p20
-
-# Add tag → triggers re-embed
-python -m src.main addtag HID_v10.pdf_p20 "my-custom-tag"
-
-# Remove user tag
-python -m src.main removetag HID_v10.pdf_p20 "my-custom-tag"
-
-# Reset to original tags only
-python -m src.main resettags HID_v10.pdf_p20
-```
-
-## 🤖 Agent Integration
-
-Designed for **ClineSR / GaussO MM** multimodal agents:
-
-```
-User Query → RAG Search → Top-K Results
-                              ↓
-                   ┌──────────┴──────────┐
-                   │  image_path         │
-                   │  context (text)     │
-                   │  metadata           │
-                   └──────────┬──────────┘
-                              ↓
-              Agent Vision Analysis + Response
-```
-
-### Feedback Loop
-
-```bash
-# Agent finds relevant image but hard to search
-python -m src.main addtag HID_p42 "state-machine-diagram"
-
-# Tag is boosted 5x in embedding → Future searches rank higher
-```
+> 📖 **Setup guide:** [Cline Integration](docs/integrations/cline.md)
 
 ---
 
 ## 📁 Project Structure
 
-```text
-SpecRag/
-├── config/                 # Settings & configurations
+```
+SpecRAG/
+├── .clinerules/          # AI agent rules & workflows
+├── config/               # Settings (Pydantic)
 ├── data/
-│   ├── documents/          # Input documents
-│   ├── faiss_index/        # Vector index
-│   └── extracted_images/   # Extracted images
-├── models/                 # Local model cache
-│   ├── gte-multilingual-base/
-│   └── docling-layout-heron/
-├── src/
-│   ├── chunking/           # Text splitters (LangChain based)
-│   ├── image_extraction/   # PDF/Image processing (PyMuPDF)
-│   ├── search/             # Search Algo & Ranking
-│   ├── vectorization/      # Embedding Engines
-│   └── main.py             # CLI Entry point
-├── report-doc/             # Architecture & Integration docs
-└── tests/                  # Pytest suite
+│   ├── documents/        # Input PDFs
+│   ├── extracted_images/ # Output images
+│   └── faiss_index/      # Vector database
+├── docs/                 # Documentation
+├── src/                  # Source code
+│   ├── chunking/         # Text splitting
+│   ├── image_extraction/ # PDF image extraction
+│   ├── search/           # Search algorithms
+│   ├── vectorization/    # Embedding & FAISS
+│   └── main.py           # CLI entry point
+└── tests/
 ```
 
 ---
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [04-flow-process.md](report-doc/04-flow-process.md) | Detailed processing flow |
-| [05-flow-image-extraction.md](report-doc/05-flow-image-extraction.md) | Image extraction guide |
-| [10-debuit-clineSR.md](report-doc/10-debuit-clineSR.md) | ClineSR integration (detailed) |
-| [11-report-clineSR-withRAG.md](report-doc/11-report-clineSR-withRAG.md) | Summary report with diagrams |
+| | |
+|---|---|
+| **[Getting Started](docs/getting-started/)** | Installation, Quickstart, Basic Workflow |
+| **[Guides](docs/guides/)** | Processing, Searching, Tagging, Knowledge |
+| **[Reference](docs/reference/)** | CLI Commands, Configuration |
+| **[Architecture](docs/architecture/)** | System Overview, Image Extraction, Search Engine |
+| **[Integrations](docs/integrations/)** | Cline AI Agent |
 
 ---
 
-## 📁 Extension Scripts
-
-Additional functionality is available in the `extension_script/` directory:
-
-### analyze_extracted_images.py
-
-Automatically analyzes extracted images using Gauss AI and adds knowledge/tags to the RAG system:
-
-- **Batch Processing**: Processes all images in `data/extracted_images/`
-- **Detailed Analysis**: Technical analysis using Gauss AI
-- **Smart Tagging**: Generates relevant tags from analysis
-- **RAG Integration**: Adds knowledge and tags to vector database
-
-```bash
-# Process all images (requires Gauss API credentials)
-python extension_script/analyze_extracted_images.py
-
-# Test with dry run
-python extension_script/analyze_extracted_images.py --dry-run
-```
-
 ## 📄 License
 
-MIT License. Created by Phung Duc Vu.
+MIT License. Created by **Phung Duc Vu**.
