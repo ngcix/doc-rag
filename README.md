@@ -63,6 +63,28 @@ Question → Strategy Selection → Search Execution → Analyze Results → Pre
               └── Multi-query         └── RRF Fusion
 ```
 
+### RRF Fusion (Reciprocal Rank Fusion)
+
+Thuật toán kết hợp kết quả từ nhiều nguồn search:
+
+```
+                    Query: "Figure 4.1"
+                           │
+              ┌────────────┴────────────┐
+              ↓                         ↓
+         Vector Search              BM25 Search
+         (semantic)                 (exact match)
+              │                         │
+              └────────────┬────────────┘
+                           ↓
+                      RRF Fusion
+              score = Σ weight/(k + rank)
+                           ↓
+                    Final Ranking
+```
+
+**Tại sao dùng RRF?** Vector score và BM25 score không cùng scale → RRF dùng **rank** thay vì score để merge.
+
 > 📖 **Deep dive:** [Search Guide](docs/guides/searching.md)
 
 ---

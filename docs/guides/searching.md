@@ -99,6 +99,79 @@ python -m src.main msearch "reconnection" "link loss" "timeout recovery"
 - Cải thiện recall cho topic rộng
 - Tìm documents liên quan đến nhiều concepts
 
+---
+
+## RRF Fusion (Reciprocal Rank Fusion)
+
+RRF là thuật toán **kết hợp kết quả từ nhiều nguồn search** thành một ranking thống nhất.
+
+### Công thức
+
+```
+RRF_score(doc) = Σ  weight / (k + rank_i)
+```
+
+- `k` = constant (mặc định = 60)
+- `rank_i` = thứ hạng của document trong search list thứ i
+- `weight` = trọng số (vector: 0.4, BM25: 0.6)
+
+### Ví dụ
+
+Query: `"Figure 4.1 authentication"`
+
+**Vector Search:**
+| Rank | Doc | Score |
+|------|-----|-------|
+| 1 | Doc_A | 0.85 |
+| 2 | Doc_B | 0.80 |
+| 3 | Doc_C | 0.75 |
+
+**BM25 Search:**
+| Rank | Doc | Score |
+|------|-----|-------|
+| 1 | Doc_B | 12.5 (exact "Figure 4.1") |
+| 2 | Doc_D | 8.2 |
+| 3 | Doc_A | 5.1 |
+
+**RRF Fusion (k=60):**
+```
+Doc_A: 0.4/(60+1) + 0.6/(60+3) = 0.0161
+Doc_B: 0.4/(60+2) + 0.6/(60+1) = 0.0163 ← Winner!
+Doc_C: 0.4/(60+3) + 0          = 0.0063
+Doc_D: 0          + 0.6/(60+2) = 0.0097
+```
+
+**Final:** `[Doc_B, Doc_A, Doc_D, Doc_C]`
+
+→ Doc_B thắng vì xuất hiện ở cả 2 lists với rank tốt.
+
+### Tại sao dùng RRF?
+
+| Vấn đề | RRF giải quyết |
+|--------|----------------|
+| Vector vs BM25 score khác scale | Dùng **rank** thay vì score |
+| Exact match bị miss bởi semantic | BM25 bổ sung exact match |
+| Semantic miss bởi keyword | Vector bổ sung semantic |
+
+### Flow
+
+```
+Query: "Figure 4.1"
+         │
+    ┌────┴────┐
+    ↓         ↓
+ Vector    BM25
+ Top-20    Top-20
+    │         │
+    └────┬────┘
+         ↓
+    RRF Fusion
+         ↓
+    Final Top-K
+```
+
+---
+
 ## 4. Image-Only Search
 
 Chỉ trả về kết quả là hình ảnh.
