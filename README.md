@@ -1,5 +1,7 @@
 # 🚀 SpecRAG
 
+![Project Structure](docs/pic/structure.png)
+
 **High-performance RAG for Technical Specifications**
 
 A Retrieval-Augmented Generation system optimized for technical documents (PDF, DOCX, MD) with **multimodal AI agent** support.
