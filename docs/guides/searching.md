@@ -1,5 +1,56 @@
 # 🔍 Tìm Kiếm
 
+## Search Workflow
+
+Quy trình tìm kiếm hoàn chỉnh khi sử dụng với AI agent (Cline):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. QUESTION ANALYSIS                                           │
+│     • Phân tích intent của câu hỏi                              │
+│     • Xác định domain (audio, network, protocol...)             │
+│     • Nếu vague → suggest specific alternatives                 │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  2. SEARCH STRATEGY SELECTION                                   │
+│     ┌──────────────┬──────────────┬──────────────┐              │
+│     │   Semantic   │    Hybrid    │  Multi-query │              │
+│     │   (concept)  │ (exact+sem)  │  (complex)   │              │
+│     └──────────────┴──────────────┴──────────────┘              │
+│     + Optional: -pic flag for images only                       │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  3. EXECUTE SEARCH                                              │
+│     • Vector search → FAISS similarity                          │
+│     • BM25 search → exact keyword match (if hybrid)             │
+│     • RRF fusion → combine rankings                             │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  4. ANALYZE RESULTS                                             │
+│     • Read query_*.json output                                  │
+│     • Check content_type (text/image)                           │
+│     • If image → describe with vision model                     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  5. PRESENT ANSWER                                              │
+│     • Synthesize information from results                       │
+│     • Filter noise, focus on relevant content                   │
+│     • Present comprehensive answer                              │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  6. KNOWLEDGE ENRICHMENT (Optional)                             │
+│     • Add tags to improve future searches                       │
+│     • addtag <chunk_id> "tag1, tag2, tag3"                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Các Loại Search
 
 | Loại | Command | Mô tả |
@@ -125,12 +176,33 @@ Found 5 results:
 | Hybrid | ⚡⚡ | ✅✅ | ✅✅ | Figure/Table lookup |
 | Multi-query | ⚡ | ✅ | ✅✅✅ | Complex questions |
 
+## Decision Tree: Chọn Search Nào?
+
+```
+                    Câu hỏi của bạn
+                          │
+          ┌───────────────┼───────────────┐
+          ↓               ↓               ↓
+    Tìm Figure/Table?   Concept chung?   Phức tạp?
+          │               │               │
+          ↓               ↓               ↓
+    ┌─────────────┐ ┌───────────┐ ┌─────────────────┐
+    │ search -hy  │ │  search   │ │    msearch      │
+    │ -pic        │ │           │ │ "q1" "q2" "q3"  │
+    └─────────────┘ └───────────┘ └─────────────────┘
+          │               │               │
+          ↓               ↓               ↓
+    Exact match +     Semantic       Multi-angle
+    Image filter      similarity     RRF fusion
+```
+
 ## Tips
 
 1. **Default**: Dùng semantic search trước
 2. **Figure/Table**: Dùng hybrid `-hy`
 3. **Không tìm thấy**: Thử multi-query với các phrasings khác nhau
 4. **Quá nhiều results**: Giảm `-k` hoặc dùng `-pic` để filter
+5. **Cải thiện kết quả**: Dùng `addtag` để enrich metadata → tìm tốt hơn lần sau
 
 ---
 

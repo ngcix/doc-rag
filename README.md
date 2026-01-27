@@ -53,6 +53,16 @@ Choose the right search for your question:
 
 **Combine them:** `search -pic -hy "Figure 4.1"` finds the exact diagram.
 
+### Search Workflow
+
+```
+Question → Strategy Selection → Search Execution → Analyze Results → Present Answer
+              │                        │
+              ├── Semantic            ├── Vector (FAISS)
+              ├── Hybrid (-hy)        ├── BM25 (exact match)
+              └── Multi-query         └── RRF Fusion
+```
+
 > 📖 **Deep dive:** [Search Guide](docs/guides/searching.md)
 
 ---
