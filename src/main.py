@@ -146,7 +146,7 @@ def process_documents(
     chunks = []
     if files_to_chunk:
         print(f"  Found {len(files_to_chunk)} files to chunk.")
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
             # chunk_documents helper fits perfectly here
             results = list(tqdm(
                 executor.map(_process_chunking, files_to_chunk), 
@@ -179,7 +179,7 @@ def process_documents(
         if pdf_files:
             extract_args = [(p, mode, fullpage_mode, image_format_override) for p in pdf_files]
             
-            with concurrent.futures.ProcessPoolExecutor() as executor:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
                 results = list(tqdm(
                     executor.map(_process_extraction, extract_args), 
                     total=len(pdf_files), 
