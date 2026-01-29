@@ -10,6 +10,23 @@ Tài liệu này hướng dẫn chi tiết cách các AI Agent (như Cline) sử
 
 ### Quy trình xử lý của Agent
 
+```mermaid
+graph TD
+    A[Nhận câu hỏi] --> B{Câu hỏi quá<br/>chung chung?}
+    B -- Có --> C[Gợi ý 3-5 phương án cụ thể<br/><i>ask_followup_question</i>]
+    C --> A
+    B -- Không --> D[Lựa chọn phương thức tìm kiếm]
+    D --> E[Thực thi lệnh Search<br/><i>search / -pic / -hy</i>]
+    E --> F[Đọc kết quả JSON từ<br/><i>process/output/</i>]
+    F --> G[Đánh giá lại & Re-rank<br/>Loại bỏ nhiễu]
+    G --> H{Kết quả hàng đầu<br/>là Hình ảnh?}
+    H -- Có --> I[Đọc file & Mô tả hình ảnh]
+    H -- Không --> J[Tổng hợp câu trả lời]
+    I --> J
+    J --> K[Ghi nhận/Gắn Tag]
+    K --> L[Hỏi xóa file tạm/Kết thúc]
+```
+
 #### Bước 1: Phân tích Ý định (Question Analysis)
 
 Khi nhận câu hỏi, Agent không tìm kiếm ngay mà sẽ:
@@ -56,6 +73,13 @@ Sử dụng khi hệ thống đã có sẵn các bản phân tích hình ảnh (
 ## 💬 3. Workflow Thu Thập Phản Hồi (Feedback Collection)
 
 Dùng để đánh giá chất lượng hệ thống và gửi dữ liệu về đội ngũ phát triển.
+
+```mermaid
+graph LR
+    A[Hoàn thành câu trả lời] --> B[Chấm điểm 1-10]
+    B --> C[Lưu feedback vào JSON<br/><i>results_trial/</i>]
+    C --> D[Đồng bộ lên Server<br/><i>curl</i>]
+```
 
 1. **Đánh giá**: Agent hỏi người dùng chấm điểm câu trả lời trên thang điểm 1-10.
 2. **Ghi nhận**: Agent lưu câu hỏi, câu trả lời và điểm số vào file JSON trong thư mục `results_trial/`.
