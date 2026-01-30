@@ -54,27 +54,53 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 ## 3. Search Operations
 
-1. **Basic Search** - Use for general queries:
+**🔍 Search Strategy Decision Tree:**
+
+1. **Query contains SPECIFIC identifiers** (Table X.Y, Figure X.Y, specific names/IDs)
+   → **Use Hybrid Search** (`-hy`) for best results
+
+2. **Looking for diagrams/images**
+   → Use **Image-Only** (`-pic`) or **Combined** (`-pic -hy`)
+
+3. **General semantic questions**
+   → Use **Basic Search** (no flags)
+
+### Search Commands:
+
+1. **Basic Search** - Use for general semantic queries ONLY:
 
    ```bash
    .venv\Scripts\python.exe -m src.main search "your query" --top-k 5
    ```
 
-2. **Image-Only Search** - Use when looking for diagrams or figures:
+2. **Image-Only Search** - Use when looking for diagrams or figures without specific numbers:
 
    ```bash
    .venv\Scripts\python.exe -m src.main search -pic "diagram or figure name"
    ```
 
-3. **Hybrid Search** - Use for specific figure/table names with exact-match priority:
+3. **Hybrid Search** - ⭐ **RECOMMENDED for specific identifiers** ⭐
+
+   **Use when query contains:**
+   - Specific table numbers (e.g., "Table 4.22", "Table 8.1")
+   - Specific figure numbers (e.g., "Figure 4.6", "Figure 2.1")
+   - Exact names or identifiers (e.g., "AVDTP protocol", "SBC codec")
+   - Technical terms requiring exact matching
 
    ```bash
+   .venv\Scripts\python.exe -m src.main search -hy "Table 4.22"
    .venv\Scripts\python.exe -m src.main search -hy "Figure 4.1: Media Payload"
    ```
 
-4. **Combined Search** - Best for finding specific diagrams:
+   **Why hybrid?** Combines:
+   - BM25 keyword matching (finds exact "Table 4.22")
+   - Vector semantic search (understands context)
+   - RRF ranking (best of both approaches)
+
+4. **Combined Search** - Best for finding specific diagrams by number:
    ```bash
-   .venv\Scripts\python.exe -m src.main search -pic -hy "Interrupt IN Flow Chart"
+   .venv\Scripts\python.exe -m src.main search -pic -hy "Figure 3.5: Interrupt Flow"
+   .venv\Scripts\python.exe -m src.main search -pic -hy "Table 4.22"
    ```
 
 ## 4. View and Analyze Results
