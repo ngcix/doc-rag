@@ -16,6 +16,7 @@ from docling_core.types.doc.document import (
 
 try:
     from src.image_extraction.image_info import ExtractedImage
+    from config import BASE_DIR
 except:
     pass
 try:
@@ -30,6 +31,25 @@ def get_image_hash(pil_image) -> str:
     pil_image.save(img_byte_arr, format="PNG")
     img_bytes = img_byte_arr.getvalue()
     return hashlib.md5(img_bytes).hexdigest()[:8]
+
+
+def _get_relative_path(absolute_path: Path, base_dir: Path) -> str:
+    """Convert absolute path to relative path from base directory.
+    
+    Args:
+        absolute_path: Absolute path to convert
+        base_dir: Base directory to make path relative to
+        
+    Returns:
+        Relative path as string with forward slashes
+    """
+    try:
+        # Convert to relative path and use forward slashes for consistency
+        rel_path = absolute_path.relative_to(base_dir)
+        return str(rel_path).replace('\\', '/')
+    except ValueError:
+        # If path is not relative to base_dir, return as-is
+        return str(absolute_path)
 
 
 class ImageExtractor:
@@ -117,7 +137,7 @@ class ImageExtractor:
 
             extracted_image = ExtractedImage(
                 image_id=get_image_hash(picture.image.pil_image),
-                image_path=str(image_path),
+                image_path=_get_relative_path(image_path, BASE_DIR),
                 source_file=str(file_path),
                 page_number=page_num,
                 bbox=bbox,

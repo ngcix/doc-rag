@@ -42,10 +42,29 @@ except ModuleNotFoundError:
     langchain.docstore = docstore_module
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import settings, ensure_directories, EXTRACTED_IMAGES_DIR
+from config import settings, ensure_directories, EXTRACTED_IMAGES_DIR, BASE_DIR
 from PIL import Image, ImageOps
 import io
 import numpy as np
+
+
+def _get_relative_path(absolute_path: Path, base_dir: Path) -> str:
+    """Convert absolute path to relative path from base directory.
+    
+    Args:
+        absolute_path: Absolute path to convert
+        base_dir: Base directory to make path relative to
+        
+    Returns:
+        Relative path as string with forward slashes
+    """
+    try:
+        # Convert to relative path and use forward slashes for consistency
+        rel_path = absolute_path.relative_to(base_dir)
+        return str(rel_path).replace('\\', '/')
+    except ValueError:
+        # If path is not relative to base_dir, return as-is
+        return str(absolute_path)
 
 
 # Import config from settings (use this instead of local dataclass)
@@ -393,7 +412,7 @@ class ImageExtractor:
                 extracted_images.append(
                     ExtractedImage(
                         image_id=image_id,
-                        image_path=str(image_path),
+                        image_path=_get_relative_path(image_path, BASE_DIR),
                         source_file=str(pdf_path),
                         page_number=page_num + 1,
                         bbox=(0, 0, pix.width, pix.height),
@@ -863,7 +882,7 @@ class ImageExtractor:
                         extracted_images.append(
                             ExtractedImage(
                                 image_id=image_id,
-                                image_path=str(image_path),
+                                image_path=_get_relative_path(image_path, BASE_DIR),
                                 source_file=str(pdf_path),
                                 page_number=page_num + 1,
                                 bbox=image_bbox,
@@ -990,7 +1009,7 @@ class ImageExtractor:
                         extracted_drawings.append(
                             ExtractedImage(
                                 image_id=image_id,
-                                image_path=str(image_path),
+                                image_path=_get_relative_path(image_path, BASE_DIR),
                                 source_file=str(pdf_path),
                                 page_number=page_num + 1,
                                 bbox=drawing_bbox,
@@ -999,6 +1018,9 @@ class ImageExtractor:
                                 caption=caption,
                                 description=f"Drawing from {pdf_path.name}, page {page_num + 1}",
                             )
+                        )
+                        print(
+                            f"    Extracted drawing on page {page_num + 1}: {int(rect.width)}x{int(rect.height)}"
                         )
                         pix = None
 
@@ -1117,21 +1139,25 @@ class ImageExtractor:
 
                                 # Get nearby text as context
                                 nearby_text = self._get_nearby_text(box, layout_result)
+                                caption = box.get("caption", "") # Ensure caption is defined
 
                                 extracted_images.append(
                                     ExtractedImage(
                                         image_id=image_id,
-                                        image_path=str(save_path),
+                                        image_path=_get_relative_path(save_path, BASE_DIR),
                                         source_file=source_file,
                                         page_number=page_number,
                                         bbox=tuple(bbox[:4]),
                                         region_type=region_type,
                                         surrounding_text=nearby_text
                                         or all_text[: self.context_chars],
-                                        caption=box.get("caption", ""),
-                                        description=f"{region_type} from page {page_number}",
+                                        caption=caption,
+                                        description=f"{region_type.capitalize()} from {Path(source_file).name}, page {page_number}",
                                     )
                                 )
+
+                                print(
+                                    f"    Extracted {region_type}: {image_id}")
 
         except Exception as e:
             print(f"Error extracting from image: {e}")
