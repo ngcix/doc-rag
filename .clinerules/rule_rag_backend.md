@@ -41,7 +41,35 @@ Choose the best search strategy based on User Intent:
 | **Visual/Diagrams**<br>_"Show me connection flow", "Figure of stack"_ | `python -m src.main search -pic "query"` | Filters for images/charts only. |
 | **Exact Name/Title**<br>_"Figure 4.1", "Table 2-3", "A2DP Spec"_ | `python -m src.main search -hy "exact title"` | Hybrid search ranks exact text matches higher. |
 | **Specific Diagram**<br>_"The 'Link Loss' flowchart"_ | `python -m src.main search -pic -hy "Link Loss"` | Compiles image filter + exact match. |
+| **Document Summary/Overview**<br>_"Summarize A2DP", "Overview of HID"_ | `python -m src.main msearch "document overview" "key features" "main components" "technical specifications"` | **Recommended**: Uses Multi-Query to find comprehensive document information from multiple angles. |
 | **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `python -m src.main msearch "query 1" "query 2" "query 3"` | **Strongly Recommended**: Uses Multi-Query (RRF) to find info from different angles. Use this for ANY "How to", "Why", or "Explain" question. |
+
+## 🎯 Keyword Generation for Document Summaries
+
+For document summary and overview requests, generate appropriate search keywords:
+
+**For General Document Summaries:**
+- "document overview"
+- "key features" 
+- "main components"
+- "technical specifications"
+- "purpose and scope"
+
+**For Technical Documents:**
+- "introduction and scope"
+- "core concepts"
+- "architecture overview"
+- "implementation details"
+- "technical requirements"
+
+**For Protocol Documents:**
+- "protocol overview"
+- "profile dependencies"
+- "communication flow"
+- "message formats"
+- "state transitions"
+
+Use these keywords with `msearch` command for comprehensive document analysis.
 
 ---
 
@@ -108,4 +136,3 @@ When adding new files, prioritize full-page extraction:
 |----------|------|-------|
 | **High** | `-fp` | `process -fp` (Default/Best for RAG) |
 | **Med** | `-pymu`| `process -pymu` (Asset extraction only) |
-

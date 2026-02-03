@@ -20,9 +20,15 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 1. **Analyze User Question Intent**:
    - Determine if the question is specific or vague/general
    - Identify key technical domains mentioned (audio, network, security, protocol, algorithm, design, etc.)
-   - Detect question type (diagram request, factual query, procedural question, etc.)
+   - Detect question type (diagram request, factual query, procedural question, document summary, etc.)
+   - Check if question relates to documents but doesn't specify which document
 
-2. **Handle Vague Questions**:
+2. **Handle Document-Related Questions Without Specific Document**:
+   - If question asks for document summary, overview, or general information but doesn't specify which document, check available documents
+   - List available documents using: `ls -la data/documents/`
+   - Present available documents to user for selection
+
+3. **Handle Vague Questions**:
    - If question is too general (e.g., "show me diagram", "what is filter") or not detailed, provide suggestions
    - Generate 3-5 specific alternatives based on common patterns:
      - Diagram requests: "flow diagram", "architecture diagram", "sequence diagram", "connection diagram", "block diagram"
@@ -30,9 +36,19 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
      - Protocol requests: "communication protocol", "network protocol", "audio protocol", "stack protocol", "interface protocol"
      - Filter requests: "filter design", "filter implementation", "digital filter", "analog filter", "frequency filter"
      - System requests: "system architecture", "system design", "system components", "system overview", "system flow"
+     - Document summary requests: "document overview", "key features", "main components", "technical specifications", "implementation details"
      - Entity requests: "system entities", "component entities", "architecture entities", "protocol entities", "interface entities"
 
-3. **Present Suggestions to User** using `ask_followup_question`:
+4. **Present Document Options to User** using `ask_followup_question`:
+   - When question relates to documents but doesn't specify which one:
+   ```xml
+   <ask_followup_question>
+   <question>I found the following documents available for processing. Which document would you like to work with?</question>
+   <options>["Document 1", "Document 2", "Let me add more documents", "Cancel"]</options>
+   </ask_followup_question>
+   ```
+
+5. **Present Suggestions to User** using `ask_followup_question`:
 
    ```xml
    <ask_followup_question>
@@ -41,7 +57,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    </ask_followup_question>
    ```
 
-4. **Wait for User Selection**:
+6. **Wait for User Selection**:
    - Use the selected specific question for the search
    - If user chooses to rephrase, wait for their new question
 
