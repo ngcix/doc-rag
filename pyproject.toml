@@ -55,7 +55,12 @@ quote-style = "double" # Use double quotes for strings.
 indent-style = "space" # Indent with spaces, rather than tabs.
 
 [tool.ruff.lint]
-ignore = ["F401", "F403", "F405"] # Ignore import warning
+ignore = [
+    "F401",
+    "F403",
+    "F405",
+    "E402",
+] # Ignore import warning
 
 
 #https://microsoft.github.io/pyright/#/configuration?id=sample-pyprojecttoml-file
