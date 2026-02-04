@@ -11,6 +11,17 @@ from typing import Optional
 import concurrent.futures
 from tqdm import tqdm
 
+from config import (
+    settings, ensure_directories,
+    DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
+    VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
+)
+from src.chunking import DocumentChunker, chunk_documents
+from src.vectorization import get_vectorizer, get_vector_store
+from src.search import get_search_engine, HybridSearchEngine
+from src.sequence_chart import get_chart_processor
+from src.image_extraction import get_image_extractor, get_vectorization_data
+
 
 def _format_duration(seconds: float) -> str:
     """Format duration in human readable format."""
@@ -36,18 +47,6 @@ def log(message: str = "", newline: bool = True):
         print(output)
     else:
         print(output, end="", flush=True)
-
-from config import (
-    settings, ensure_directories,
-    DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
-    VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
-)
-from src.chunking import DocumentChunker, chunk_documents
-from src.vectorization import get_vectorizer, get_vector_store
-from src.search import get_search_engine, HybridSearchEngine
-from src.sequence_chart import get_chart_processor
-from src.image_extraction import get_image_extractor, get_vectorization_data
-
 
 def _process_chunking(file_path: Path) -> list:
     """Helper for parallel chunking."""
