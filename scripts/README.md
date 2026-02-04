@@ -6,9 +6,12 @@ This directory contains additional scripts that extend the functionality of the 
 
 The script `setup.py` will compile the packages inside `src` into binary library.
 
+<!-- TODO: unified into a single script -->
+
 ```sh
 python scripts/setup.py build_ext
-cp -r build/lib.linux-x86_64-cpython-313/specrag .venv/lib/python3.13/site-packages/
+cp -r build/lib.linux-x86_64-cpython-313/src .venv/lib/python3.13/site-packages/ # Linux
+cp -r build/lib.win-amd64-cpython-313/src .venv/Lib/site-packages # Windows (pwsh)
 ```
 
 Binary output will locate in a folder like `./build/lib.win-amd64-cpython-311`.
