@@ -1,6 +1,6 @@
 # Please don't delete this file, we're still using for linting and formatting rules
 [project]
-name = "simple-rag"
+name = "specrag"
 version = "0.1.0"
 description = "A simple RAG system with chunking, vectorization, and semantic search"
 authors = [
@@ -33,7 +33,7 @@ dev = [
 ]
 
 [project.scripts]
-rag = "src.main:main"
+specrag = "src.main:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
