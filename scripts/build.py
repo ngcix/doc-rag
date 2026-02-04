@@ -56,9 +56,40 @@ hidden_imports += [
 
 
 hidden_imports += collect_submodules("transformers")
-# Nếu bạn có my_modules → uncomment và định nghĩa trong mymodule.py
-from mymodule import my_modules
-hidden_imports += my_modules
+
+hidden_imports += [
+    "src",
+    "src.main",
+    "src.chunking",
+    "src.chunking.__init__",
+    "src.chunking.chunker",
+    "src.image_extraction",
+    "src.image_extraction.__init__",
+    "src.image_extraction.docling_extractor",
+    "src.image_extraction.pymu_extractor",
+    "src.image_extraction.image_info",
+    "src.image_extraction.extractor",
+    "src.image_extraction.docling.__init__",
+    "src.image_extraction.docling.model",
+    "src.image_extraction.docling.processor",
+    "src.image_extraction.docling.document",
+    "src.image_extraction.docling.extractor",
+    "src.search",
+    "src.search.__init__",
+    "src.search.bm25",
+    "src.search.engine",
+    "src.sequence_chart",
+    "src.sequence_chart.__init__",
+    "src.sequence_chart.processor",
+    "src.vectorization",
+    "src.vectorization.__init",
+    "src.vectorization.vector_store",
+    "src.vectorization.faiss_store",
+    "src.vectorization.vectorizer",
+    "src.config",
+    "src.config.__init__",
+    "src.config.settings",
+]
 
 metadata_packages = [
     "transformers",
