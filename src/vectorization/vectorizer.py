@@ -86,8 +86,7 @@ class TextVectorizer:
             cache_folder=str(self.config.model_cache_dir),
             device=self.config.device,
             trust_remote_code=True,
-            model_kwargs={"local_files_only": True},
-            tokenizer_kwargs={"local_files_only": True}
+            local_files_only=True,
         )
         
         # Set max sequence length
