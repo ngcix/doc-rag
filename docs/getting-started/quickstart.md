@@ -14,7 +14,7 @@ Xử lý và vectorize tất cả documents:
 
 ```bash
 # Full-page mode (khuyến nghị cho RAG)
-python -m src.main process -fp
+specrag process -fp
 ```
 
 Output:
@@ -39,23 +39,23 @@ Processing complete!
 
 ```bash
 # Tìm kiếm semantic
-python -m src.main search "authentication flow"
+specrag search "authentication flow"
 
 # Tìm kiếm hybrid (BM25 + Vector)
-python -m src.main search -hy "Figure 4.1"
+specrag search -hy "Figure 4.1"
 
 # Chỉ tìm hình ảnh
-python -m src.main search -pic "state machine diagram"
+specrag search -pic "state machine diagram"
 ```
 
 ## Bước 4: Xem Kết Quả
 
 ```bash
 # Liệt kê documents đã index
-python -m src.main list
+specrag list
 
 # Xem stats
-python -m src.main stats
+specrag stats
 ```
 
 ## Quick Reference

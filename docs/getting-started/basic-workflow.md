@@ -17,29 +17,29 @@
 
 ```bash
 # Khởi tạo thư mục
-python -m src.main init
+specrag init
 
 # Copy documents
 cp /path/to/docs/*.pdf data/documents/
 
 # Process với full-page mode
-python -m src.main process -fp
+specrag process -fp
 ```
 
 ### Reprocessing (khi có documents mới)
 
 ```bash
 # Xóa data cũ
-python -m src.main clean --yes
+specrag clean --yes
 
 # Copy documents mới
 cp /new/docs/*.pdf data/documents/
 
 # Process lại
-python -m src.main process -fp
+specrag process -fp
 
 # Verify
-python -m src.main stats
+specrag stats
 ```
 
 ## 2. Search Documents
@@ -47,25 +47,25 @@ python -m src.main stats
 ### Semantic Search (Mặc định)
 
 ```bash
-python -m src.main search "bluetooth protocol"
+specrag search "bluetooth protocol"
 ```
 
 ### Hybrid Search (Tốt cho exact match)
 
 ```bash
-python -m src.main search -hy "Figure 4.1: Media payload"
+specrag search -hy "Figure 4.1: Media payload"
 ```
 
 ### Multi-Query Search (Tốt cho câu hỏi phức tạp)
 
 ```bash
-python -m src.main msearch "reconnection" "link loss" "timeout"
+specrag msearch "reconnection" "link loss" "timeout"
 ```
 
 ### Image-Only Search
 
 ```bash
-python -m src.main search -pic "state machine diagram"
+specrag search -pic "state machine diagram"
 ```
 
 ## 3. Enhance Database
@@ -74,39 +74,39 @@ python -m src.main search -pic "state machine diagram"
 
 ```bash
 # Xem tags hiện tại
-python -m src.main listtag HID_v1.1.1.pdf_p30
+specrag listtag HID_v1.1.1.pdf_p30
 
 # Thêm tag
-python -m src.main addtag HID_v1.1.1.pdf_p30 "bluetooth"
+specrag addtag HID_v1.1.1.pdf_p30 "bluetooth"
 
 # Search với tag mới
-python -m src.main search "bluetooth"
+specrag search "bluetooth"
 ```
 
 ### Thêm Knowledge
 
 ```bash
 # Thêm mô tả chi tiết
-python -m src.main addknowledge HID_p42 "Đây là state machine diagram mô tả Bluetooth connection"
+specrag addknowledge HID_p42 "Đây là state machine diagram mô tả Bluetooth connection"
 
 # Xem knowledge
-python -m src.main getknowledge HID_p42
+specrag getknowledge HID_p42
 ```
 
 ## Daily Usage Pattern
 
 ```bash
 # 1. Search for information
-python -m src.main search "what I need"
+specrag search "what I need"
 
 # 2. Find images
-python -m src.main search -pic "diagram type"
+specrag search -pic "diagram type"
 
 # 3. Add tags to improve future searches
-python -m src.main addtag doc_id "relevant-tag"
+specrag addtag doc_id "relevant-tag"
 
 # 4. Add knowledge when needed
-python -m src.main addknowledge doc_id "detailed description"
+specrag addknowledge doc_id "detailed description"
 ```
 
 ## Lưu Ý

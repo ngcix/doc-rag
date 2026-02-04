@@ -28,14 +28,14 @@
 # 1. Setup
 git clone <repo-url> && cd SpecRAG
 python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 
 # 2. Process documents
 cp your-specs/*.pdf data/documents/
-python -m src.main process -fp
+specrag process -fp
 
 # 3. Search
-python -m src.main search "authentication flow"
+specrag search "authentication flow"
 ```
 
 ---
@@ -93,23 +93,23 @@ Thuật toán kết hợp kết quả từ nhiều nguồn search:
 
 ```bash
 # Process
-python -m src.main process -fp          # Full-page extraction (recommended)
-python -m src.main process -dl          # Docling AI extraction
+specrag process -fp          # Full-page extraction (recommended)
+specrag process -dl          # Docling AI extraction
 
-# Search  
-python -m src.main search "query"       # Semantic search
-python -m src.main search -hy "query"   # Hybrid (exact + semantic)
-python -m src.main search -pic "query"  # Images only
-python -m src.main msearch "q1" "q2"    # Multi-query with RRF
+# Search
+specrag search "query"       # Semantic search
+specrag search -hy "query"   # Hybrid (exact + semantic)
+specrag search -pic "query"  # Images only
+specrag msearch "q1" "q2"    # Multi-query with RRF
 
 # Improve
-python -m src.main addtag ID "tag"      # Add tag (triggers re-embed)
-python -m src.main addknowledge ID "text" # Add description
+specrag addtag ID "tag"      # Add tag (triggers re-embed)
+specrag addknowledge ID "text" # Add description
 
 # Manage
-python -m src.main list                 # Show indexed documents
-python -m src.main stats                # Database statistics
-python -m src.main clean --yes          # Reset everything
+specrag list                 # Show indexed documents
+specrag stats                # Database statistics
+specrag clean --yes          # Reset everything
 ```
 
 > 📖 **Full reference:** [CLI Commands](docs/reference/cli-commands.md)

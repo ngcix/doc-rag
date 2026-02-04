@@ -3,7 +3,7 @@
 ## Cú Pháp Chung
 
 ```bash
-python -m src.main <command> [options] [arguments]
+specrag <command> [options] [arguments]
 ```
 
 ## Danh Sách Commands
@@ -33,7 +33,7 @@ python -m src.main <command> [options] [arguments]
 Xử lý và vectorize documents.
 
 ```bash
-python -m src.main process [OPTIONS]
+specrag process [OPTIONS]
 ```
 
 | Option | Shortcut | Mô tả | Default |
@@ -50,10 +50,10 @@ python -m src.main process [OPTIONS]
 
 ```bash
 # Examples
-python -m src.main process -fp
-python -m src.main process -dl
-python -m src.main process -fp --format jpeg
-python -m src.main process --no-images
+specrag process -fp
+specrag process -dl
+specrag process -fp --format jpeg
+specrag process --no-images
 ```
 
 ---
@@ -63,7 +63,7 @@ python -m src.main process --no-images
 Tìm kiếm semantic.
 
 ```bash
-python -m src.main search "query" [OPTIONS]
+specrag search "query" [OPTIONS]
 ```
 
 | Option | Shortcut | Mô tả | Default |
@@ -75,10 +75,10 @@ python -m src.main search "query" [OPTIONS]
 
 ```bash
 # Examples
-python -m src.main search "authentication"
-python -m src.main search -hy "Figure 4.1"
-python -m src.main search -pic "state machine"
-python -m src.main search -k 10 "connection"
+specrag search "authentication"
+specrag search -hy "Figure 4.1"
+specrag search -pic "state machine"
+specrag search -k 10 "connection"
 ```
 
 ---
@@ -88,7 +88,7 @@ python -m src.main search -k 10 "connection"
 Multi-query search với RRF fusion.
 
 ```bash
-python -m src.main msearch "query1" "query2" [...] [OPTIONS]
+specrag msearch "query1" "query2" [...] [OPTIONS]
 ```
 
 | Option | Shortcut | Mô tả | Default |
@@ -100,8 +100,8 @@ python -m src.main msearch "query1" "query2" [...] [OPTIONS]
 
 ```bash
 # Examples
-python -m src.main msearch "reconnection" "link loss" "timeout"
-python -m src.main msearch -hy "Figure 4.1" "Media payload"
+specrag msearch "reconnection" "link loss" "timeout"
+specrag msearch -hy "Figure 4.1" "Media payload"
 ```
 
 ---
@@ -111,7 +111,7 @@ python -m src.main msearch -hy "Figure 4.1" "Media payload"
 Liệt kê documents đã index.
 
 ```bash
-python -m src.main list
+specrag list
 ```
 
 ---
@@ -121,7 +121,7 @@ python -m src.main list
 Thống kê database.
 
 ```bash
-python -m src.main stats
+specrag stats
 ```
 
 Output:
@@ -142,7 +142,7 @@ Vector Database Statistics
 Xóa dữ liệu đã xử lý.
 
 ```bash
-python -m src.main clean [OPTIONS]
+specrag clean [OPTIONS]
 ```
 
 | Option | Shortcut | Mô tả |
@@ -152,8 +152,8 @@ python -m src.main clean [OPTIONS]
 
 ```bash
 # Examples
-python -m src.main clean --yes
-python -m src.main clean --all --yes
+specrag clean --yes
+specrag clean --all --yes
 ```
 
 ---
@@ -163,7 +163,7 @@ python -m src.main clean --all --yes
 Khởi tạo thư mục cấu trúc.
 
 ```bash
-python -m src.main init
+specrag init
 ```
 
 ---
@@ -173,13 +173,13 @@ python -m src.main init
 Thêm tag vào document.
 
 ```bash
-python -m src.main addtag <doc_id> <tag>
+specrag addtag <doc_id> <tag>
 ```
 
 ```bash
 # Examples
-python -m src.main addtag HID.pdf_p30 bluetooth
-python -m src.main addtag HID.pdf_p30 "security diagram"
+specrag addtag HID.pdf_p30 bluetooth
+specrag addtag HID.pdf_p30 "security diagram"
 ```
 
 ---
@@ -189,7 +189,7 @@ python -m src.main addtag HID.pdf_p30 "security diagram"
 Xem tags của document.
 
 ```bash
-python -m src.main listtag <doc_id>
+specrag listtag <doc_id>
 ```
 
 ---
@@ -199,7 +199,7 @@ python -m src.main listtag <doc_id>
 Xóa user-added tag.
 
 ```bash
-python -m src.main removetag <doc_id> <tag>
+specrag removetag <doc_id> <tag>
 ```
 
 ---
@@ -209,7 +209,7 @@ python -m src.main removetag <doc_id> <tag>
 Reset về original tags.
 
 ```bash
-python -m src.main resettags <doc_id>
+specrag resettags <doc_id>
 ```
 
 ---
@@ -219,12 +219,12 @@ python -m src.main resettags <doc_id>
 Thêm knowledge (append).
 
 ```bash
-python -m src.main addknowledge <identifier> <knowledge_text>
+specrag addknowledge <identifier> <knowledge_text>
 ```
 
 ```bash
 # Examples
-python -m src.main addknowledge HID_p42 "State machine với 5 trạng thái"
+specrag addknowledge HID_p42 "State machine với 5 trạng thái"
 ```
 
 ---
@@ -234,7 +234,7 @@ python -m src.main addknowledge HID_p42 "State machine với 5 trạng thái"
 Thay thế knowledge.
 
 ```bash
-python -m src.main updateknowledge <identifier> <knowledge_text>
+specrag updateknowledge <identifier> <knowledge_text>
 ```
 
 ---
@@ -244,7 +244,7 @@ python -m src.main updateknowledge <identifier> <knowledge_text>
 Xem knowledge.
 
 ```bash
-python -m src.main getknowledge <identifier>
+specrag getknowledge <identifier>
 ```
 
 ---
@@ -254,7 +254,7 @@ python -m src.main getknowledge <identifier>
 Chạy retrieval evaluation.
 
 ```bash
-python -m src.main eval [OPTIONS]
+specrag eval [OPTIONS]
 ```
 
 | Option | Default |
@@ -267,9 +267,9 @@ python -m src.main eval [OPTIONS]
 ## Help
 
 ```bash
-python -m src.main --help
-python -m src.main process --help
-python -m src.main search --help
+specrag --help
+specrag process --help
+specrag search --help
 ```
 
 ---

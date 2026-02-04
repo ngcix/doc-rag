@@ -37,12 +37,12 @@ Choose the best search strategy based on User Intent:
 
 | User Intent | Recommended Command | Why? |
 |-------------|---------------------|------|
-| **General Question**<br>_"What is HID protocol?"_ | `python -m src.main search "query"` | Standard semantic search. |
-| **Visual/Diagrams**<br>_"Show me connection flow", "Figure of stack"_ | `python -m src.main search -pic "query"` | Filters for images/charts only. |
-| **Exact Name/Title**<br>_"Figure 4.1", "Table 2-3", "A2DP Spec"_ | `python -m src.main search -hy "exact title"` | Hybrid search ranks exact text matches higher. |
-| **Specific Diagram**<br>_"The 'Link Loss' flowchart"_ | `python -m src.main search -pic -hy "Link Loss"` | Compiles image filter + exact match. |
-| **Document Summary/Overview**<br>_"Summarize A2DP", "Overview of HID"_ | `python -m src.main msearch "document overview" "key features" "main components" "technical specifications"` | **Recommended**: Uses Multi-Query to find comprehensive document information from multiple angles. |
-| **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `python -m src.main msearch "query 1" "query 2" "query 3"` | **Strongly Recommended**: Uses Multi-Query (RRF) to find info from different angles. Use this for ANY "How to", "Why", or "Explain" question. |
+| **General Question**<br>_"What is HID protocol?"_ | `specrag search "query"` | Standard semantic search. |
+| **Visual/Diagrams**<br>_"Show me connection flow", "Figure of stack"_ | `specrag search -pic "query"` | Filters for images/charts only. |
+| **Exact Name/Title**<br>_"Figure 4.1", "Table 2-3", "A2DP Spec"_ | `specrag search -hy "exact title"` | Hybrid search ranks exact text matches higher. |
+| **Specific Diagram**<br>_"The 'Link Loss' flowchart"_ | `specrag search -pic -hy "Link Loss"` | Compiles image filter + exact match. |
+| **Document Summary/Overview**<br>_"Summarize A2DP", "Overview of HID"_ | `specrag msearch "document overview" "key features" "main components" "technical specifications"` | **Recommended**: Uses Multi-Query to find comprehensive document information from multiple angles. |
+| **Hard/Vague Query**<br>_"How to reconnect bluetooth..."_ (complex) | `specrag msearch "query 1" "query 2" "query 3"` | **Strongly Recommended**: Uses Multi-Query (RRF) to find info from different angles. Use this for ANY "How to", "Why", or "Explain" question. |
 
 ## 🎯 Keyword Generation for Document Summaries
 
@@ -84,10 +84,10 @@ If your initial search returns **0 results** or irrelevant info, **DO NOT give u
 2. **Expand Query (`msearch`)**:
    - Generate synonyms and broader terms.
    - Example: _"reconnection"_ -> _"link loss", "connection establishment", "recovery"_
-   - Run: `python -m src.main msearch "term1" "term2" "term3"`
+   - Run: `specrag msearch "term1" "term2" "term3"`
 
 3. **Check Processing**:
-   - Verify if documents are listed: `python -m src.main list`
+   - Verify if documents are listed: `specrag list`
    - If doc is missing, ask user to `process` it.
 
 ---
@@ -126,7 +126,7 @@ Results are saved to `process/output/query_YYYYMM_HHMMSS.json`.
 If you find an image that is relevant but hard to find, **add tags** to help future searches.
 
 1. **Analyze**: Look at image `data/extracted_images/xyz.png`.
-2. **Tag**: `python -m src.main addtag <chunk_id> "descriptive-tag-name"`
+2. **Tag**: `specrag addtag <chunk_id> "descriptive-tag-name"`
    - *Example: `addtag HID_p42 "connection-state-machine"`*
 
 ### Processing Priority

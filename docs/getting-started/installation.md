@@ -36,7 +36,7 @@ pip install -r requirements.txt
 ### 4. Khởi Tạo Thư Mục
 
 ```bash
-python -m src.main init
+specrag init
 ```
 
 Output:
@@ -70,10 +70,10 @@ pip install docling
 
 ```bash
 # Xem help
-python -m src.main --help
+specrag --help
 
 # Xem stats (sẽ báo empty nếu chưa có data)
-python -m src.main stats
+specrag stats
 ```
 
 ## Cấu Trúc Thư Mục Sau Cài Đặt

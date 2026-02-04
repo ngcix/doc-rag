@@ -92,5 +92,5 @@ If you don't have Gauss API credentials, you can manually add knowledge and tags
 
 ```bash
 # Add knowledge manually
-python -m src.main addknowledge A2DP_v1.4.1_p14_0 "Detailed description of the image content..."
-
+specrag addknowledge A2DP_v1.4.1_p14_0 "Detailed description of the image content..."
+```

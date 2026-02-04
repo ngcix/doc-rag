@@ -19,7 +19,7 @@ Tags giúp **cải thiện độ chính xác tìm kiếm**. Khi thêm tag:
 ## 1. Xem Tags
 
 ```bash
-python -m src.main listtag HID_v1.1.1.pdf_p30
+specrag listtag HID_v1.1.1.pdf_p30
 ```
 
 Output:
@@ -34,10 +34,10 @@ Tags for HID_v1.1.1.pdf_p30:
 
 ```bash
 # Single word
-python -m src.main addtag HID_v1.1.1.pdf_p30 bluetooth
+specrag addtag HID_v1.1.1.pdf_p30 bluetooth
 
 # Multi-word (cần quotes)
-python -m src.main addtag HID_v1.1.1.pdf_p30 "security diagram"
+specrag addtag HID_v1.1.1.pdf_p30 "security diagram"
 ```
 
 Output:
@@ -59,7 +59,7 @@ Vector embedding updated.
 Chỉ có thể xóa **user-added tags**. Original tags không thể xóa.
 
 ```bash
-python -m src.main removetag HID_v1.1.1.pdf_p30 bluetooth
+specrag removetag HID_v1.1.1.pdf_p30 bluetooth
 ```
 
 Output:
@@ -75,7 +75,7 @@ Vector embedding updated.
 Xóa tất cả user tags, giữ lại original tags.
 
 ```bash
-python -m src.main resettags HID_v1.1.1.pdf_p30
+specrag resettags HID_v1.1.1.pdf_p30
 ```
 
 ## Cách Tag Boosting Hoạt Động
@@ -108,14 +108,14 @@ new_embedding = vectorize_text(content)
 
 ```bash
 # Categorize by topic
-python -m src.main addtag doc_p30 "authentication"
-python -m src.main addtag doc_p45 "security"
+specrag addtag doc_p30 "authentication"
+specrag addtag doc_p45 "security"
 
 # Project labels
-python -m src.main addtag spec.pdf_p12 "project-alpha"
+specrag addtag spec.pdf_p12 "project-alpha"
 
 # Search với tags
-python -m src.main search "project alpha security"
+specrag search "project alpha security"
 ```
 
 ## Original vs User Tags
