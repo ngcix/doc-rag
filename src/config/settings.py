@@ -11,7 +11,7 @@ from typing import Optional
 
 
 # Base paths
-BASE_DIR = Path(__file__).parents[1]
+BASE_DIR = Path(__file__).parents[2]
 DATA_DIR = BASE_DIR / "data"
 DOCUMENTS_DIR = DATA_DIR / "documents"
 INPUT_DOCS_DIR = DOCUMENTS_DIR  # Input documents location (read directly from documents/)

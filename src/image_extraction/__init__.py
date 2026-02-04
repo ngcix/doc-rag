@@ -6,7 +6,7 @@
 # )
 
 # Import config from settings
-from config.settings import ImageExtractionConfig
+from src.config.settings import ImageExtractionConfig
 from src.image_extraction.image_info import ExtractedImage
 import src.image_extraction.extractor as paddle
 import src.image_extraction.docling as docling

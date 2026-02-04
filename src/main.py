@@ -11,11 +11,12 @@ from typing import Optional
 import concurrent.futures
 from tqdm import tqdm
 
-from config import (
+from src.config import(
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
+
 from src.chunking import DocumentChunker, chunk_documents
 from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine, HybridSearchEngine

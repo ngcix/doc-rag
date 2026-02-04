@@ -6,7 +6,7 @@ from .faiss_store import FaissVectorStore, get_faiss_store
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import settings
+from src.config import settings
 
 
 def get_vector_store():
