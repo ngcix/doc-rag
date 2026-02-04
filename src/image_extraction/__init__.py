@@ -10,7 +10,7 @@ from src.config.settings import ImageExtractionConfig
 from src.image_extraction.image_info import ExtractedImage
 import src.image_extraction.extractor as paddle
 import src.image_extraction.docling as docling
-import src.image_extraction.docling_extractor as doclingv1
+# import src.image_extraction.docling_extractor as doclingv1
 
 __all__ = [
     # Image extraction
@@ -25,8 +25,8 @@ def get_image_extractor(mode, force_new: bool = False, image_format: str = None)
         return paddle.get_image_extractor(force_new=force_new, image_format=image_format)
     if mode == "dl":
         return docling.get_image_extractor()
-    if mode == "dl1":
-        return doclingv1.get_image_extractor()
+    # if mode == "dl1":
+    #     return doclingv1.get_image_extractor()
     return None  # Should not happen
 
 def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
