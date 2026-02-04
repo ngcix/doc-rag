@@ -1,4 +1,4 @@
-# Extension Scripts
+# Scripts
 
 This directory contains additional scripts that extend the functionality of the Simple RAG system.
 
