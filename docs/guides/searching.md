@@ -65,7 +65,7 @@ Quy trình tìm kiếm hoàn chỉnh khi sử dụng với AI agent (Cline):
 Tìm kiếm dựa trên **ý nghĩa ngữ nghĩa**, không cần exact match.
 
 ```bash
-python -m src.main search "authentication flow"
+specrag search "authentication flow"
 ```
 
 **Khi nào dùng**:
@@ -78,7 +78,7 @@ python -m src.main search "authentication flow"
 Kết hợp **BM25** (exact match) + **Vector** (semantic).
 
 ```bash
-python -m src.main search -hy "Figure 4.1: Media payload"
+specrag search -hy "Figure 4.1: Media payload"
 ```
 
 **Khi nào dùng**:
@@ -91,7 +91,7 @@ python -m src.main search -hy "Figure 4.1: Media payload"
 Tìm với nhiều queries, merge kết quả bằng **RRF** (Reciprocal Rank Fusion).
 
 ```bash
-python -m src.main msearch "reconnection" "link loss" "timeout recovery"
+specrag msearch "reconnection" "link loss" "timeout recovery"
 ```
 
 **Khi nào dùng**:
@@ -177,10 +177,10 @@ Query: "Figure 4.1"
 Chỉ trả về kết quả là hình ảnh.
 
 ```bash
-python -m src.main search -pic "state machine diagram"
+specrag search -pic "state machine diagram"
 
 # Kết hợp với hybrid
-python -m src.main search -hy -pic "Figure 4.1"
+specrag search -hy -pic "Figure 4.1"
 ```
 
 **Khi nào dùng**:
@@ -203,21 +203,21 @@ python -m src.main search -hy -pic "Figure 4.1"
 
 ```bash
 # Hybrid + image để tìm Figure chính xác
-python -m src.main search -hy -pic "Figure 4.1"
+specrag search -hy -pic "Figure 4.1"
 ```
 
 ### Tìm với nhiều từ khóa
 
 ```bash
 # Multi-query cho topic phức tạp
-python -m src.main msearch "bluetooth pairing" "security" "PIN code"
+specrag msearch "bluetooth pairing" "security" "PIN code"
 ```
 
 ### Tìm nhiều kết quả hơn
 
 ```bash
 # Tăng top-k
-python -m src.main search -k 10 "connection state"
+specrag search -k 10 "connection state"
 ```
 
 ## Output Mẫu

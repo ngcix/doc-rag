@@ -38,9 +38,9 @@ Khi nhận câu hỏi, Agent không tìm kiếm ngay mà sẽ:
 
 Tùy vào loại câu hỏi, Agent sẽ chọn lệnh phù hợp:
 
-- **Câu hỏi thông thường**: `python -m src.main search "query" --top-k 5`
-- **Tìm kiếm hình ảnh/sơ đồ**: `python -m src.main search -pic "diagram name"`
-- **Tìm kiếm chính xác (Hybrid)**: `python -m src.main search -hy "Figure Name"` (Ưu tiên khớp chính xác tên sơ đồ/bảng).
+- **Câu hỏi thông thường**: `specrag search "query" --top-k 5`
+- **Tìm kiếm hình ảnh/sơ đồ**: `specrag search -pic "diagram name"`
+- **Tìm kiếm chính xác (Hybrid)**: `specrag search -hy "Figure Name"` (Ưu tiên khớp chính xác tên sơ đồ/bảng).
 
 #### Bước 3: Đánh giá và Re-rank (Quan trọng)
 
@@ -65,7 +65,7 @@ Agent đọc kết quả từ file JSON trong `process/output/`. Agent **không 
 
 Sử dụng khi hệ thống đã có sẵn các bản phân tích hình ảnh (Knowledge Base).
 
-- **Điểm khác biệt**: Thay vì Agent phải tự mô tả hình ảnh từ đầu, Agent sẽ sử dụng lệnh `python -m src.main getknowledge <chunk_id>`.
+- **Điểm khác biệt**: Thay vì Agent phải tự mô tả hình ảnh từ đầu, Agent sẽ sử dụng lệnh `specrag getknowledge <chunk_id>`.
 - **Lợi ích**: Tiết kiệm tài nguyên xử lý và đảm bảo tính thống nhất trong việc mô tả các sơ đồ phức tạp đã được chuyên gia phê duyệt trước đó.
 
 ---

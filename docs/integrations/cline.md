@@ -18,7 +18,7 @@ SpecRAG được thiết kế để tích hợp với **Cline** (LLM Agent) qua 
 ```
 User → Cline: "Learn this document: specs.pdf"
                     ↓
-Cline → CLI: python -m src.main process -fp
+Cline → CLI: specrag process -fp
                     ↓
            ┌────────┴────────┐
            ↓                 ↓
@@ -35,7 +35,7 @@ Cline → User: "Ingested. I can now search."
 
 **CLI Command**:
 ```bash
-python -m src.main process -fp --input ./docs
+specrag process -fp --input ./docs
 ```
 
 ### Phase 2: RETRIEVAL - Tìm Kiếm
@@ -43,7 +43,7 @@ python -m src.main process -fp --input ./docs
 ```
 User → Cline: "Show me the OAuth diagram"
                     ↓
-Cline → CLI: python -m src.main search -pic "OAuth diagram"
+Cline → CLI: specrag search -pic "OAuth diagram"
                     ↓
             FAISS Similarity Search
                     ↓
@@ -57,13 +57,13 @@ Cline → User: Response với text + images
 **CLI Commands**:
 ```bash
 # Semantic search
-python -m src.main search "authentication flow"
+specrag search "authentication flow"
 
 # Hybrid search (tốt cho exact match)
-python -m src.main search -hy "Figure 4.1"
+specrag search -hy "Figure 4.1"
 
 # Image-only search
-python -m src.main search -pic "state machine"
+specrag search -pic "state machine"
 ```
 
 ### Phase 3: FEEDBACK - Cải Thiện
@@ -73,7 +73,7 @@ User → Cline: "Yes, that's the OAuth flow"
                     ↓
 Cline decides: This image is relevant, tag it
                     ↓
-Cline → CLI: python -m src.main addtag doc_id "oauth"
+Cline → CLI: specrag addtag doc_id "oauth"
                     ↓
             Tag Boost + Re-embedding
                     ↓
@@ -85,10 +85,10 @@ Next search ranks this document higher!
 **CLI Commands**:
 ```bash
 # Add tag
-python -m src.main addtag HID_p42 "oauth"
+specrag addtag HID_p42 "oauth"
 
 # Add knowledge
-python -m src.main addknowledge HID_p42 "OAuth2 flow diagram"
+specrag addknowledge HID_p42 "OAuth2 flow diagram"
 ```
 
 ## Architecture với Cline
@@ -154,30 +154,30 @@ add(new_entry_with_boosted_embedding)
 
 ```bash
 # Nạp specs
-python -m src.main process -fp -i ./bluetooth-specs/
+specrag process -fp -i ./bluetooth-specs/
 
 # Tìm diagrams
-python -m src.main search -pic "connection state machine"
+specrag search -pic "connection state machine"
 
 # Tag kết quả
-python -m src.main addtag result_id "bluetooth-fsm"
+specrag addtag result_id "bluetooth-fsm"
 ```
 
 ### 2. Architecture Analysis
 
 ```bash
 # Search cho architecture
-python -m src.main search "system architecture overview"
+specrag search "system architecture overview"
 
 # Thêm knowledge
-python -m src.main addknowledge arch_p5 "Main system architecture showing microservices"
+specrag addknowledge arch_p5 "Main system architecture showing microservices"
 ```
 
 ### 3. Multi-Query for Complex Questions
 
 ```bash
 # Câu hỏi phức tạp
-python -m src.main msearch "authentication" "security" "token flow"
+specrag msearch "authentication" "security" "token flow"
 ```
 
 ## Best Practices

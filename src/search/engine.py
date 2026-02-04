@@ -10,7 +10,7 @@ import json
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import (
+from src.config import (
     settings, SearchConfig, 
     PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR,
     ensure_directories

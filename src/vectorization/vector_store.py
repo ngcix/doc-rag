@@ -10,7 +10,7 @@ import json
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import settings, VectorDBConfig, ensure_directories
+from src.config import settings, VectorDBConfig, ensure_directories
 
 
 class VectorStore:

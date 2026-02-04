@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import settings, ChunkingConfig
+from src.config import settings, ChunkingConfig
 
 
 class DocumentChunk(BaseModel):

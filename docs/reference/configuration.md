@@ -194,7 +194,7 @@ class ModelConfig(BaseModel):
 
 ```bash
 export RAG_DEVICE=cuda
-python -m src.main process -fp
+specrag process -fp
 ```
 
 ---

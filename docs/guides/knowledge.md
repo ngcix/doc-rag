@@ -21,7 +21,7 @@
 ## 1. Thêm Knowledge
 
 ```bash
-python -m src.main addknowledge HID_p42 "Đây là state machine diagram mô tả 5 trạng thái Bluetooth"
+specrag addknowledge HID_p42 "Đây là state machine diagram mô tả 5 trạng thái Bluetooth"
 ```
 
 Output:
@@ -38,7 +38,7 @@ Knowledge preview: Đây là state machine diagram mô tả 5 trạng thái Blue
 ## 2. Xem Knowledge
 
 ```bash
-python -m src.main getknowledge HID_p42
+specrag getknowledge HID_p42
 ```
 
 Output:
@@ -56,7 +56,7 @@ Transition triggers: user action, timeout, error.
 Thay thế hoàn toàn knowledge hiện tại:
 
 ```bash
-python -m src.main updateknowledge HID_p42 "Mô tả mới hoàn toàn"
+specrag updateknowledge HID_p42 "Mô tả mới hoàn toàn"
 ```
 
 ## Flexible Identifier
@@ -65,10 +65,10 @@ Có thể dùng **chunk_id** hoặc **image_path**:
 
 ```bash
 # Bằng chunk_id
-python -m src.main addknowledge HID_SPEC_V10.pdf_p42 "description"
+specrag addknowledge HID_SPEC_V10.pdf_p42 "description"
 
 # Bằng image path
-python -m src.main addknowledge "data/extracted_images/HID_SPEC_V10.pdf_p42.png" "description"
+specrag addknowledge "data/extracted_images/HID_SPEC_V10.pdf_p42.png" "description"
 ```
 
 ## Cách Knowledge Được Lưu
@@ -134,7 +134,7 @@ updateknowledge "Core_v6_p100" "Đây KHÔNG phải BR/EDR diagram. Đây là BL
 ## Ví Dụ Markdown Knowledge
 
 ```bash
-python -m src.main addknowledge doc_id "
+specrag addknowledge doc_id "
 ## State Machine Overview
 - **States**: IDLE, SCANNING, CONNECTING, CONNECTED, DISCONNECTING
 - **Transitions**: Triggered by user actions, timeouts, or errors

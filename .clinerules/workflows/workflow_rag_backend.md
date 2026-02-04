@@ -61,14 +61,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Use the selected specific question for the search
    - If user chooses to rephrase, wait for their new question
 
-## 2. Environment Setup
-
-**Windows**: Use `.venv\Scripts\python.exe` directly in all commands (no activation needed).
-**Linux/Mac**: Use `.venv/bin/python` directly in all commands (no activation needed).
-
-> **Note**: Avoid using `activate && python` pattern as it may fail to properly set PATH before the second command runs.
-
-## 3. Search Operations
+## 2. Search Operations
 
 **🔍 Search Strategy Decision Tree:**
 
@@ -86,13 +79,13 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 1. **Basic Search** - Use for general semantic queries ONLY:
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search "your query" --top-k 5
+   specrag src.main search "your query" --top-k 5
    ```
 
 2. **Image-Only Search** - Use when looking for diagrams or figures without specific numbers:
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search -pic "diagram or figure name"
+   specrag src.main search -pic "diagram or figure name"
    ```
 
 3. **Hybrid Search** - ⭐ **RECOMMENDED for specific identifiers** ⭐
@@ -104,8 +97,8 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Technical terms requiring exact matching
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search -hy "Table 4.22"
-   .venv\Scripts\python.exe -m src.main search -hy "Figure 4.1: Media Payload"
+   specrag src.main search -hy "Table 4.22"
+   specrag src.main search -hy "Figure 4.1: Media Payload"
    ```
 
    **Why hybrid?** Combines:
@@ -115,11 +108,11 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 4. **Combined Search** - Best for finding specific diagrams by number:
    ```bash
-   .venv\Scripts\python.exe -m src.main search -pic -hy "Figure 3.5: Interrupt Flow"
-   .venv\Scripts\python.exe -m src.main search -pic -hy "Table 4.22"
+   specrag src.main search -pic -hy "Figure 3.5: Interrupt Flow"
+   specrag src.main search -pic -hy "Table 4.22"
    ```
 
-## 4. View and Analyze Results
+## 3. View and Analyze Results
 
 1. Results are saved in `process/output/query_*.json`
 
@@ -131,7 +124,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 3. Use the `read_file` tool to examine the JSON output for detailed results
 
-## 5. Re-rank Results
+## 4. Re-rank Results
 
 **CRITICAL**: Before presenting results, mentally re-rank them based on actual relevance to the user's question.
 
@@ -159,7 +152,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 > **Note**: The vector similarity score measures semantic similarity, not answer quality. A result with 0.75 score may be more useful than one with 0.85 if it better addresses the specific question.
 
-## 6. Describe Images
+## 5. Describe Images
 
 1. ONLY read and describe images when the rank 1 search result has "content_type": "image" in the JSON output
 
@@ -177,7 +170,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Provide a detail description** based on the analysis results
 
-## 7. Present Answer Based on Analysis
+## 6. Present Answer Based on Analysis
 
 1. **Synthesize information** from search results and image analysis:
    - Extract key information from `process/output/query_*.json`
@@ -209,7 +202,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - If top result IS an image → Continue to step 8 (Generate and Add Tags for Images)
    - If top result is NOT an image → Continue to step 9 (Cleanup Query Files)
 
-## 8. Generate and Add Tags for Images
+## 7. Generate and Add Tags for Images
 
 1. **Verify analysis presentation**:
    - Confirm that search results have been displayed to user
@@ -247,10 +240,10 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Add selected tags** using the addtag command with the chunk_id from search results:
    ```bash
-   .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
+   specrag src.main addtag <chunk_id> "selected,tag,option"
    ```
 
-## 9. Cleanup Query Files
+## 8. Cleanup Query Files
 
 1. **Identify query files** in both directories:
    - `process/input/` - Contains query parameter files

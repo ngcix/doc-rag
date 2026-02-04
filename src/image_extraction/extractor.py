@@ -42,7 +42,7 @@ except ModuleNotFoundError:
     langchain.docstore = docstore_module
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from config import settings, ensure_directories, EXTRACTED_IMAGES_DIR, BASE_DIR
+from src.config import settings, ensure_directories, EXTRACTED_IMAGES_DIR, BASE_DIR
 from PIL import Image, ImageOps
 import io
 import numpy as np

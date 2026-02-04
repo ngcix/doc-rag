@@ -11,7 +11,7 @@ Lệnh `process` thực hiện:
 ## Cú Pháp
 
 ```bash
-python -m src.main process [OPTIONS]
+specrag process [OPTIONS]
 ```
 
 ## Options
@@ -31,7 +31,7 @@ python -m src.main process [OPTIONS]
 ### 1. Full-page Mode (`-fp`) - Khuyến nghị
 
 ```bash
-python -m src.main process -fp
+specrag process -fp
 ```
 
 - Capture toàn bộ trang chứa hình ảnh
@@ -41,7 +41,7 @@ python -m src.main process -fp
 ### 2. Docling Mode (`-dl`)
 
 ```bash
-python -m src.main process -dl
+specrag process -dl
 ```
 
 - Sử dụng AI (RT-DETR) để detect layout
@@ -51,7 +51,7 @@ python -m src.main process -dl
 ### 3. Docling Legacy (`-dl1`)
 
 ```bash
-python -m src.main process -dl1
+specrag process -dl1
 ```
 
 - Phiên bản Docling cũ
@@ -63,33 +63,33 @@ python -m src.main process -dl1
 
 ```bash
 # Full-page mode (phổ biến nhất)
-python -m src.main process -fp
+specrag process -fp
 
 # Docling AI mode
-python -m src.main process -dl
+specrag process -dl
 ```
 
 ### Tùy chọn nâng cao
 
 ```bash
 # Custom input directory
-python -m src.main process -fp -i /path/to/docs
+specrag process -fp -i /path/to/docs
 
 # JPEG format (nhỏ hơn PNG)
-python -m src.main process -fp --format jpeg
+specrag process -fp --format jpeg
 
 # Chỉ text, không images
-python -m src.main process --no-images
+specrag process --no-images
 ```
 
 ### Reprocessing
 
 ```bash
 # Xóa data cũ trước khi reprocess
-python -m src.main clean --yes
+specrag clean --yes
 
 # Process lại
-python -m src.main process -fp
+specrag process -fp
 ```
 
 ## Output
