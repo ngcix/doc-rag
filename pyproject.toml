@@ -30,6 +30,7 @@ dependencies = [
 dev = [
     "ruff",
     "pyinstaller",
+    "Cython",
 ]
 test = [
     "pytest>=7.4.0",
