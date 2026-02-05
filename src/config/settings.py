@@ -11,7 +11,12 @@ import sys
 # To use GPU, change device in ModelConfig to "cuda"
 
 
-# Base paths
+# Correct behaviour:
+# Assume cwd is `/home/vancanh-ng/projects/SpecRag`
+# then in these 3 cases, BASE_DIR should be:
+# `specrag` -> `/home/vancanh-ng/projects/SpecRag`
+# `python -m src.main` -> `/home/vancanh-ng/projects/SpecRag`
+# `./dist/specrag/specrag` -> `/home/vancanh-ng/projects/SpecRag/dist/specrag`
 if getattr(sys, "frozen", False):
     # Running as compiled exe
     BASE_DIR = Path(sys.executable).resolve().parent
