@@ -4,7 +4,12 @@ name = "specrag"
 version = "0.2.0"
 description = "A simple RAG system with chunking, vectorization, and semantic search"
 authors = [
-    { name = "Simple RAG", email = "dev@example.com" },
+    { name = "Phùng Đức Vũ", email = "vu.pd@samsung.com" },
+    { name = "Ngô Văn Cảnh", email = "nv.canh@samsung.com" },
+    { name = "Nguyễn Hà Phong", email = "haphong.ng@samsung.com" },
+    { name = "Nguyễn Quang Đoàn", email = "doan.ng@samsung.com" },
+    { name = "Nguyễn Thanh Cương", email = "cuong.nguyen@samsung.com" },
+    { name = "Nguyễn Mạnh Dũng", email = "manhdung.ng@samsung.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.10"
