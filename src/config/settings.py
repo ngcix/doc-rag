@@ -4,6 +4,7 @@ Configuration settings for the RAG system.
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Optional
+import sys
 
 
 # Device detection removed - using CPU by default to avoid torch import overhead
@@ -11,8 +12,12 @@ from typing import Optional
 
 
 # Base paths
-# TODO: use [5] when build and [2] when dev
-BASE_DIR = Path(__file__).parents[2]
+if getattr(sys, "frozen", False):
+    # Running as compiled exe
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    # Running from source
+    BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 DOCUMENTS_DIR = DATA_DIR / "documents"
 INPUT_DOCS_DIR = DOCUMENTS_DIR  # Input documents location (read directly from documents/)
