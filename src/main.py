@@ -1186,19 +1186,25 @@ def get_knowledge(identifier: str):
 
 
 def list_docs():
-    """List all documents in the vector store."""
+    """List source files that have been vectorized."""
     vector_store = get_vector_store()
     try:
         documents = vector_store.list_documents()
-        print(f"Found {len(documents)} documents:")
+        # list_documents returns chunk_id -> source_file; aggregate to files
+        file_counts: dict[str, int] = {}
+        for _, source in documents.items():
+            source = source or "Unknown"
+            file_counts[source] = file_counts.get(source, 0) + 1
+
+        print(f"Found {len(file_counts)} files:")
         print("-" * 50)
         # Limit output if too many
         count = 0
-        for doc_id, source in documents.items():
-            print(f"ID: {doc_id} | Source: {source}")
+        for source, chunk_count in sorted(file_counts.items()):
+            print(f"Source: {source} | Chunks: {chunk_count}")
             count += 1
             if count >= 10000:
-                print(f"... and {len(documents) - 10000} more.")
+                print(f"... and {len(file_counts) - 10000} more.")
                 break
     except Exception as e:
         print(f"Error listing documents: {e}")

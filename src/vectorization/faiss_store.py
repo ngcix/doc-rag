@@ -398,6 +398,13 @@ class FaissVectorStore:
         Returns:
             Dict mapping ID to source file.
         """
+        # If index mappings aren't built yet (lazy rebuild),
+        # fall back to metadata to avoid showing an empty list.
+        if not self._id_to_idx and self._metadata:
+            return {
+                doc_id: meta.get("source_file", "Unknown")
+                for doc_id, meta in self._metadata.items()
+            }
         return {
             doc_id: self._metadata.get(doc_id, {}).get("source_file", "Unknown")
             for doc_id in self._id_to_idx.keys()
