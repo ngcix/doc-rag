@@ -86,9 +86,9 @@ If your initial search returns **0 results** or irrelevant info, **DO NOT give u
    - Example: _"reconnection"_ -> _"link loss", "connection establishment", "recovery"_
    - Run: `specrag msearch "term1" "term2" "term3"`
 
-3. **Check Processing**:
-   - Verify if documents are listed: `specrag list`
-   - If doc is missing, ask user to `process` it.
+<!-- 3. **Check Processing**: -->
+<!--    - Verify if documents are listed: `specrag list` -->
+<!--    - If doc is missing, ask user to `process` it. -->
 
 ---
 
