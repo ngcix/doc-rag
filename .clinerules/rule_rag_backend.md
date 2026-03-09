@@ -23,12 +23,6 @@ Before answering ANY technical question, you **MUST** query the RAG backend to g
 - **ONLY SOURCE OF TRUTH**: You MUST rely **solely** on the JSON output from the `search`/`msearch` commands.
 - **REASON**: Manual scripts break the RAG workflow, lose vector context, and cause hallucinations.
 
-### 🛠️ Environment Rule
-- **ALWAYS** use the python executable in `.venv`:
-  - Windows: `.venv\Scripts\python.exe`
-  - Linux/Mac: `.venv/bin/python`
-- **NEVER** use the system `python` or `python3` command directly unless inside an activated shell.
-
 ---
 
 ## 🧠 Command Decision Matrix
@@ -86,9 +80,9 @@ If your initial search returns **0 results** or irrelevant info, **DO NOT give u
    - Example: _"reconnection"_ -> _"link loss", "connection establishment", "recovery"_
    - Run: `specrag msearch "term1" "term2" "term3"`
 
-3. **Check Processing**:
-   - Verify if documents are listed: `specrag list`
-   - If doc is missing, ask user to `process` it.
+<!-- 3. **Check Processing**: -->
+<!--    - Verify if documents are listed: `specrag list` -->
+<!--    - If doc is missing, ask user to `process` it. -->
 
 ---
 
