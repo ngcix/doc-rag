@@ -49,12 +49,13 @@ def log(message: str = "", newline: bool = True):
     else:
         print(output, end="", flush=True)
 
-def _process_chunking(file_path: Path) -> list:
+def _process_chunking(args) -> list:
     """Helper for parallel chunking."""
+    file_path, mode = args
     try:
         # Re-instantiate chunker in each process to avoid pickling issues
         # or use the convenience function which does it internally
-        return chunk_documents(file_path)
+        return chunk_documents(file_path, pdf_mode=mode)
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
         return []
@@ -95,7 +96,9 @@ def process_documents(
     - Vectorizes content
     - Stores in vector database
     """
-    input_dir = input_dir or DOCUMENTS_DIR
+    # Prefer configured path from setting.json (paths.documents_dir).
+    # Falls back to module constant if not provided.
+    input_dir = input_dir or settings.paths.documents_dir or DOCUMENTS_DIR
     input_dir = Path(input_dir)
     
     backend = settings.vectordb.backend
@@ -146,10 +149,11 @@ def process_documents(
     chunks = []
     if files_to_chunk:
         print(f"  Found {len(files_to_chunk)} files to chunk.")
+        chunk_args = [(p, mode) for p in files_to_chunk]
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # chunk_documents helper fits perfectly here
             results = list(tqdm(
-                executor.map(_process_chunking, files_to_chunk), 
+                executor.map(_process_chunking, chunk_args), 
                 total=len(files_to_chunk), 
                 desc="  Chunking files"
             ))
@@ -1226,8 +1230,8 @@ def main():
     process_parser.add_argument(
         "--input", "-i",
         type=Path,
-        default=DOCUMENTS_DIR,
-        help=f"Input directory (default: {DOCUMENTS_DIR})"
+        default=settings.paths.documents_dir,
+        help=f"Input directory (default from setting.json: {settings.paths.documents_dir})"
     )
     process_parser.add_argument(
         "--no-charts",
@@ -1239,9 +1243,9 @@ def main():
         action="store_true",
         help="Skip image extraction from PDFs"
     )
-    # Image Extraction Strategy
-    # We want to force choice unless --no-images is used.
-    # Since argparse required=True is too strict, we validate manually.
+    # Image extraction mode.
+    # -fp / -dl are mutually exclusive user modes.
+    # -po is an optional backend switch for fullpage mode.
     strategy_group = process_parser.add_mutually_exclusive_group(required=False)
     strategy_group.add_argument(
         "--fullpage", "-fp",
@@ -1253,10 +1257,10 @@ def main():
         action="store_true",
         help="Extract individual images using Docling"
     )
-    strategy_group.add_argument(
-        "--docling1", "-dl1",
+    process_parser.add_argument(
+        "--pdfoxide", "-po",
         action="store_true",
-        help="Extract individual images using Docling old version"
+        help="Use pdf-oxide backend for fullpage extraction (use with -fp)"
     )
     process_parser.add_argument(
         "--format", "-fmt",
@@ -1489,14 +1493,22 @@ def main():
     if args.command == "process":
         # Manual Validation for Strategy
         if not args.no_images:
-            if not (args.fullpage or args.docling or args.docling1):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --docling (-dl) OR --docling1 (-dl1)")
+            # pdf-oxide is a backend option for fullpage mode only
+            if args.pdfoxide and not args.fullpage:
+                parser.error("--pdfoxide (-po) must be used with --fullpage (-fp), e.g. `process -fp -po`")
+
+            if not (args.fullpage or args.docling):
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --docling (-dl)")
+
+            # Docling modes do not support pdf-oxide backend switch
+            if args.pdfoxide and args.docling:
+                parser.error("--pdfoxide (-po) cannot be combined with --docling (-dl)")
                 
         mode = "fp"
         if args.docling:
             mode = "dl"
-        elif args.docling1:
-            mode = "dl1"
+        elif args.fullpage and args.pdfoxide:
+            mode = "po"
         
         process_documents(
             mode,

@@ -363,6 +363,7 @@ class FaissVectorStore:
         self._index = None
         self._metadata = {}
         self._documents = {}
+        self._embeddings = {}
         self._id_to_idx = {}
         self._idx_to_id = {}
         
@@ -376,6 +377,10 @@ class FaissVectorStore:
     
     def count(self) -> int:
         """Get the number of vectors in the index."""
+        # Support lazy-load mode where metadata/embeddings are loaded
+        # before the FAISS index is rebuilt in memory.
+        if self._embeddings:
+            return len(self._embeddings)
         return self._index.ntotal if self._index else 0
     
     def get_stats(self) -> dict:
@@ -386,7 +391,6 @@ class FaissVectorStore:
             "count": self.count(),
             "index_type": self.config.faiss_index_type,
             "dimension": self._dimension,
-            "index_directory": str(self.config.faiss_index_dir),
             "index_directory": str(self.config.faiss_index_dir),
             "distance_metric": self.config.distance_metric
         }

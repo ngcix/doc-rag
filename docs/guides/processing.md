@@ -21,7 +21,6 @@ specrag process [OPTIONS]
 | `--input PATH` | `-i` | Thư mục input (default: `data/documents/`) |
 | `--fullpage` | `-fp` | Full-page image extraction (recommended) |
 | `--docling` | `-dl` | Docling AI extraction |
-| `--docling1` | `-dl1` | Docling legacy |
 | `--format` | `-fmt` | Định dạng ảnh: png/jpeg |
 | `--no-charts` | | Bỏ qua sequence charts |
 | `--no-images` | | Bỏ qua image extraction |
@@ -48,14 +47,14 @@ specrag process -dl
 - Crop chính xác từng figure/table
 - Tốt cho precise extraction
 
-### 3. Docling Legacy (`-dl1`)
+### 3. pdf-oxide Fullpage Backend (`-fp -po`)
 
 ```bash
-specrag process -dl1
+specrag process -fp -po
 ```
 
-- Phiên bản Docling cũ
-- Dùng khi cần tương thích
+- Dùng pdf-oxide để detect nhanh pages có visual content
+- Render fullpage bằng PyMuPDF cho các trang được detect
 
 ## Ví Dụ Sử Dụng
 

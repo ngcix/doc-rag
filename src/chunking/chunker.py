@@ -38,14 +38,16 @@ class DocumentChunker:
     - Semantic chunking (paragraph/sentence aware)
     """
     
-    def __init__(self, config: Optional[ChunkingConfig] = None):
+    def __init__(self, config: Optional[ChunkingConfig] = None, pdf_mode: str = "fp"):
         """
         Initialize the DocumentChunker.
         
         Args:
             config: Chunking configuration. Uses default settings if not provided.
+            pdf_mode: Mode specifying how to extract text from PDF (e.g. 'po' for pdf_oxide).
         """
         self.config = config or settings.chunking
+        self.pdf_mode = pdf_mode
         self._text_splitter = self._create_text_splitter()
     
     def _create_text_splitter(self) -> RecursiveCharacterTextSplitter:
@@ -169,7 +171,27 @@ class DocumentChunker:
                 raise ValueError(f"Unsupported file type: {suffix}")
     
     def _read_pdf(self, file_path: Path) -> str:
-        """Read PDF file content using PyMuPDF (fitz)."""
+        """Read PDF file content."""
+        if getattr(self, "pdf_mode", "fp") == "po":
+            try:
+                import pdf_oxide
+                with open(file_path, "rb") as f:
+                    doc = pdf_oxide.PdfDocument.from_bytes(f.read())
+                
+                text_parts = []
+                for p in range(doc.page_count()):
+                    try:
+                        text = doc.extract_text(p)
+                        if text:
+                            text_parts.append(text)
+                    except Exception as e:
+                        print(f"Error extracting text from page {p} of {file_path} via pdf_oxide: {e}")
+                return "\n\n".join(text_parts)
+            except Exception as e:
+                print(f"pdf_oxide text extraction failed, falling back to PyMuPDF: {e}")
+                # Fallback to PyMuPDF if pdf_oxide fails
+                
+        # Use PyMuPDF as default/fallback
         try:
             import fitz
             doc = fitz.open(str(file_path))
@@ -241,7 +263,8 @@ class DocumentChunker:
 # Convenience function
 def chunk_documents(
     source: str | Path,
-    config: Optional[ChunkingConfig] = None
+    config: Optional[ChunkingConfig] = None,
+    pdf_mode: str = "fp"
 ) -> list[DocumentChunk]:
     """
     Chunk documents from a file or directory.
@@ -249,11 +272,12 @@ def chunk_documents(
     Args:
         source: Path to file or directory.
         config: Optional chunking configuration.
+        pdf_mode: Mode specifying how to extract text from PDF.
         
     Returns:
         List of DocumentChunk objects.
     """
-    chunker = DocumentChunker(config)
+    chunker = DocumentChunker(config, pdf_mode=pdf_mode)
     source_path = Path(source)
     
     if source_path.is_file():

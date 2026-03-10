@@ -41,16 +41,19 @@ specrag process [OPTIONS]
 | `--input` | `-i` | Thư mục input | `data/documents/` |
 | `--fullpage` | `-fp` | Full-page extraction | - |
 | `--docling` | `-dl` | Docling AI extraction | - |
-| `--docling1` | `-dl1` | Docling legacy | - |
+| `--pdfoxide` | `-po` | Dùng backend pdf-oxide cho fullpage mode (phải đi cùng `-fp`) | off |
 | `--format` | `-fmt` | png/jpeg | png |
 | `--no-charts` | | Skip sequence charts | false |
 | `--no-images` | | Skip image extraction | false |
 
-**Lưu ý**: Phải chỉ định `-fp`, `-dl`, hoặc `-dl1` trừ khi dùng `--no-images`.
+**Lưu ý**:
+- Phải chỉ định `-fp` hoặc `-dl` trừ khi dùng `--no-images`.
+- `-po` không phải extraction mode độc lập; đây là backend option cho fullpage mode và phải dùng dạng `-fp -po`.
 
 ```bash
 # Examples
 specrag process -fp
+specrag process -fp -po
 specrag process -dl
 specrag process -fp --format jpeg
 specrag process --no-images

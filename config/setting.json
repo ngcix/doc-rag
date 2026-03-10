@@ -1,0 +1,56 @@
+{
+    "paths": {
+        "database_dir": "D:/tmp/vectordb/",
+        "documents_dir": "./data/documents/"
+    },
+    "chunking": {
+        "chunk_size": 512,
+        "chunk_overlap": 150,
+        "separators": [
+            "\n\n",
+            "\n",
+            ". ",
+            " ",
+            ""
+        ],
+        "length_function": "len"
+    },
+    "model": {
+        "max_seq_length": 8192,
+        "device": "cpu",
+        "normalize_embeddings": true
+    },
+    "vectordb": {
+        "backend": "faiss",
+        "collection_name": "documents",
+        "distance_metric": "cosine",
+        "faiss_index_type": "Flat"
+    },
+    "search": {
+        "top_k": 5,
+        "score_threshold": 0.7,
+        "include_metadata": true
+    },
+    "sequence_chart": {
+        "export_format": "png",
+        "export_quality": 150,
+        "include_description": true
+    },
+    "image_extraction": {
+        "image_format": "png",
+        "min_width": 150,
+        "min_height": 150,
+        "min_brightness": 30.0,
+        "min_std_dev": 15.0,
+        "max_dark_pixel_ratio": 0.85,
+        "extract_tables": true,
+        "extract_figures": true,
+        "context_chars": 2000,
+        "use_ppstructure": false,
+        "ppstructure_max_pages": 20,
+        "cluster_merge_distance": 50,
+        "min_drawing_size": 20,
+        "min_diagram_size": 100,
+        "use_gpu": false
+    }
+}

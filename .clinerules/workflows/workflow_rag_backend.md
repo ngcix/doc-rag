@@ -13,7 +13,7 @@ Expected output: Search results with optional image descriptions and improved ta
 ## Recommended Rule
 
 Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
-**NEVER read file in ./data/documents**
+**NEVER read file in documents directory configured by `config/setting.json` (`paths.documents_dir`)**
 
 ## 1. Question Analysis
 
@@ -23,10 +23,10 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Detect question type (diagram request, factual query, procedural question, document summary, etc.)
    - Check if question relates to documents but doesn't specify which document
 
-2. **Handle Document-Related Questions Without Specific Document**:
+<!-- 2. **Handle Document-Related Questions Without Specific Document**:
    - If question asks for document summary, overview, or general information but doesn't specify which document, check available documents
    - List available documents using: `ls -la data/documents/`
-   - Present available documents to user for selection
+   - Present available documents to user for selection -->
 
 3. **Handle Vague Questions**:
    - If question is too general (e.g., "show me diagram", "what is filter") or not detailed, provide suggestions
@@ -79,13 +79,13 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 1. **Basic Search** - Use for general semantic queries ONLY:
 
    ```bash
-   specrag search "your query" --top-k 5
+   .venv\Scripts\python.exe -m src.main search "your query" --top-k 5
    ```
 
 2. **Image-Only Search** - Use when looking for diagrams or figures without specific numbers:
 
    ```bash
-   specrag search -pic "diagram or figure name"
+   .venv\Scripts\python.exe -m src.main search -pic "diagram or figure name"
    ```
 
 3. **Hybrid Search** - ⭐ **RECOMMENDED for specific identifiers** ⭐
@@ -97,8 +97,8 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Technical terms requiring exact matching
 
    ```bash
-   specrag search -hy "Table 4.22"
-   specrag search -hy "Figure 4.1: Media Payload"
+   .venv\Scripts\python.exe -m src.main search -hy "Table 4.22"
+   .venv\Scripts\python.exe -m src.main search -hy "Figure 4.1: Media Payload"
    ```
 
    **Why hybrid?** Combines:
@@ -108,8 +108,8 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 4. **Combined Search** - Best for finding specific diagrams by number:
    ```bash
-   specrag search -pic -hy "Figure 3.5: Interrupt Flow"
-   specrag search -pic -hy "Table 4.22"
+   .venv\Scripts\python.exe -m src.main search -pic -hy "Figure 3.5: Interrupt Flow"
+   .venv\Scripts\python.exe -m src.main search -pic -hy "Table 4.22"
    ```
 
 ## 3. View and Analyze Results
@@ -240,7 +240,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Add selected tags** using the addtag command with the chunk_id from search results:
    ```bash
-   specrag addtag <chunk_id> "selected,tag,option"
+   .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
    ```
 
 ## 8. Cleanup Query Files

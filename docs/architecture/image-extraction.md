@@ -22,7 +22,6 @@ src/image_extraction/
 |------|---------|--------|-------------|
 | Full-page | `-fp` | `extractor.py` | Capture toàn trang |
 | Docling | `-dl` | `docling/` | AI layout detection |
-| Docling Legacy | `-dl1` | `docling_extractor.py` | Phiên bản cũ |
 
 ## Architecture Diagram
 
@@ -37,8 +36,7 @@ src/image_extraction/
 │  └────────┬─────────┘                                                        │
 │           │                                                                  │
 │           ├── mode="fp" ─────────▶ extractor.py (PyMuPDF)                   │
-│           ├── mode="dl" ─────────▶ docling/extractor.py (RT-DETR)           │
-│           └── mode="dl1" ────────▶ docling_extractor.py (Legacy)            │
+│           └── mode="dl" ─────────▶ docling/extractor.py (RT-DETR)           │
 │                                                                              │
 │           │                                                                  │
 │           ▼                                                                  │

@@ -41,8 +41,9 @@ Collect user evaluation of RAG search results and save to JSON file in the resul
    - Include any supporting evidence or sources cited
    - Preserve formatting and structure of the answer
 
-3. Get document names from /data/documents directory
-   - Use `list_files` to get document names (without reading file contents)
+3. Get document names from configured documents directory in `config/setting.json`
+   - Read `paths.documents_dir` from `config/setting.json`
+   - Use `list_files` on the configured directory (without reading file contents)
    - Store only the filenames, not full paths
    - This provides source document information for feedback context
 

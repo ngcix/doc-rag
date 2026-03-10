@@ -4,6 +4,18 @@
 
 Cấu hình được định nghĩa trong `config/settings.py` sử dụng **Pydantic**.
 
+SpecRAG hỗ trợ override bằng file ngoài code `config/setting.json` (phù hợp cho release):
+
+```json
+{
+    "paths": {
+        "database_dir": "./data"
+    }
+}
+```
+
+`database_dir` có thể là đường dẫn tương đối (so với thư mục chạy ứng dụng) hoặc tuyệt đối.
+
 ```python
 from config import settings
 
@@ -24,6 +36,26 @@ backend = settings.vectordb.backend
 | `MODELS_DIR` | `models/` - Local models |
 | `PROCESS_INPUT_DIR` | `process/input/` - Query logs |
 | `PROCESS_OUTPUT_DIR` | `process/output/` - Result logs |
+
+### Path Override trong `setting.json`
+
+Bạn có thể cấu hình đường dẫn qua section `paths`:
+
+```json
+{
+    "paths": {
+        "database_dir": "./data",
+        "documents_dir": "./data/documents",
+        "extracted_images_dir": "./data/extracted_images",
+        "vectordb_dir": "./data/vectordb",
+        "faiss_index_dir": "./data/faiss_index",
+        "models_dir": "./models",
+        "process_dir": "./process"
+    }
+}
+```
+
+Nếu chỉ cần đổi nơi lưu data, cấu hình tối thiểu là `paths.database_dir`.
 
 ---
 

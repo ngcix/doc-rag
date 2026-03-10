@@ -2,6 +2,7 @@
 from .settings import (
     settings,
     Settings,
+    PathConfig,
     ModelConfig,
     ChunkingConfig,
     VectorDBConfig,
@@ -24,6 +25,7 @@ from .settings import (
 __all__ = [
     "settings",
     "Settings",
+    "PathConfig",
     "ModelConfig",
     "ChunkingConfig",
     "VectorDBConfig",

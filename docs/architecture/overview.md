@@ -41,7 +41,6 @@
 - **Modes**:
   - Full-page (`-fp`): Capture toàn trang
   - Docling (`-dl`): AI layout detection
-  - Docling legacy (`-dl1`)
 - **Features**: Auto-tagging, tag boosting 10x
 
 ### 3. Vectorization (`src/vectorization/`)
