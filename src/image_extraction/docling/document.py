@@ -102,7 +102,7 @@ class MyPage:
                 Label.Caption,
             ]:
                 self._extract_text_from_page_region(item)
-            if item.label == Label.Picture:
+            if item.label in [Label.Picture, Label.Table]:
                 self.picture_list.append(item)
 
     def _extract_text_from_page_region(self, item: MyItem):
@@ -111,7 +111,7 @@ class MyPage:
 
             text_rect = fitz.Rect(x1, y1, x2, y2)
             item.text = self.fitz_page.get_text(clip=text_rect).strip()
-            if item.label != Label.Picture:
+            if item.label not in [Label.Picture, Label.Table]:
                 item.text = item.text.replace("\n", "").strip()
             else:
                 item.text = item.text.replace("\n", ".").strip()
@@ -124,7 +124,7 @@ class MyPage:
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)  # type: ignore
         for i, pic in enumerate(self.picture_list):
             x1, y1, x2, y2 = self._get_scaled_box(pic, image.size)
-            pic.image = image.crop((x1, y1, x2, y2))
+            pic.image = image.crop((x1 - 2, y1 - 2, x2 + 2, y2 + 2))
             image_path = output_dir / f"{file_name}_p{self.page_num}_{i}.png"
             pic.path = image_path.__str__()
             pic.image.save(image_path, "PNG")
@@ -136,7 +136,7 @@ class MyPage:
 
         for item in self.item_list:
             x1, y1, x2, y2 = self._get_scaled_box(item, image.size)
-            color = "red" if item.label == Label.Picture else "blue"
+            color = "red" if item.label in [Label.Picture, Label.Table] else "blue"
             draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
             draw.text((x1, y1 - 12), f"{item.label.name} {item.score}", fill=color)
 
