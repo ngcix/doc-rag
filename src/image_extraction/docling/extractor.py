@@ -42,7 +42,7 @@ class DoclingExtractorV2:
 
         all_items.sort(key=lambda item: (item.page_num, item.box[1], item.box[0]))
         picture_indices = {
-            i: item for i, item in enumerate(all_items) if item.label == Label.Picture
+            i: item for i, item in enumerate(all_items) if item.label in [Label.Picture , Label.Table] 
         }
 
         for pic_idx, pic_item in picture_indices.items():
