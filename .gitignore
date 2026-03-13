@@ -13,7 +13,8 @@ __pycache__/
 *.so
 .Python
 *.egg-info/
-dist/
+dist/*
+!dist/specrag.bat
 build/
 eggs/
 *.egg
