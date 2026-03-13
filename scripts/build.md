@@ -1,8 +1,25 @@
-## Build
+# Build
+
+> [!NOTE]
+> To workaround encrypted documents in windows, we will rename `specrag.exe` to `python.exe`
+>
+> Currently only built successfully on windows.
+> The dependencies for Linux currently is too large (over 7.5G) and we don't know why, so packaging will failed.
 
 The script `setup.py` will compile the packages inside `src` into binary library.
 
-<!-- TODO: unified into a single script -->
+## 0. TLDR
+
+For windows powershell, run these 
+
+```pwsh
+. .venv/scripts/Activate.ps1
+python scripts/setup.py build_ext
+cp -r build/lib.win-amd64-cpython-313/src .venv/Lib/site-packages
+python scripts/build.py
+```
+
+## 1. Setup
 
 ```sh
 python scripts/setup.py build_ext
@@ -35,14 +52,16 @@ The build process includes:
 - Packaging the specrag application
 - Creating a distributable executable
 
+## 3. Test
+
 To run the built executable:
 
 ```sh
 # Windows
-dist/specrag.exe
+dist/specrag/specrag.exe
 
 # Linux/Mac
-./dist/specrag
+./dist/specrag/specrag
 ```
 
 The executable includes everything needed to run the RAG system without requiring a Python installation or virtual environment.
