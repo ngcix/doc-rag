@@ -1,6 +1,6 @@
 {
     "paths": {
-        "database_dir": "D:/tmp/vectordb/",
+        "database_dir": "./data/",
         "documents_dir": "./data/documents/"
     },
     "chunking": {
