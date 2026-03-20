@@ -32,6 +32,7 @@ packages = [
     "transformers",
     "transformers.models",
     "sentence_transformers",
+    "pdf_oxide",
 ]
 
 for pkg in packages:
