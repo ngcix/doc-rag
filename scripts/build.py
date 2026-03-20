@@ -69,6 +69,7 @@ hidden_imports += [
     "src.image_extraction.pymu_extractor",
     "src.image_extraction.image_info",
     "src.image_extraction.extractor",
+    "src.image_extraction.pdf_oxide_extractor",
     "src.image_extraction.docling.__init__",
     "src.image_extraction.docling.model",
     "src.image_extraction.docling.processor",
