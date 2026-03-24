@@ -1,5 +1,5 @@
 import torch
-from config.settings import BASE_DIR
+from src.config.settings import BASE_DIR
 from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
 

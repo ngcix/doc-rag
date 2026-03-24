@@ -3,7 +3,7 @@ from pathlib import Path
 
 from .document import MyDocument, MyItem, Label
 from ..image_info import ExtractedImage
-from config.settings import BASE_DIR
+from src.config.settings import BASE_DIR
 
 class DoclingExtractorV2:
     def __init__(self, debug: bool = False):
