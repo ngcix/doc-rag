@@ -63,7 +63,7 @@ def _process_chunking(args) -> list:
 
 def _process_extraction(args) -> list:
     """Helper for parallel image extraction."""
-    pdf_file, mode, fullpage_mode, image_format = args
+    pdf_file, mode, fullpage_mode, capture_all_pages, image_format = args
     if not pdf_file.exists():
         return []
     
@@ -71,7 +71,11 @@ def _process_extraction(args) -> list:
         extractor = get_image_extractor(mode, force_new=True, image_format=image_format)
         # Avoid print in parallel process or it might get messy, 
         # but for now let's keep it minimal or just return results
-        return extractor.extract_from_file(pdf_file, fullpage_mode=fullpage_mode)
+        return extractor.extract_from_file(
+            pdf_file,
+            fullpage_mode=fullpage_mode,
+            capture_all_pages=capture_all_pages,
+        )
     except Exception as e:
         # print(f"Error extracting images from {pdf_file}: {e}")
         # Return empty list on error
@@ -85,6 +89,7 @@ def process_documents(
     include_charts: bool = True,
     include_images: bool = True,
     fullpage_mode: bool = False,
+    capture_all_pages: bool = False,
     image_format: str = "png"
 ):
     """
@@ -118,7 +123,7 @@ def process_documents(
     
     # Create image extractor with format override if specified
     image_format_override = None
-    if mode == "fp" and image_format and image_format != "png":
+    if fullpage_mode and image_format and image_format != "png":
         image_format_override = image_format
     
     image_extractor = get_image_extractor(mode, force_new=bool(image_format_override), image_format=image_format_override)
@@ -181,7 +186,10 @@ def process_documents(
         pdf_files = list(input_dir.glob("**/*.pdf"))
         
         if pdf_files:
-            extract_args = [(p, mode, fullpage_mode, image_format_override) for p in pdf_files]
+            extract_args = [
+                (p, mode, fullpage_mode, capture_all_pages, image_format_override)
+                for p in pdf_files
+            ]
             
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 results = list(tqdm(
@@ -1253,6 +1261,11 @@ def main():
         help="Capture full pages as images (Context-rich, best for RAG)"
     )
     strategy_group.add_argument(
+        "--fullpage-all", "-fpa",
+        action="store_true",
+        help="Capture all PDF pages as full-page images without checking for images/tables first"
+    )
+    strategy_group.add_argument(
         "--docling", "-dl",
         action="store_true",
         help="Extract individual images using Docling"
@@ -1494,11 +1507,14 @@ def main():
         # Manual Validation for Strategy
         if not args.no_images:
             # pdf-oxide is a backend option for fullpage mode only
-            if args.pdfoxide and not args.fullpage:
+            if args.pdfoxide and not (args.fullpage or args.fullpage_all):
                 parser.error("--pdfoxide (-po) must be used with --fullpage (-fp), e.g. `process -fp -po`")
 
-            if not (args.fullpage or args.docling):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --docling (-dl)")
+            if args.pdfoxide and args.fullpage_all:
+                parser.error("--pdfoxide (-po) cannot be combined with --fullpage-all (-fpa) because -fpa already captures all pages")
+
+            if not (args.fullpage or args.fullpage_all or args.docling):
+                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --fullpage-all (-fpa) OR --docling (-dl)")
 
             # Docling modes do not support pdf-oxide backend switch
             if args.pdfoxide and args.docling:
@@ -1507,7 +1523,7 @@ def main():
         mode = "fp"
         if args.docling:
             mode = "dl"
-        elif args.fullpage and args.pdfoxide:
+        elif (args.fullpage or args.fullpage_all) and args.pdfoxide:
             mode = "po"
         
         process_documents(
@@ -1515,7 +1531,8 @@ def main():
             input_dir=args.input,
             include_charts=not args.no_charts,
             include_images=not args.no_images,
-            fullpage_mode=args.fullpage,
+            fullpage_mode=args.fullpage or args.fullpage_all,
+            capture_all_pages=args.fullpage_all,
             image_format=args.format
         )
     

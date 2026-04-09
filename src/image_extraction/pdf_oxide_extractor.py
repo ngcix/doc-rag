@@ -104,14 +104,21 @@ class PdfOxideExtractor:
         return tags
 
     def extract_from_file(
-        self, file_path: Path, fullpage_mode: bool = False
+        self,
+        file_path: Path,
+        fullpage_mode: bool = False,
+        capture_all_pages: bool = False,
     ) -> List[ExtractedImage]:
         """Extract images from a file (PDF only)."""
         file_path = Path(file_path)
         suffix = file_path.suffix.lower()
 
         if suffix == ".pdf":
-            return self.extract_from_pdf(file_path, fullpage_mode)
+            return self.extract_from_pdf(
+                file_path,
+                fullpage_mode=fullpage_mode,
+                capture_all_pages=capture_all_pages,
+            )
         else:
             print(f"Unsupported file type for pdf_oxide: {suffix}")
             return []
@@ -217,7 +224,12 @@ class PdfOxideExtractor:
 
         return False
 
-    def extract_from_pdf(self, pdf_path: Path, fullpage_mode: bool = False) -> List[ExtractedImage]:
+    def extract_from_pdf(
+        self,
+        pdf_path: Path,
+        fullpage_mode: bool = False,
+        capture_all_pages: bool = False,
+    ) -> List[ExtractedImage]:
         """
         Extract images from a PDF file using hybrid pdf_oxide + PyMuPDF approach.
         
@@ -243,6 +255,14 @@ class PdfOxideExtractor:
         
         for page_num in range(page_count):
             try:
+                if capture_all_pages:
+                    pages_with_visual.append(page_num)
+                    try:
+                        page_texts[page_num] = po_doc.extract_text(page_num)
+                    except Exception:
+                        page_texts[page_num] = ""
+                    continue
+
                 # Get page dimensions
                 media_box = po_doc.page_media_box(page_num)
                 # media_box = (x_min, y_min, width, height)
@@ -260,7 +280,10 @@ class PdfOxideExtractor:
             except Exception as e:
                 print(f"  Error scanning page {page_num + 1}: {e}")
 
-        print(f"  Detected {len(pages_with_visual)}/{page_count} pages with visual content")
+        if capture_all_pages:
+            print(f"  Selected all {len(pages_with_visual)}/{page_count} pages for full-page capture")
+        else:
+            print(f"  Detected {len(pages_with_visual)}/{page_count} pages with visual content")
 
         if not pages_with_visual:
             return []

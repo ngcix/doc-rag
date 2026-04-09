@@ -212,7 +212,10 @@ class ImageExtractor:
             )
 
     def extract_from_file(
-        self, file_path: Path, fullpage_mode: bool = False
+        self,
+        file_path: Path,
+        fullpage_mode: bool = False,
+        capture_all_pages: bool = False,
     ) -> list[ExtractedImage]:
         """
         Extract images from a file (PDF or Image).
@@ -229,7 +232,10 @@ class ImageExtractor:
 
         if suffix == ".pdf":
             if fullpage_mode:
-                return self._extract_fullpage_from_pdf(file_path)
+                return self._extract_fullpage_from_pdf(
+                    file_path,
+                    capture_all_pages=capture_all_pages,
+                )
             else:
                 return self.extract_from_pdf(file_path)
         elif suffix in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
@@ -266,7 +272,11 @@ class ImageExtractor:
         # Unique tags
         return ",".join(list(set(tags)))
 
-    def _extract_fullpage_from_pdf(self, pdf_path: Path) -> list[ExtractedImage]:
+    def _extract_fullpage_from_pdf(
+        self,
+        pdf_path: Path,
+        capture_all_pages: bool = False,
+    ) -> list[ExtractedImage]:
         """
         Extract full pages as images from PDF.
         """
@@ -281,107 +291,107 @@ class ImageExtractor:
             for page_num in range(len(doc)):
                 page = doc[page_num]
 
-                # Check if page has images
-                has_images = False
-                headers_detected = False
-                
-                # Calculate page area for relative size filtering (5% threshold)
-                page_rect = page.rect
-                page_area = page_rect.width * page_rect.height
-                min_image_area = page_area * 0.05  # 5% of page
+                if not capture_all_pages:
+                    # Check if page has images
+                    has_images = False
 
-                # Check for embedded images
-                image_list = page.get_images(full=True)
-                for img in image_list:
-                    try:
-                        xref = img[0]
-                        pix_check = fitz.Pixmap(doc, xref)
-                        image_area = pix_check.width * pix_check.height
-                        
-                        # Filter: must meet minimum dimensions AND 5% of page area
-                        if (
-                            pix_check.width >= self.min_width
-                            and pix_check.height >= self.min_height
-                            and image_area >= min_image_area
-                        ):
-                            has_images = True
+                    # Calculate page area for relative size filtering (5% threshold)
+                    page_rect = page.rect
+                    page_area = page_rect.width * page_rect.height
+                    min_image_area = page_area * 0.05  # 5% of page
+
+                    # Check for embedded images
+                    image_list = page.get_images(full=True)
+                    for img in image_list:
+                        try:
+                            xref = img[0]
+                            pix_check = fitz.Pixmap(doc, xref)
+                            image_area = pix_check.width * pix_check.height
+
+                            # Filter: must meet minimum dimensions AND 5% of page area
+                            if (
+                                pix_check.width >= self.min_width
+                                and pix_check.height >= self.min_height
+                                and image_area >= min_image_area
+                            ):
+                                has_images = True
+                                pix_check = None
+                                break
                             pix_check = None
-                            break
-                        pix_check = None
-                    except:
-                        continue
+                        except Exception:
+                            continue
 
-                # If no embedded images, check for drawings if configured
-                if not has_images and self.extract_figures:
-                    drawings = page.get_drawings()
-                    max_drawing_area = page_area * 0.50  # Exclude full-page frames/borders
-                    
-                    # Calculate COMBINED area of meaningful drawings
-                    total_content_area = 0
-                    
-                    for d in drawings:
-                        rect = d["rect"]
-                        drawing_area = rect.width * rect.height
-                        
-                        # Skip light-colored solid rectangles (background boxes/headers)
-                        fill = d.get("fill")
-                        if fill and len(d.get("items", [])) == 1:
-                            item_type = d.get("items", [[""]])[0][0]
-                            if item_type == "re":
-                                brightness = sum(fill) / len(fill) if fill else 0
-                                if brightness > 0.85:
-                                    continue
-                        
-                        # Skip trivially small elements
-                        if rect.width < self.min_drawing_size or rect.height < self.min_drawing_size:
-                            continue
-                        
-                        # Skip full-page frames
-                        if drawing_area > max_drawing_area:
-                            continue
-                        
-                        # Add to combined area
-                        total_content_area += drawing_area
-                    
-                    # Check if COMBINED area is significant (2% of page)
-                    if total_content_area >= page_area * 0.02:
-                        has_images = True
-                
-                # Secondary check: page contains Figure/Table captions
-                if not has_images:
-                    text = page.get_text().lower()
-                    # Check for figure/table caption patterns
-                    import re
-                    figure_patterns = [
-                        r'figure\s+\d+',      # Figure 1, Figure 12
-                        r'fig\.\s*\d+',       # Fig. 1, Fig.12
-                        r'table\s+\d+',       # Table 1
-                        r'hình\s+\d+',        # Vietnamese: Hình 1
-                        r'bảng\s+\d+',        # Vietnamese: Bảng 1
-                        r'error\s+id',        # Error ID column (for error code tables)
-                        r'0x[0-9a-f]{2}',     # Hex error codes like 0xD2
-                        r'signaling\s+command',  # Column header in spec tables
-                    ]
-                    for pattern in figure_patterns:
-                        if re.search(pattern, text):
+                    # If no embedded images, check for drawings if configured
+                    if not has_images and self.extract_figures:
+                        drawings = page.get_drawings()
+                        max_drawing_area = page_area * 0.50  # Exclude full-page frames/borders
+
+                        # Calculate COMBINED area of meaningful drawings
+                        total_content_area = 0
+
+                        for d in drawings:
+                            rect = d["rect"]
+                            drawing_area = rect.width * rect.height
+
+                            # Skip light-colored solid rectangles (background boxes/headers)
+                            fill = d.get("fill")
+                            if fill and len(d.get("items", [])) == 1:
+                                item_type = d.get("items", [[""]])[0][0]
+                                if item_type == "re":
+                                    brightness = sum(fill) / len(fill) if fill else 0
+                                    if brightness > 0.85:
+                                        continue
+
+                            # Skip trivially small elements
+                            if rect.width < self.min_drawing_size or rect.height < self.min_drawing_size:
+                                continue
+
+                            # Skip full-page frames
+                            if drawing_area > max_drawing_area:
+                                continue
+
+                            # Add to combined area
+                            total_content_area += drawing_area
+
+                        # Check if COMBINED area is significant (2% of page)
+                        if total_content_area >= page_area * 0.02:
                             has_images = True
-                            break
-                
-                # Tertiary check: detect table structure by line count
-                if not has_images and self.extract_tables:
-                    drawings = page.get_drawings()
-                    line_count = 0
-                    for d in drawings:
-                        items = d.get("items", [])
-                        for item in items:
-                            if item[0] in ("l", "re"):  # line or rectangle
-                                line_count += 1
-                    # If many lines/rectangles, likely a table
-                    if line_count > 50:
-                        has_images = True
 
-                if not has_images:
-                    continue
+                    # Secondary check: page contains Figure/Table captions
+                    if not has_images:
+                        text = page.get_text().lower()
+                        # Check for figure/table caption patterns
+                        import re
+                        figure_patterns = [
+                            r'figure\s+\d+',      # Figure 1, Figure 12
+                            r'fig\.\s*\d+',       # Fig. 1, Fig.12
+                            r'table\s+\d+',       # Table 1
+                            r'hình\s+\d+',        # Vietnamese: Hình 1
+                            r'bảng\s+\d+',        # Vietnamese: Bảng 1
+                            r'error\s+id',        # Error ID column (for error code tables)
+                            r'0x[0-9a-f]{2}',     # Hex error codes like 0xD2
+                            r'signaling\s+command',  # Column header in spec tables
+                        ]
+                        for pattern in figure_patterns:
+                            if re.search(pattern, text):
+                                has_images = True
+                                break
+
+                    # Tertiary check: detect table structure by line count
+                    if not has_images and self.extract_tables:
+                        drawings = page.get_drawings()
+                        line_count = 0
+                        for d in drawings:
+                            items = d.get("items", [])
+                            for item in items:
+                                if item[0] in ("l", "re"):  # line or rectangle
+                                    line_count += 1
+                        # If many lines/rectangles, likely a table
+                        if line_count > 50:
+                            has_images = True
+
+                    if not has_images:
+                        continue
 
                 # Render full page
                 pix = page.get_pixmap(dpi=150)
@@ -1401,4 +1411,3 @@ def get_image_extractor(force_new: bool = False, image_format: str = None) -> Im
     if _extractor is None or force_new:
         _extractor = ImageExtractor(image_format_override=image_format)
     return _extractor
-
