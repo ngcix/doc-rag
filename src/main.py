@@ -22,6 +22,7 @@ from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine, HybridSearchEngine
 from src.sequence_chart import get_chart_processor
 from src.image_extraction import get_image_extractor, get_vectorization_data
+from src.path_resolver import display_chunk_id, paths_refer_to_same_file
 
 
 def _format_duration(seconds: float) -> str:
@@ -713,6 +714,7 @@ def add_tag(doc_id: str, tag: str):
     """
     # Normalize doc_id (strip image extension if present)
     doc_id = _normalize_doc_id(doc_id)
+    doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
     vector_store = get_vector_store()
@@ -799,6 +801,7 @@ def remove_tag(doc_id: str, tag: str):
     """
     # Normalize doc_id (strip image extension if present)
     doc_id = _normalize_doc_id(doc_id)
+    doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
     vector_store = get_vector_store()
@@ -886,6 +889,7 @@ def reset_tags(doc_id: str):
     """
     # Normalize doc_id (strip image extension if present)
     doc_id = _normalize_doc_id(doc_id)
+    doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
     vector_store = get_vector_store()
@@ -956,6 +960,7 @@ def list_tags(doc_id: str):
     """
     # Normalize doc_id (strip image extension if present)
     doc_id = _normalize_doc_id(doc_id)
+    doc_id = resolve_chunk_id(doc_id)
     
     vector_store = get_vector_store()
     
@@ -995,6 +1000,11 @@ def resolve_chunk_id(identifier: str) -> str:
     metadata = vector_store.get_metadata(identifier)
     if metadata:
         return identifier
+
+    all_docs = vector_store.list_documents()
+    for doc_id in all_docs.keys():
+        if display_chunk_id(doc_id) == identifier:
+            return doc_id
     
     # If not found, try to find by image_path in metadata
     # This is a fallback for when user provides image path instead of chunk_id
@@ -1002,14 +1012,12 @@ def resolve_chunk_id(identifier: str) -> str:
     identifier_path = Path(identifier).name  # Get just filename
     
     # Search through all documents to find matching image_path
-    all_docs = vector_store.list_documents()
     for doc_id in all_docs.keys():
         doc_metadata = vector_store.get_metadata(doc_id)
         if doc_metadata:
             img_path = doc_metadata.get("image_path", "")
             if img_path:
-                # Match by filename or full path
-                if Path(img_path).name == identifier_path or img_path == identifier:
+                if paths_refer_to_same_file(img_path, identifier, image=True) or Path(img_path).name == identifier_path:
                     return doc_id
     
     # Return original if no match found

@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import RAG system functions
 from src.main import add_knowledge
+from src.config import EXTRACTED_IMAGES_DIR
 
 # Gauss API Configuration
 GAUSS_CLIENT_KEY = os.environ.get("GAUSS_CLIENT_KEY")
@@ -357,8 +358,8 @@ def main():
     )
     parser.add_argument(
         "--images-dir", 
-        default="data/extracted_images",
-        help="Directory containing extracted images (default: data/extracted_images)"
+        default=str(EXTRACTED_IMAGES_DIR),
+        help=f"Directory containing extracted images (default: {EXTRACTED_IMAGES_DIR})"
     )
     parser.add_argument(
         "--dry-run", 

@@ -15,6 +15,7 @@ from src.config import (
     PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR,
     ensure_directories
 )
+from src.path_resolver import display_chunk_id, normalize_metadata_paths
 from src.vectorization import get_vectorizer, get_vector_store
 
 
@@ -32,8 +33,8 @@ class SearchResult:
         self.rank = rank
         self.document = document
         self.similarity = similarity
-        self.metadata = metadata
-        self.chunk_id = chunk_id
+        self.metadata = normalize_metadata_paths(metadata)
+        self.chunk_id = display_chunk_id(chunk_id)
     
     def to_dict(self) -> dict:
         return {

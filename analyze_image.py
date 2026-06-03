@@ -9,10 +9,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from src.cli_output import configure_cli_output
+    from src.path_resolver import resolve_image_path
 
     configure_cli_output()
 except Exception:
-    pass
+    resolve_image_path = None
 
 GAUSS_CLIENT_KEY = os.environ.get("GAUSS_CLIENT_KEY")
 GAUSS_TOKEN = os.environ.get("GAUSS_TOKEN")
@@ -97,6 +98,8 @@ def main():
 
     # Convert string path to Path object
     image_path = Path(args.image_path)
+    if resolve_image_path is not None:
+        image_path = resolve_image_path(image_path) or image_path
     
     # Check if image file exists
     if not image_path.exists():

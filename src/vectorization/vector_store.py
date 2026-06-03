@@ -11,6 +11,7 @@ import json
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.config import settings, VectorDBConfig, ensure_directories
+from src.path_resolver import normalize_metadata_paths
 
 
 class VectorStore:
@@ -303,7 +304,7 @@ class VectorStore:
             ids = result["ids"]
             metadatas = result["metadatas"]
             for doc_id, meta in zip(ids, metadatas):
-                docs[doc_id] = meta.get("source_file", "Unknown") if meta else "Unknown"
+                docs[doc_id] = normalize_metadata_paths(meta).get("source_file", "Unknown") if meta else "Unknown"
         return docs
 
 

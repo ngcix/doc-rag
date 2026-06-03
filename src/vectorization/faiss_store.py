@@ -14,6 +14,7 @@ import json
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.config import settings, VectorDBConfig, ensure_directories
+from src.path_resolver import normalize_metadata_paths
 
 
 class FaissVectorStore:
@@ -406,11 +407,11 @@ class FaissVectorStore:
         # fall back to metadata to avoid showing an empty list.
         if not self._id_to_idx and self._metadata:
             return {
-                doc_id: meta.get("source_file", "Unknown")
+                doc_id: normalize_metadata_paths(meta).get("source_file", "Unknown")
                 for doc_id, meta in self._metadata.items()
             }
         return {
-            doc_id: self._metadata.get(doc_id, {}).get("source_file", "Unknown")
+            doc_id: normalize_metadata_paths(self._metadata.get(doc_id, {})).get("source_file", "Unknown")
             for doc_id in self._id_to_idx.keys()
         }
 
