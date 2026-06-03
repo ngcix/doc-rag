@@ -7,6 +7,13 @@ import sys
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+try:
+    from src.cli_output import configure_cli_output
+
+    configure_cli_output()
+except Exception:
+    pass
+
 GAUSS_CLIENT_KEY = os.environ.get("GAUSS_CLIENT_KEY")
 GAUSS_TOKEN = os.environ.get("GAUSS_TOKEN")
 GAUSS_ENDPOINT_URL = os.environ.get("GAUSS_ENDPOINT_URL")

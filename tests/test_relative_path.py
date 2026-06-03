@@ -33,11 +33,11 @@ print()
 # Test 2: Verify format
 expected = "data/extracted_images/A2DP_v1.4-1.pdf_p17.png"
 if relative == expected:
-    print("✓ Test PASSED: Path format is correct!")
+    print("[OK] Test PASSED: Path format is correct!")
     print(f"  Expected: {expected}")
     print(f"  Got:      {relative}")
 else:
-    print("✗ Test FAILED: Path format is incorrect!")
+    print("[ERROR] Test FAILED: Path format is incorrect!")
     print(f"  Expected: {expected}")
     print(f"  Got:      {relative}")
 

@@ -25,7 +25,7 @@ for i, m in enumerate(metas):
             'content_preview': docs[i][:200] if i < len(docs) else ''
         })
 
-print(f"=== Tìm thấy {len(page29_items)} items từ trang 29 ===\n")
+print(f"=== Found {len(page29_items)} items from page 29 ===\n")
 
 for item in page29_items[:15]:
     print(f"ID: {item['id']}")
@@ -35,7 +35,7 @@ for item in page29_items[:15]:
     print("-" * 60)
 
 # Search for "Table 4.22" in content
-print("\n=== Tìm kiếm 'Table 4.22' trong các documents ===\n")
+print("\n=== Searching for 'Table 4.22' in documents ===\n")
 table_found = []
 for i, doc in enumerate(docs):
     if 'table 4.22' in doc.lower():
@@ -47,7 +47,7 @@ for i, doc in enumerate(docs):
         })
 
 if table_found:
-    print(f"Tìm thấy {len(table_found)} documents chứa 'Table 4.22':\n")
+    print(f"Found {len(table_found)} documents containing 'Table 4.22':\n")
     for t in table_found:
         print(f"ID: {t['id']}")
         print(f"Page: {t['page']}")
@@ -55,8 +55,8 @@ if table_found:
         print(f"Content: {t['content']}")
         print("-" * 60)
 else:
-    print("KHÔNG tìm thấy 'Table 4.22' trong database!")
-    print("\nĐiều này có nghĩa:")
-    print("1. Trang 29 chưa được extract")
-    print("2. Hoặc bảng này là ảnh và chưa được extract bằng fullpage mode")
-    print("3. Hoặc text extraction không đọc được text trong bảng")
+    print("Could not find 'Table 4.22' in database!")
+    print("\nThis means:")
+    print("1. Page 29 has not been extracted")
+    print("2. Or this table is an image and was not extracted with fullpage mode")
+    print("3. Or text extraction could not read table text")

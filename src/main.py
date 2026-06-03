@@ -627,9 +627,9 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
                         item.unlink()
                     elif item.is_dir():
                         shutil.rmtree(item)
-                print(f"  ✓ Cleaned {name}")
+                print(f"  [OK] Cleaned {name}")
             except Exception as e:
-                print(f"  ✗ Error cleaning {name}: {e}")
+                print(f"  [ERROR] Error cleaning {name}: {e}")
         else:
             print(f"  - {name} not exists, skipped")
     
@@ -872,7 +872,7 @@ def remove_tag(doc_id: str, tag: str):
         print(f"  User tags:     {new_user_tags or '(none)'}")
         print(f"  Combined:      {new_combined_tags or '(none)'}")
         print("Vector embedding updated.")
-        print(f"\n⏱️  Time Report:")
+        print("\n[TIME] Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
         
@@ -942,7 +942,7 @@ def reset_tags(doc_id: str):
         print(f"  Removed user tags: {user_tags}")
         print(f"  Restored to:       {original_tags or '(none)'}")
         print("Vector embedding updated.")
-        print(f"\n⏱️  Time Report:")
+        print("\n[TIME] Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
         
@@ -1080,7 +1080,7 @@ def add_knowledge(identifier: str, knowledge_text: str):
         
         print(f"Successfully added knowledge to document '{doc_id}'")
         print(f"Knowledge preview: {knowledge_text[:100]}...")
-        print(f"\n⏱️  Time Report:")
+        print("\n[TIME] Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
         
@@ -1156,7 +1156,7 @@ def update_knowledge(identifier: str, knowledge_text: str):
         
         print(f"Successfully updated knowledge for document '{doc_id}'")
         print(f"New knowledge: {knowledge_text[:100]}...")
-        print(f"\n⏱️  Time Report:")
+        print("\n[TIME] Time Report:")
         print(f"  Embedding:  {_format_duration(embedding_time)}")
         print(f"  Total:      {_format_duration(total_time)}")
         

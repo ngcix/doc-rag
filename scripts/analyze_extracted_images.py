@@ -197,20 +197,20 @@ Provide only factual descriptions of what is visible in the image.
     analysis_time = time.time() - analysis_start
     
     if "error" in analysis_result:
-        print(f"  ❌ Failed to analyze image: {analysis_result['error']}")
+        print(f"  [ERROR] Failed to analyze image: {analysis_result['error']}")
         return False, time.time() - start_time
 
     # Extract only the content part from analysis result
     analysis_text = extract_content_from_response(analysis_result)
 
     if not analysis_text:
-        print("  ❌ No analysis text received")
+        print("  [ERROR] No analysis text received")
         # Active cleanup
         if 'analysis_result' in locals():
             del analysis_result
         return False, time.time() - start_time
 
-    print(f"  Phân tích ảnh (thời gian: {analysis_time:.2f}s): {analysis_text[:200]}...")
+    print(f"  Image analysis ({analysis_time:.2f}s): {analysis_text[:200]}...")
 
     # Step 2: Add knowledge to RAG system (only content part)
     chunk_id = get_chunk_id_from_image_path(image_path)
@@ -220,7 +220,7 @@ Provide only factual descriptions of what is visible in the image.
         # Only add the analysis content without additional metadata
         add_knowledge(chunk_id, analysis_text)
     except Exception as e:
-        print(f"  ❌ Failed to add knowledge: {e}")
+        print(f"  [ERROR] Failed to add knowledge: {e}")
         # Active cleanup
         if 'analysis_result' in locals():
             del analysis_result
@@ -323,12 +323,12 @@ def process_all_images(images_dir: Path, dry_run: bool = False, limit: Optional[
                 
                 # Warning if memory usage is too high
                 if memory_increase > 500:  # 500MB threshold
-                    print(f"  ⚠️  Warning: High memory usage detected ({memory_increase:.2f} MB)")
+                    print(f"  [WARN] High memory usage detected ({memory_increase:.2f} MB)")
                 
         except Exception as e:
             if not dry_run:
                 print(f"[{i}/{len(image_files)}] Processing {image_path.name}")
-            print(f"  ❌ Unexpected error processing {image_path.name}: {e}")
+            print(f"  [ERROR] Unexpected error processing {image_path.name}: {e}")
             failed += 1
 
     total_time = time.time() - start_time

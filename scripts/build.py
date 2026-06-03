@@ -1,8 +1,17 @@
 # build.py
-import PyInstaller.__main__
 import time
 import os
+import sys
 from datetime import timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.cli_output import configure_cli_output
+
+configure_cli_output()
+
+import PyInstaller.__main__
 from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_data_files
 
 start_time = time.perf_counter()
@@ -60,6 +69,7 @@ hidden_imports += collect_submodules("transformers")
 
 hidden_imports += [
     "src",
+    "src.cli_output",
     "src.main",
     "src.chunking",
     "src.chunking.__init__",
