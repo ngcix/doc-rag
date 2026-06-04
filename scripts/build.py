@@ -90,7 +90,7 @@ hidden_imports += [
     "src.sequence_chart.__init__",
     "src.sequence_chart.processor",
     "src.vectorization",
-    "src.vectorization.__init",
+    "src.vectorization.__init__",
     "src.vectorization.vector_store",
     "src.vectorization.faiss_store",
     "src.vectorization.vectorizer",
