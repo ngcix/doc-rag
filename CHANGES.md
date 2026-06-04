@@ -5,14 +5,17 @@
 - Auto-tune processing workers and embedding threads from available CPU resources.
 - Add performance config for target CPU utilization, reserved threads, worker count, and embedding batch size.
 - Add CLI overrides for processing workers, embedding threads, and embedding batch size.
-- Lazy-load image extraction backends so full-page processing does not import unused heavy dependencies.
+- Simplify image extraction to a single PyMuPDF full-page backend.
+- Remove Docling extraction mode, PP-Structure/cropped-image code paths, and related configuration.
+- Remove pdf-oxide backend and dependency so PDF processing uses PyMuPDF consistently.
+- Remove the `--fullpage-all` / `-fpa` process option.
 
 ## v0.3.0
 
 - Add portable path rebasing for copied databases and documents directories.
 - Resolve image paths against the current `database_dir` so `search -pic` results can be analyzed after moving data.
 - Normalize CLI logs for legacy Windows console encodings.
-- Add full-page-all processing mode and pdf_oxide extraction support.
+- Add full-page-all processing mode.
 - Improve packaged CLI/build support.
 
 ## v0.2.0

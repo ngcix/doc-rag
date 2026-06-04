@@ -92,7 +92,7 @@
 | **Vector DB**       | FAISS (IndexFlatIP, cosine similarity)      |
 | **Search**          | Semantic + BM25 Hybrid + Multi-Query RRF    |
 | **PDF Processing**  | PyMuPDF (fitz)                              |
-| **Layout Analysis** | Docling (RT-DETR model)                     |
+| **Image Extraction** | PyMuPDF full-page rendering                 |
 | **Text Splitting**  | LangChain RecursiveCharacterTextSplitter    |
 | **Config**          | Pydantic v2                                 |
 

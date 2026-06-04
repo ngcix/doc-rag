@@ -20,7 +20,6 @@ specrag process [OPTIONS]
 |--------|----------|-------|
 | `--input PATH` | `-i` | Thư mục input (default: `data/documents/`) |
 | `--fullpage` | `-fp` | Full-page image extraction (recommended) |
-| `--docling` | `-dl` | Docling AI extraction |
 | `--format` | `-fmt` | Định dạng ảnh: png/jpeg |
 | `--workers` | `-w` | Số worker song song cho chunking/extraction (`auto` hoặc số) |
 | `--embedding-threads` | | Số CPU threads cho vectorization (`auto` hoặc số) |
@@ -28,9 +27,9 @@ specrag process [OPTIONS]
 | `--no-charts` | | Bỏ qua sequence charts |
 | `--no-images` | | Bỏ qua image extraction |
 
-## Image Extraction Modes
+## Image Extraction Mode
 
-### 1. Full-page Mode (`-fp`) - Khuyến nghị
+### Full-page Mode (`-fp`) - Khuyến nghị
 
 ```bash
 specrag process -fp
@@ -40,25 +39,6 @@ specrag process -fp
 - Context đầy đủ (10K chars)
 - Tốt cho RAG, architecture diagrams
 
-### 2. Docling Mode (`-dl`)
-
-```bash
-specrag process -dl
-```
-
-- Sử dụng AI (RT-DETR) để detect layout
-- Crop chính xác từng figure/table
-- Tốt cho precise extraction
-
-### 3. pdf-oxide Fullpage Backend (`-fp -po`)
-
-```bash
-specrag process -fp -po
-```
-
-- Dùng pdf-oxide để detect nhanh pages có visual content
-- Render fullpage bằng PyMuPDF cho các trang được detect
-
 ## Ví Dụ Sử Dụng
 
 ### Cơ bản
@@ -66,9 +46,6 @@ specrag process -fp -po
 ```bash
 # Full-page mode (phổ biến nhất)
 specrag process -fp
-
-# Docling AI mode
-specrag process -dl
 ```
 
 ### Tùy chọn nâng cao
@@ -154,8 +131,7 @@ Processing complete!
 
 1. **Lần đầu**: Dùng `-fp` để có context đầy đủ
 2. **Nhiều PDFs lớn**: Chạy parallel tự động
-3. **Cần precise cropping**: Dùng `-dl`
-4. **Tiết kiệm disk**: Dùng `--format jpeg`
+3. **Tiết kiệm disk**: Dùng `--format jpeg`
 
 ---
 

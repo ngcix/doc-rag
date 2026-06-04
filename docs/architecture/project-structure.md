@@ -74,14 +74,7 @@ src/
 ├── image_extraction/
 │   ├── __init__.py              # Export: get_image_extractor()
 │   ├── extractor.py             # Full-page extraction (PyMuPDF)
-│   ├── docling_extractor.py     # Docling legacy
-│   ├── image_info.py            # ExtractedImage dataclass
-│   └── docling/                 # Docling AI module
-│       ├── __main__.py
-│       ├── document.py
-│       ├── extractor.py
-│       ├── model.py
-│       └── processor.py
+│   └── image_info.py            # ExtractedImage dataclass
 │
 ├── search/
 │   ├── __init__.py              # Export: get_search_engine(), SearchResult

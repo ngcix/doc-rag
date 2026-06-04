@@ -60,12 +60,6 @@ pip install torch --index-url https://download.pytorch.org/whl/cu118
 pip install faiss-gpu
 ```
 
-### Docling (Cho AI Layout Detection)
-
-```bash
-pip install docling
-```
-
 ## Kiểm Tra Cài Đặt
 
 ```bash

@@ -63,7 +63,6 @@ specrag stats
 | Lệnh | Mô tả |
 |------|-------|
 | `process -fp` | Xử lý với full-page images |
-| `process -dl` | Xử lý với Docling AI |
 | `search "query"` | Tìm kiếm semantic |
 | `search -hy "query"` | Tìm kiếm hybrid |
 | `search -pic "query"` | Chỉ tìm images |

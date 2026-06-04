@@ -47,17 +47,9 @@
         "image_format": "png",
         "min_width": 150,
         "min_height": 150,
-        "min_brightness": 30.0,
-        "min_std_dev": 15.0,
-        "max_dark_pixel_ratio": 0.85,
         "extract_tables": true,
         "extract_figures": true,
-        "context_chars": 2000,
-        "use_ppstructure": false,
-        "ppstructure_max_pages": 20,
-        "cluster_merge_distance": 50,
-        "min_drawing_size": 20,
-        "min_diagram_size": 100,
-        "use_gpu": false
+        "context_chars": 10000,
+        "min_drawing_size": 20
     }
 }

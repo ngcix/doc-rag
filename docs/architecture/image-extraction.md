@@ -6,22 +6,14 @@
 src/image_extraction/
 ├── __init__.py              # Factory: get_image_extractor()
 ├── extractor.py             # Full-page extraction (PyMuPDF)
-├── docling_extractor.py     # Docling legacy
-├── image_info.py            # ExtractedImage dataclass
-└── docling/                 # Docling AI module
-    ├── __main__.py
-    ├── document.py
-    ├── extractor.py
-    ├── model.py
-    └── processor.py
+└── image_info.py            # ExtractedImage dataclass
 ```
 
 ## Extraction Modes
 
 | Mode | Command | Module | Description |
 |------|---------|--------|-------------|
-| Full-page | `-fp` | `extractor.py` | Capture toàn trang |
-| Docling | `-dl` | `docling/` | AI layout detection |
+| Full-page | `-fp` | `extractor.py` | Capture trang có visual content |
 
 ## Architecture Diagram
 
@@ -35,10 +27,8 @@ src/image_extraction/
 │  │  extractor(mode) │                                                        │
 │  └────────┬─────────┘                                                        │
 │           │                                                                  │
-│           ├── mode="fp" ─────────▶ extractor.py (PyMuPDF)                   │
-│           └── mode="dl" ─────────▶ docling/extractor.py (RT-DETR)           │
+│           └── extractor.py (PyMuPDF)                                        │
 │                                                                              │
-│           │                                                                  │
 │           ▼                                                                  │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                    List[ExtractedImage]                               │   │
@@ -59,20 +49,23 @@ _extract_fullpage_from_pdf(pdf_path)
     │
     ├── For each page in PDF:
     │   │
-    │   ├── Check if page has images/drawings
+    │   ├── Check if page has visual content
     │   │   ├── page.get_images() → embedded images
     │   │   └── page.get_drawings() → vector drawings
+    │   │   └── page.get_text() → figure/table markers
     │   │
     │   ├── If has content:
     │   │   ├── Render page at 150 DPI
     │   │   ├── Save as PNG/JPEG
     │   │   ├── Extract page text
-    │   │   └── Auto-generate tags (regex)
+    │   │   └── Auto-generate tags
     │   │
     │   └── Create ExtractedImage object
     │
     └── Return: List[ExtractedImage]
 ```
+
+`-fp` bỏ qua các trang không có dấu hiệu visual content để giảm số ảnh, disk usage và thời gian vectorization.
 
 ### Auto-Tagging
 
@@ -82,32 +75,6 @@ Patterns được phát hiện:
 - `Fig. X - Description`
 - `Hình X.Y: Mô tả` (Vietnamese)
 - `Bảng X: Mô tả` (Vietnamese)
-
-## Docling Mode (`-dl`)
-
-### Flow
-
-```
-pdf_path
-    │
-    ▼
-docling.get_image_extractor()
-    │
-    ├── Load Docling model (RT-DETR)
-    │
-    ├── For each page:
-    │   │
-    │   ├── Layout Detection
-    │   │   └── Detect figures, tables, charts
-    │   │
-    │   ├── Region Extraction
-    │   │   └── Crop detected regions
-    │   │
-    │   └── Context Extraction
-    │       └── Get surrounding text
-    │
-    └── Return: List[ExtractedImage]
-```
 
 ## ExtractedImage Dataclass
 
@@ -119,7 +86,7 @@ class ExtractedImage:
     source_file: str        # Original PDF path
     page_number: int        # Page number
     bbox: tuple             # (x1, y1, x2, y2)
-    region_type: str        # "fullpage", "figure", "table"
+    region_type: str        # "fullpage"
     surrounding_text: str   # Context text
     caption: str            # Detected caption
     description: str        # Optional description
@@ -134,23 +101,22 @@ Khi vectorize images, tags được repeat **10 lần** để tăng semantic wei
 # image_info.py
 def get_vectorization_text(self) -> str:
     if self.tags:
-        # 10x repeat for strong semantic boost
         tag_boost = ", ".join([self.tags] * 10)
         parts.append(f"Tags: {tag_boost}")
 ```
 
 **Effect**: Query chứa tag sẽ có similarity score cao hơn đáng kể.
 
-## Quality Filtering
+## Page Selection
 
-Images được validate trước khi lưu:
+`-fp` capture một trang nếu có ít nhất một dấu hiệu:
 
-| Check | Threshold | Purpose |
-|-------|-----------|---------|
-| Size | ≥ 150x150 px | Filter tiny images |
-| Brightness | ≥ 30.0 | Filter black images |
-| Std Deviation | ≥ 15.0 | Filter solid colors |
-| Dark Ratio | ≤ 85% | Filter mostly-dark |
+| Check | Purpose |
+|-------|---------|
+| Embedded image đủ lớn | Bắt các trang có ảnh bitmap |
+| Vector drawing đủ lớn | Bắt diagrams/figures vẽ bằng vector |
+| Figure/table caption | Bắt trang có caption hoặc marker đặc thù |
+| Nhiều line/rectangle | Bắt các bảng nhiều đường kẻ |
 
 ## Output Format
 
@@ -194,6 +160,4 @@ def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
 | Library | Purpose |
 |---------|---------|
 | PyMuPDF (fitz) | PDF parsing, rendering |
-| Docling | AI layout detection |
-| PIL/Pillow | Image processing |
-| NumPy | Quality validation |
+| PIL/Pillow | JPEG output |

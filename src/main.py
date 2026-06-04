@@ -179,11 +179,11 @@ def log(message: str = "", newline: bool = True):
 
 def _process_chunking(args) -> list:
     """Helper for parallel chunking."""
-    file_path, mode = args
+    file_path = args
     try:
         # Re-instantiate chunker in each process to avoid pickling issues
         # or use the convenience function which does it internally
-        return chunk_documents(file_path, pdf_mode=mode)
+        return chunk_documents(file_path)
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
         return []
@@ -191,19 +191,15 @@ def _process_chunking(args) -> list:
 
 def _process_extraction(args) -> list:
     """Helper for parallel image extraction."""
-    pdf_file, mode, fullpage_mode, capture_all_pages, image_format = args
+    pdf_file, image_format = args
     if not pdf_file.exists():
         return []
     
     try:
-        extractor = get_image_extractor(mode, force_new=True, image_format=image_format)
+        extractor = get_image_extractor(force_new=True, image_format=image_format)
         # Avoid print in parallel process or it might get messy, 
         # but for now let's keep it minimal or just return results
-        return extractor.extract_from_file(
-            pdf_file,
-            fullpage_mode=fullpage_mode,
-            capture_all_pages=capture_all_pages,
-        )
+        return extractor.extract_from_file(pdf_file)
     except Exception as e:
         # print(f"Error extracting images from {pdf_file}: {e}")
         # Return empty list on error
@@ -212,12 +208,9 @@ def _process_extraction(args) -> list:
 
 
 def process_documents(
-    mode = "",
     input_dir: Optional[Path] = None,
     include_charts: bool = True,
     include_images: bool = True,
-    fullpage_mode: bool = False,
-    capture_all_pages: bool = False,
     image_format: str = "png",
     max_workers: int | str | None = None,
     embedding_threads: int | str | None = None,
@@ -285,7 +278,7 @@ def process_documents(
     
     # Create image extractor with format override if specified
     image_format_override = None
-    if fullpage_mode and image_format and image_format != "png":
+    if image_format and image_format != "png":
         image_format_override = image_format
     
     all_vectorized = []
@@ -314,7 +307,7 @@ def process_documents(
     chunks = []
     if files_to_chunk:
         print(f"  Found {len(files_to_chunk)} files to chunk.")
-        chunk_args = [(p, mode) for p in files_to_chunk]
+        chunk_args = files_to_chunk
         chunk_workers = min(resolved_worker_count, len(files_to_chunk))
         print(f"  Using {chunk_workers} worker(s) for chunking.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=chunk_workers) as executor:
@@ -349,7 +342,7 @@ def process_documents(
         
         if pdf_files:
             extract_args = [
-                (p, mode, fullpage_mode, capture_all_pages, image_format_override)
+                (p, image_format_override)
                 for p in pdf_files
             ]
             
@@ -1422,29 +1415,10 @@ def main():
         action="store_true",
         help="Skip image extraction from PDFs"
     )
-    # Image extraction mode.
-    # -fp / -dl are mutually exclusive user modes.
-    # -po is an optional backend switch for fullpage mode.
-    strategy_group = process_parser.add_mutually_exclusive_group(required=False)
-    strategy_group.add_argument(
+    process_parser.add_argument(
         "--fullpage", "-fp",
         action="store_true",
         help="Capture full pages as images (Context-rich, best for RAG)"
-    )
-    strategy_group.add_argument(
-        "--fullpage-all", "-fpa",
-        action="store_true",
-        help="Capture all PDF pages as full-page images without checking for images/tables first"
-    )
-    strategy_group.add_argument(
-        "--docling", "-dl",
-        action="store_true",
-        help="Extract individual images using Docling"
-    )
-    process_parser.add_argument(
-        "--pdfoxide", "-po",
-        action="store_true",
-        help="Use pdf-oxide backend for fullpage extraction (use with -fp)"
     )
     process_parser.add_argument(
         "--format", "-fmt",
@@ -1705,33 +1679,13 @@ def main():
 
         # Manual Validation for Strategy
         if not args.no_images:
-            # pdf-oxide is a backend option for fullpage mode only
-            if args.pdfoxide and not (args.fullpage or args.fullpage_all):
-                parser.error("--pdfoxide (-po) must be used with --fullpage (-fp), e.g. `process -fp -po`")
-
-            if args.pdfoxide and args.fullpage_all:
-                parser.error("--pdfoxide (-po) cannot be combined with --fullpage-all (-fpa) because -fpa already captures all pages")
-
-            if not (args.fullpage or args.fullpage_all or args.docling):
-                parser.error("When processing images (default), you MUST specify an extraction strategy: --fullpage (-fp) OR --fullpage-all (-fpa) OR --docling (-dl)")
-
-            # Docling modes do not support pdf-oxide backend switch
-            if args.pdfoxide and args.docling:
-                parser.error("--pdfoxide (-po) cannot be combined with --docling (-dl)")
-                
-        mode = "fp"
-        if args.docling:
-            mode = "dl"
-        elif (args.fullpage or args.fullpage_all) and args.pdfoxide:
-            mode = "po"
+            if not args.fullpage:
+                parser.error("When processing images (default), you MUST specify full-page extraction: --fullpage (-fp)")
         
         process_documents(
-            mode,
             input_dir=args.input,
             include_charts=not args.no_charts,
             include_images=not args.no_images,
-            fullpage_mode=args.fullpage or args.fullpage_all,
-            capture_all_pages=args.fullpage_all,
             image_format=args.format,
             max_workers=args.workers,
             embedding_threads=args.embedding_threads,

@@ -40,8 +40,6 @@ specrag process [OPTIONS]
 |--------|----------|-------|---------|
 | `--input` | `-i` | Thư mục input | `data/documents/` |
 | `--fullpage` | `-fp` | Full-page extraction | - |
-| `--docling` | `-dl` | Docling AI extraction | - |
-| `--pdfoxide` | `-po` | Dùng backend pdf-oxide cho fullpage mode (phải đi cùng `-fp`) | off |
 | `--format` | `-fmt` | png/jpeg | png |
 | `--workers` | `-w` | Max workers cho chunking/extraction (`auto` hoặc số) | `auto` |
 | `--embedding-threads` | | CPU threads cho embedding/vectorization (`auto` hoặc số) | `auto` |
@@ -50,14 +48,11 @@ specrag process [OPTIONS]
 | `--no-images` | | Skip image extraction | false |
 
 **Lưu ý**:
-- Phải chỉ định `-fp` hoặc `-dl` trừ khi dùng `--no-images`.
-- `-po` không phải extraction mode độc lập; đây là backend option cho fullpage mode và phải dùng dạng `-fp -po`.
+- Phải chỉ định `-fp` trừ khi dùng `--no-images`.
 
 ```bash
 # Examples
 specrag process -fp
-specrag process -fp -po
-specrag process -dl
 specrag process -fp --format jpeg
 specrag process -fp --workers 1 --embedding-threads 1
 specrag process -fp --workers auto --embedding-threads auto

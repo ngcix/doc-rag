@@ -19,8 +19,7 @@ requirements.txt
 │   └── PyMuPDF>=1.23.0
 │
 ├── Image Processing
-│   ├── Pillow>=10.0.0
-│   └── docling
+│   └── Pillow>=10.0.0
 │
 ├── Utilities
 │   ├── pydantic>=2.0.0
@@ -108,11 +107,6 @@ pix = page.get_pixmap(dpi=150)
 
 - Image manipulation
 
-### Docling
-
-- AI layout detection (RT-DETR)
-- Figure/table extraction
-
 ## Utilities
 
 ### Pydantic (`pydantic>=2.0.0`)
@@ -165,7 +159,6 @@ pix = page.get_pixmap(dpi=150)
 │  │  │    Image      │  │   Sequence    │  │    Config     │            │   │
 │  │  │  Extraction   │  │    Charts     │  │               │            │   │
 │  │  │  - PyMuPDF    │  │  - PIL        │  │  - Pydantic   │            │   │
-│  │  │  - Docling    │  │               │  │               │            │   │
 │  │  └───────────────┘  └───────────────┘  └───────────────┘            │   │
 │  │                                                                      │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │

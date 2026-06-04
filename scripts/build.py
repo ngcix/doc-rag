@@ -41,7 +41,6 @@ packages = [
     "transformers",
     "transformers.models",
     "sentence_transformers",
-    "pdf_oxide",
 ]
 
 for pkg in packages:
@@ -76,16 +75,8 @@ hidden_imports += [
     "src.chunking.chunker",
     "src.image_extraction",
     "src.image_extraction.__init__",
-    "src.image_extraction.docling_extractor",
-    "src.image_extraction.pymu_extractor",
     "src.image_extraction.image_info",
     "src.image_extraction.extractor",
-    "src.image_extraction.pdf_oxide_extractor",
-    "src.image_extraction.docling.__init__",
-    "src.image_extraction.docling.model",
-    "src.image_extraction.docling.processor",
-    "src.image_extraction.docling.document",
-    "src.image_extraction.docling.extractor",
     "src.search",
     "src.search.__init__",
     "src.search.bm25",

@@ -138,41 +138,16 @@ class PerformanceConfig(BaseModel):
 
 
 class ImageExtractionConfig(BaseModel):
-    """Configuration for image extraction from documents.
-    
-    Supports two methods:
-    - PyMuPDF (fitz): Fast, extracts embedded images and vector drawings
-    - PP-Structure (PaddleOCR): AI-based layout analysis and context extraction
-    """
-    # Output settings
+    """Configuration for full-page PDF image extraction."""
+
     output_dir: Path = EXTRACTED_IMAGES_DIR
     image_format: str = "png"
-    
-    # Size filters
-    min_width: int = 150  # Minimum width to consider as valid image
-    min_height: int = 150  # Minimum height
-    
-    # Quality filters (to avoid black/empty images)
-    min_brightness: float = 30.0  # Minimum mean brightness (0-255)
-    min_std_dev: float = 15.0  # Minimum standard deviation
-    max_dark_pixel_ratio: float = 0.85  # Maximum ratio of dark pixels
-    
-    # Extraction options
-    extract_tables: bool = True  # Extract table regions
-    extract_figures: bool = True  # Extract figure/image regions
-    context_chars: int = 2000  # Number of characters to extract around image (increased for better context)
-    
-    # PP-Structure settings
-    use_ppstructure: bool = False  # Enable PP-Structure for layout analysis
-    ppstructure_max_pages: int = 20  # Max pages to analyze with PP-Structure
-    
-    # PyMuPDF vector drawings clustering
-    cluster_merge_distance: int = 50  # Pixels to merge nearby drawings
-    min_drawing_size: int = 20  # Minimum size for a drawing path
-    min_diagram_size: int = 100  # Minimum size for a clustered diagram
-    
-    # GPU settings (for PP-Structure)
-    use_gpu: bool = False  # Use GPU for PP-Structure (if available)
+    min_width: int = 150  # Minimum embedded image width used by -fp page selection.
+    min_height: int = 150  # Minimum embedded image height used by -fp page selection.
+    extract_tables: bool = True  # Let -fp capture pages that look like tables.
+    extract_figures: bool = True  # Let -fp capture pages with drawings/figures.
+    context_chars: int = 10000  # Number of page text characters stored with each image.
+    min_drawing_size: int = 20  # Minimum vector drawing size used by -fp page selection.
 
 
 class PathConfig(BaseModel):

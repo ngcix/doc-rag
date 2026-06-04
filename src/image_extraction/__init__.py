@@ -1,15 +1,10 @@
-"""Image Extraction module using PyMuPDF and PaddleOCR PP-Structure."""
+"""Image Extraction module using PyMuPDF full-page extraction."""
 from typing import Optional
-# from .extractor import (
-#     ImageExtractor,
-#     ExtractedImage,
-#     get_image_extractor,
-# )
 
 # Import config from settings
 from src.config.settings import ImageExtractionConfig
 from src.image_extraction.image_info import ExtractedImage
-import src.image_extraction.extractor as paddle
+import src.image_extraction.extractor as pymupdf_fullpage
 
 __all__ = [
     # Image extraction
@@ -18,18 +13,8 @@ __all__ = [
     "get_image_extractor",
 ]
 
-def get_image_extractor(mode, force_new: bool = False, image_format: Optional[str] = None):
-    if mode == "fp":
-        return paddle.get_image_extractor(force_new=force_new, image_format=image_format)
-    if mode == "dl":
-        import src.image_extraction.docling as docling
-
-        return docling.get_image_extractor()
-    if mode == "po":
-        import src.image_extraction.pdf_oxide_extractor as pdf_oxide_ext
-
-        return pdf_oxide_ext.get_image_extractor(force_new=force_new, image_format=image_format)
-    return None  # Should not happen
+def get_image_extractor(force_new: bool = False, image_format: Optional[str] = None):
+    return pymupdf_fullpage.get_image_extractor(force_new=force_new, image_format=image_format)
 
 def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
     """

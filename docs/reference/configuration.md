@@ -215,20 +215,20 @@ class ImageExtractionConfig(BaseModel):
     image_format: str = "png"
     min_width: int = 150
     min_height: int = 150
-    min_brightness: float = 30.0
-    min_std_dev: float = 15.0
-    max_dark_pixel_ratio: float = 0.85
-    context_chars: int = 2000
-    cluster_merge_distance: int = 50
-    min_diagram_size: int = 100
-    use_gpu: bool = False
+    extract_tables: bool = True
+    extract_figures: bool = True
+    context_chars: int = 10000
+    min_drawing_size: int = 20
 ```
 
 | Parameter | Default | Mô tả |
 |-----------|---------|-------|
-| `min_width/height` | 150 | Filter ảnh nhỏ |
-| `min_brightness` | 30.0 | Filter ảnh tối |
-| `context_chars` | 2000 | Chars context xung quanh |
+| `image_format` | "png" | Định dạng ảnh full-page (`png`, `jpeg`, `jpg`) |
+| `min_width/height` | 150 | Ngưỡng embedded image để `-fp` quyết định capture trang |
+| `extract_tables` | True | Cho phép `-fp` capture trang có dấu hiệu table |
+| `extract_figures` | True | Cho phép `-fp` capture trang có drawing/figure |
+| `context_chars` | 10000 | Số ký tự text của page lưu kèm ảnh |
+| `min_drawing_size` | 20 | Ngưỡng drawing nhỏ nhất khi detect visual content |
 
 ---
 

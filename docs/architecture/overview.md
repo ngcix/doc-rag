@@ -37,10 +37,8 @@
 
 ### 2. Image Extraction (`src/image_extraction/`)
 
-- **Tool**: PyMuPDF (fitz) + Docling (RT-DETR)
-- **Modes**:
-  - Full-page (`-fp`): Capture toàn trang
-  - Docling (`-dl`): AI layout detection
+- **Tool**: PyMuPDF (fitz) full-page rendering
+- **Mode**: Full-page (`-fp`) capture toàn trang
 - **Features**: Auto-tagging, tag boosting 10x
 
 ### 3. Vectorization (`src/vectorization/`)
@@ -110,7 +108,7 @@
 | **Vector DB** | FAISS (IndexFlatIP, cosine similarity) |
 | **Search** | Semantic + BM25 Hybrid + Multi-Query RRF |
 | **PDF Processing** | PyMuPDF (fitz) |
-| **Layout Analysis** | Docling (RT-DETR model) |
+| **Image Extraction** | PyMuPDF full-page rendering |
 | **Text Splitting** | LangChain RecursiveCharacterTextSplitter |
 | **Config** | Pydantic v2 |
 

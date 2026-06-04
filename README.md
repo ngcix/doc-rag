@@ -94,7 +94,6 @@ Thuật toán kết hợp kết quả từ nhiều nguồn search:
 ```bash
 # Process
 specrag process -fp          # Full-page extraction (recommended)
-specrag process -dl          # Docling AI extraction
 
 # Search
 specrag search "query"       # Semantic search
@@ -124,7 +123,7 @@ specrag clean --yes          # Reset everything
 
 | Stage | Steps | Description |
 |-------|-------|-------------|
-| **⬛ Ingestion** | 1→3 | Documents are chunked, images extracted with context, then embedded into FAISS |
+| **⬛ Ingestion** | 1→3 | Documents are chunked, full-page images are extracted with context, then embedded into FAISS |
 | **🔵 Inference** | 4→9 | User query → encode → similarity search → retrieve Top-K → build prompt → answer |
 | **🟡 Knowledge Enrichment** | 10→11 | Add tags/descriptions → re-embed → improve future searches |
 
@@ -135,7 +134,7 @@ specrag clean --yes          # Reset everything
 | Embedding | `Alibaba-NLP/gte-multilingual-base` (768-dim) |
 | Vector DB | FAISS (IndexFlatIP, cosine similarity) |
 | PDF Processing | PyMuPDF (fitz) |
-| Layout Detection | Docling (RT-DETR model) |
+| Image Extraction | PyMuPDF full-page rendering |
 
 > 📖 **Architecture details:** [Overview](docs/architecture/overview.md)
 

@@ -184,7 +184,6 @@ specrag msearch "authentication" "security" "token flow"
 
 ### Ingestion
 - Dùng `-fp` (full-page) cho technical docs
-- Dùng `-dl` (Docling) cho precise figure extraction
 
 ### Search
 - Start với semantic search
