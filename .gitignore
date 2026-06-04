@@ -69,5 +69,4 @@ temp/
 # Pyinstaller
 *.spec
 
-# Test tmp Folder
-tests/tmp/*
+.venv_backup/
