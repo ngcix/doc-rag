@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.3.1
+## v0.3.2
 
 - Auto-tune processing workers and embedding threads from available CPU resources.
 - Add performance config for target CPU utilization, reserved threads, worker count, and embedding batch size.
