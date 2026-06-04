@@ -1,5 +1,12 @@
 # CHANGES
 
+## v0.3.1
+
+- Auto-tune processing workers and embedding threads from available CPU resources.
+- Add performance config for target CPU utilization, reserved threads, worker count, and embedding batch size.
+- Add CLI overrides for processing workers, embedding threads, and embedding batch size.
+- Lazy-load image extraction backends so full-page processing does not import unused heavy dependencies.
+
 ## v0.3.0
 
 - Add portable path rebasing for copied databases and documents directories.

@@ -1,7 +1,7 @@
 # Please don't delete this file, we're still using for linting and formatting rules
 [project]
 name = "specrag"
-version = "0.3.0"
+version = "0.3.1"
 description = "A simple RAG system with chunking, vectorization, and semantic search"
 authors = [
     { name = "Phùng Đức Vũ", email = "vu.pd@samsung.com" },
