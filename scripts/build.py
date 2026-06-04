@@ -68,15 +68,20 @@ hidden_imports += collect_submodules("transformers")
 
 hidden_imports += [
     "src",
+    "src.__init__",
     "src.cli_output",
     "src.main",
+    "src.path_path_resolver",
     "src.chunking",
     "src.chunking.__init__",
     "src.chunking.chunker",
+    "src.config",
+    "src.config.__init__",
+    "src.config.settings",
     "src.image_extraction",
     "src.image_extraction.__init__",
-    "src.image_extraction.image_info",
     "src.image_extraction.extractor",
+    "src.image_extraction.image_info",
     "src.search",
     "src.search.__init__",
     "src.search.bm25",
@@ -89,9 +94,6 @@ hidden_imports += [
     "src.vectorization.vector_store",
     "src.vectorization.faiss_store",
     "src.vectorization.vectorizer",
-    "src.config",
-    "src.config.__init__",
-    "src.config.settings",
 ]
 
 metadata_packages = [
