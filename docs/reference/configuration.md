@@ -138,6 +138,55 @@ class VectorDBConfig(BaseModel):
 
 ---
 
+## PerformanceConfig
+
+Cấu hình mức sử dụng CPU trong lúc `process`.
+
+```python
+class PerformanceConfig(BaseModel):
+    max_workers: int | str | None = "auto"
+    embedding_threads: int | str | None = "auto"
+    embedding_batch_size: int = 16
+    target_cpu_utilization: float = 0.8
+    reserved_cpu_threads: int = 2
+```
+
+| Parameter | Default | Mô tả |
+|-----------|---------|-------|
+| `max_workers` | "auto" | Số worker song song cho chunking và image extraction |
+| `embedding_threads` | "auto" | Số CPU threads cho embedding/vectorization |
+| `embedding_batch_size` | 16 | Batch size khi vectorize |
+| `target_cpu_utilization` | 0.8 | Tỷ lệ logical CPU dùng khi `auto` |
+| `reserved_cpu_threads` | 2 | Số logical CPU giữ lại cho hệ thống khi `auto` |
+
+Khi dùng `auto`, SpecRAG đọc `os.cpu_count()` rồi chọn giá trị thấp hơn giữa:
+
+- `logical_cpus * target_cpu_utilization`
+- `logical_cpus - reserved_cpu_threads`
+
+Có thể override bằng CLI:
+
+```bash
+specrag process -fp --workers 1 --embedding-threads 1
+specrag process -fp --workers auto --embedding-threads auto
+```
+
+Hoặc trong `config/setting.json`:
+
+```json
+{
+    "performance": {
+        "max_workers": "auto",
+        "embedding_threads": "auto",
+        "embedding_batch_size": 16,
+        "target_cpu_utilization": 0.8,
+        "reserved_cpu_threads": 2
+    }
+}
+```
+
+---
+
 ## SearchConfig
 
 Cấu hình search.

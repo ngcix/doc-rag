@@ -22,6 +22,9 @@ specrag process [OPTIONS]
 | `--fullpage` | `-fp` | Full-page image extraction (recommended) |
 | `--docling` | `-dl` | Docling AI extraction |
 | `--format` | `-fmt` | Định dạng ảnh: png/jpeg |
+| `--workers` | `-w` | Số worker song song cho chunking/extraction (`auto` hoặc số) |
+| `--embedding-threads` | | Số CPU threads cho vectorization (`auto` hoặc số) |
+| `--embedding-batch-size` | | Batch size khi vectorize |
 | `--no-charts` | | Bỏ qua sequence charts |
 | `--no-images` | | Bỏ qua image extraction |
 
@@ -76,6 +79,16 @@ specrag process -fp -i /path/to/docs
 
 # JPEG format (nhỏ hơn PNG)
 specrag process -fp --format jpeg
+
+# Chạy nhẹ máy hơn khi vẫn cần dùng máy trong lúc process
+specrag process -fp --workers 1 --embedding-threads 1
+
+# Chạy nhanh hơn nếu máy rảnh
+specrag process -fp --workers 4 --embedding-threads 4 --embedding-batch-size 32
+
+# Để hệ thống tự tính theo số CPU logical hiện có
+# Mặc định auto nhắm khoảng 75-80% CPU logical
+specrag process -fp --workers auto --embedding-threads auto
 
 # Chỉ text, không images
 specrag process --no-images

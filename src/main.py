@@ -4,6 +4,7 @@ Simple RAG System - Main Entry Point
 This module provides the main CLI interface for the RAG system.
 """
 import argparse
+import os
 import shutil
 import time
 from pathlib import Path
@@ -17,12 +18,138 @@ from src.config import(
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
 
-from src.chunking import DocumentChunker, chunk_documents
+
+def _is_auto_cpu_value(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in ("", "auto")
+    return False
+
+
+def _coerce_positive_int(value) -> Optional[int]:
+    """Return a positive integer or None for unset/invalid values."""
+    if value is None:
+        return None
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _coerce_non_negative_int(value, default: int) -> int:
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0, value)
+
+
+def _coerce_cpu_target(value, default: float = 0.5) -> float:
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        value = default
+    return min(1.0, max(0.1, value))
+
+
+def _logical_cpu_count() -> int:
+    return max(1, os.cpu_count() or 1)
+
+
+def _resolve_cpu_limit(
+    value,
+    target_cpu_utilization: Optional[float] = None,
+    reserved_cpu_threads: Optional[int] = None,
+) -> int:
+    """Resolve explicit or auto CPU setting to an effective thread count."""
+    if not _is_auto_cpu_value(value):
+        explicit = _coerce_positive_int(value)
+        if explicit:
+            return min(explicit, _logical_cpu_count())
+
+    performance = getattr(settings, "performance", None)
+    target = _coerce_cpu_target(
+        target_cpu_utilization
+        if target_cpu_utilization is not None
+        else getattr(performance, "target_cpu_utilization", 0.5)
+    )
+    reserved = _coerce_non_negative_int(
+        reserved_cpu_threads
+        if reserved_cpu_threads is not None
+        else getattr(performance, "reserved_cpu_threads", 2),
+        default=2,
+    )
+    logical_cpus = _logical_cpu_count()
+    by_target = max(1, int(logical_cpus * target))
+    by_reserve = max(1, logical_cpus - reserved)
+    return max(1, min(by_target, by_reserve))
+
+
+def _set_thread_env(thread_count: int) -> None:
+    """Set CPU thread env vars before heavy libraries initialize."""
+    thread_count = max(1, int(thread_count))
+    for env_name in (
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+    ):
+        os.environ[env_name] = str(thread_count)
+
+
+_configured_embedding_threads = (
+    getattr(getattr(settings, "performance", None), "embedding_threads", None)
+)
+_set_thread_env(_resolve_cpu_limit(_configured_embedding_threads))
+
+from src.chunking import chunk_documents
 from src.vectorization import get_vectorizer, get_vector_store
 from src.search import get_search_engine, HybridSearchEngine
 from src.sequence_chart import get_chart_processor
 from src.image_extraction import get_image_extractor, get_vectorization_data
 from src.path_resolver import display_chunk_id, paths_refer_to_same_file
+
+
+def _resolve_worker_count(
+    value,
+    item_count: Optional[int] = None,
+    target_cpu_utilization: Optional[float] = None,
+    reserved_cpu_threads: Optional[int] = None,
+) -> int:
+    worker_count = _resolve_cpu_limit(
+        value,
+        target_cpu_utilization=target_cpu_utilization,
+        reserved_cpu_threads=reserved_cpu_threads,
+    )
+    if item_count is not None:
+        worker_count = min(worker_count, max(1, item_count))
+    return max(1, worker_count)
+
+
+def _apply_cpu_thread_limit(
+    value,
+    target_cpu_utilization: Optional[float] = None,
+    reserved_cpu_threads: Optional[int] = None,
+) -> int:
+    thread_count = _resolve_cpu_limit(
+        value,
+        target_cpu_utilization=target_cpu_utilization,
+        reserved_cpu_threads=reserved_cpu_threads,
+    )
+    _set_thread_env(thread_count)
+
+    try:
+        import torch
+
+        torch.set_num_threads(thread_count)
+        torch.set_num_interop_threads(max(1, min(2, thread_count)))
+    except Exception:
+        pass
+
+    return thread_count
 
 
 def _format_duration(seconds: float) -> str:
@@ -91,7 +218,10 @@ def process_documents(
     include_images: bool = True,
     fullpage_mode: bool = False,
     capture_all_pages: bool = False,
-    image_format: str = "png"
+    image_format: str = "png",
+    max_workers: int | str | None = None,
+    embedding_threads: int | str | None = None,
+    embedding_batch_size: Optional[int] = None,
 ):
     """
     Process all documents in the input directory.
@@ -108,8 +238,40 @@ def process_documents(
     input_dir = Path(input_dir)
     
     backend = settings.vectordb.backend
+    configured_workers = max_workers if max_workers is not None else settings.performance.max_workers
+    configured_embedding_threads = (
+        embedding_threads if embedding_threads is not None else settings.performance.embedding_threads
+    )
+    configured_embedding_batch_size = (
+        embedding_batch_size
+        if embedding_batch_size is not None
+        else settings.performance.embedding_batch_size
+    )
+    target_cpu_utilization = settings.performance.target_cpu_utilization
+    reserved_cpu_threads = settings.performance.reserved_cpu_threads
+    resolved_worker_count = _resolve_worker_count(
+        configured_workers,
+        target_cpu_utilization=target_cpu_utilization,
+        reserved_cpu_threads=reserved_cpu_threads,
+    )
+    embedding_batch_size_value = _coerce_positive_int(configured_embedding_batch_size) or 16
+    embedding_thread_count = _apply_cpu_thread_limit(
+        configured_embedding_threads,
+        target_cpu_utilization=target_cpu_utilization,
+        reserved_cpu_threads=reserved_cpu_threads,
+    )
+
     log(f"Processing documents from: {input_dir}")
     log(f"Vector store backend: {backend}")
+    log(
+        "CPU controls: "
+        f"logical_cpus={_logical_cpu_count()}, "
+        f"target_cpu={_coerce_cpu_target(target_cpu_utilization):.0%}, "
+        f"reserved_threads={_coerce_non_negative_int(reserved_cpu_threads, 2)}, "
+        f"max_workers={resolved_worker_count}, "
+        f"embedding_threads={embedding_thread_count}, "
+        f"embedding_batch_size={embedding_batch_size_value}"
+    )
     if backend == "faiss":
         log(f"FAISS index location: {FAISS_INDEX_DIR}")
     else:
@@ -117,7 +279,6 @@ def process_documents(
     print("-" * 50)
     
     # Initialize components
-    chunker = DocumentChunker()
     vectorizer = get_vectorizer()
     vector_store = get_vector_store()
     chart_processor = get_chart_processor()
@@ -126,8 +287,6 @@ def process_documents(
     image_format_override = None
     if fullpage_mode and image_format and image_format != "png":
         image_format_override = image_format
-    
-    image_extractor = get_image_extractor(mode, force_new=bool(image_format_override), image_format=image_format_override)
     
     all_vectorized = []
     total_images = 0
@@ -156,7 +315,9 @@ def process_documents(
     if files_to_chunk:
         print(f"  Found {len(files_to_chunk)} files to chunk.")
         chunk_args = [(p, mode) for p in files_to_chunk]
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        chunk_workers = min(resolved_worker_count, len(files_to_chunk))
+        print(f"  Using {chunk_workers} worker(s) for chunking.")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=chunk_workers) as executor:
             # chunk_documents helper fits perfectly here
             results = list(tqdm(
                 executor.map(_process_chunking, chunk_args), 
@@ -192,7 +353,9 @@ def process_documents(
                 for p in pdf_files
             ]
             
-            with concurrent.futures.ThreadPoolExecutor() as executor:
+            extract_workers = min(resolved_worker_count, len(pdf_files))
+            print(f"  Using {extract_workers} worker(s) for image extraction.")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=extract_workers) as executor:
                 results = list(tqdm(
                     executor.map(_process_extraction, extract_args), 
                     total=len(pdf_files), 
@@ -240,7 +403,7 @@ def process_documents(
         texts = [item["content"] for item in items_to_vectorize]
         
         # Vectorize in one go
-        embeddings = vectorizer.vectorize(texts)
+        embeddings = vectorizer.vectorize(texts, batch_size=embedding_batch_size_value)
         
         # Attach embeddings back to items
         for item, embedding in zip(items_to_vectorize, embeddings):
@@ -1290,6 +1453,24 @@ def main():
         default="png",
         help="Image format for fullpage mode (default: png, use jpeg for smaller files)"
     )
+    process_parser.add_argument(
+        "--workers", "-w",
+        type=str,
+        default=settings.performance.max_workers,
+        help=f"Max parallel workers for chunking and extraction (default: {settings.performance.max_workers})"
+    )
+    process_parser.add_argument(
+        "--embedding-threads",
+        type=str,
+        default=settings.performance.embedding_threads,
+        help=f"CPU threads for embedding/vectorization (default: {settings.performance.embedding_threads})"
+    )
+    process_parser.add_argument(
+        "--embedding-batch-size",
+        type=int,
+        default=settings.performance.embedding_batch_size,
+        help=f"Embedding batch size (default: {settings.performance.embedding_batch_size})"
+    )
     
     # Search command
     search_parser = subparsers.add_parser(
@@ -1512,6 +1693,16 @@ def main():
     ensure_directories()
     
     if args.command == "process":
+        for option_name, option_value in (
+            ("--workers", args.workers),
+            ("--embedding-threads", args.embedding_threads),
+        ):
+            if not _is_auto_cpu_value(option_value) and _coerce_positive_int(option_value) is None:
+                parser.error(f"{option_name} must be 'auto' or an integer >= 1")
+
+        if args.embedding_batch_size is not None and args.embedding_batch_size < 1:
+            parser.error("--embedding-batch-size must be >= 1")
+
         # Manual Validation for Strategy
         if not args.no_images:
             # pdf-oxide is a backend option for fullpage mode only
@@ -1541,7 +1732,10 @@ def main():
             include_images=not args.no_images,
             fullpage_mode=args.fullpage or args.fullpage_all,
             capture_all_pages=args.fullpage_all,
-            image_format=args.format
+            image_format=args.format,
+            max_workers=args.workers,
+            embedding_threads=args.embedding_threads,
+            embedding_batch_size=args.embedding_batch_size,
         )
     
     elif args.command == "search":

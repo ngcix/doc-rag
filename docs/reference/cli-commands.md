@@ -43,6 +43,9 @@ specrag process [OPTIONS]
 | `--docling` | `-dl` | Docling AI extraction | - |
 | `--pdfoxide` | `-po` | Dùng backend pdf-oxide cho fullpage mode (phải đi cùng `-fp`) | off |
 | `--format` | `-fmt` | png/jpeg | png |
+| `--workers` | `-w` | Max workers cho chunking/extraction (`auto` hoặc số) | `auto` |
+| `--embedding-threads` | | CPU threads cho embedding/vectorization (`auto` hoặc số) | `auto` |
+| `--embedding-batch-size` | | Batch size khi vectorize | `16` |
 | `--no-charts` | | Skip sequence charts | false |
 | `--no-images` | | Skip image extraction | false |
 
@@ -56,6 +59,8 @@ specrag process -fp
 specrag process -fp -po
 specrag process -dl
 specrag process -fp --format jpeg
+specrag process -fp --workers 1 --embedding-threads 1
+specrag process -fp --workers auto --embedding-threads auto
 specrag process --no-images
 ```
 

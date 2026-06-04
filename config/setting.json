@@ -36,6 +36,13 @@
         "export_quality": 150,
         "include_description": true
     },
+    "performance": {
+        "max_workers": "auto",
+        "embedding_threads": "auto",
+        "embedding_batch_size": 16,
+        "target_cpu_utilization": 0.8,
+        "reserved_cpu_threads": 2
+    },
     "image_extraction": {
         "image_format": "png",
         "min_width": 150,

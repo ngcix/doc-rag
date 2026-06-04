@@ -3,7 +3,7 @@ Configuration settings for the RAG system.
 """
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Union
 import sys
 import json
 
@@ -128,6 +128,15 @@ class SequenceChartConfig(BaseModel):
     include_description: bool = True
 
 
+class PerformanceConfig(BaseModel):
+    """Configuration for CPU usage during processing."""
+    max_workers: Union[int, str, None] = "auto"
+    embedding_threads: Union[int, str, None] = "auto"
+    embedding_batch_size: int = 16
+    target_cpu_utilization: float = 0.8
+    reserved_cpu_threads: int = 2
+
+
 class ImageExtractionConfig(BaseModel):
     """Configuration for image extraction from documents.
     
@@ -190,6 +199,7 @@ class Settings(BaseModel):
     vectordb: VectorDBConfig = Field(default_factory=VectorDBConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
     sequence_chart: SequenceChartConfig = Field(default_factory=SequenceChartConfig)
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     image_extraction: ImageExtractionConfig = Field(default_factory=ImageExtractionConfig)
 
     def __init__(self, **data):
@@ -207,7 +217,7 @@ class Settings(BaseModel):
 
                 sections = [
                     "paths", "model", "chunking", "vectordb", 
-                    "search", "sequence_chart", "image_extraction"
+                    "search", "sequence_chart", "performance", "image_extraction"
                 ]
 
                 # 1. Update each section if provided
