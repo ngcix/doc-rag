@@ -2,6 +2,12 @@
 
 > **Specification RAG System** - Hệ thống RAG tối ưu cho tài liệu đặc tả kỹ thuật
 
+## 📄 Tổng Quan Project
+
+| Tài liệu                                    | Mô tả                                      |
+| ------------------------------------------- | ------------------------------------------ |
+| [Project Summary](./project-summary.md)     | Tóm tắt dự án: công nghệ, cấu trúc, kiến trúc |
+
 ## 🚀 Bắt Đầu Nhanh
 
 | Tài liệu                                               | Mô tả                |
