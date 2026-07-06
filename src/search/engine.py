@@ -16,7 +16,6 @@ from src.config import (
     ensure_directories
 )
 from src.path_resolver import display_chunk_id, normalize_metadata_paths
-from src.vectorization import get_vectorizer, get_vector_store
 
 
 class SearchResult:
@@ -72,6 +71,7 @@ class SearchEngine:
     def vectorizer(self):
         """Get the vectorizer instance."""
         if self._vectorizer is None:
+            from src.vectorization import get_vectorizer
             self._vectorizer = get_vectorizer()
         return self._vectorizer
     
@@ -79,6 +79,7 @@ class SearchEngine:
     def vector_store(self):
         """Get the vector store instance."""
         if self._vector_store is None:
+            from src.vectorization import get_vector_store
             self._vector_store = get_vector_store()
         return self._vector_store
     

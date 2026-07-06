@@ -10,107 +10,61 @@ import time
 from pathlib import Path
 from typing import Optional
 import concurrent.futures
-from tqdm import tqdm
 
 from src.config import(
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
-
-
-def _is_auto_cpu_value(value) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return value.strip().lower() in ("", "auto")
-    return False
-
-
-def _coerce_positive_int(value) -> Optional[int]:
-    """Return a positive integer or None for unset/invalid values."""
-    if value is None:
-        return None
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return None
-    return value if value > 0 else None
-
-
-def _coerce_non_negative_int(value, default: int) -> int:
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return default
-    return max(0, value)
-
-
-def _coerce_cpu_target(value, default: float = 0.5) -> float:
-    try:
-        value = float(value)
-    except (TypeError, ValueError):
-        value = default
-    return min(1.0, max(0.1, value))
-
-
-def _logical_cpu_count() -> int:
-    return max(1, os.cpu_count() or 1)
-
-
-def _resolve_cpu_limit(
-    value,
-    target_cpu_utilization: Optional[float] = None,
-    reserved_cpu_threads: Optional[int] = None,
-) -> int:
-    """Resolve explicit or auto CPU setting to an effective thread count."""
-    if not _is_auto_cpu_value(value):
-        explicit = _coerce_positive_int(value)
-        if explicit:
-            return min(explicit, _logical_cpu_count())
-
-    performance = getattr(settings, "performance", None)
-    target = _coerce_cpu_target(
-        target_cpu_utilization
-        if target_cpu_utilization is not None
-        else getattr(performance, "target_cpu_utilization", 0.5)
-    )
-    reserved = _coerce_non_negative_int(
-        reserved_cpu_threads
-        if reserved_cpu_threads is not None
-        else getattr(performance, "reserved_cpu_threads", 2),
-        default=2,
-    )
-    logical_cpus = _logical_cpu_count()
-    by_target = max(1, int(logical_cpus * target))
-    by_reserve = max(1, logical_cpus - reserved)
-    return max(1, min(by_target, by_reserve))
-
-
-def _set_thread_env(thread_count: int) -> None:
-    """Set CPU thread env vars before heavy libraries initialize."""
-    thread_count = max(1, int(thread_count))
-    for env_name in (
-        "OMP_NUM_THREADS",
-        "MKL_NUM_THREADS",
-        "OPENBLAS_NUM_THREADS",
-        "NUMEXPR_NUM_THREADS",
-        "VECLIB_MAXIMUM_THREADS",
-    ):
-        os.environ[env_name] = str(thread_count)
-
-
-_configured_embedding_threads = (
-    getattr(getattr(settings, "performance", None), "embedding_threads", None)
+from src.performance import (
+    _is_auto_cpu_value,
+    _coerce_positive_int,
+    _coerce_non_negative_int,
+    _coerce_cpu_target,
+    _logical_cpu_count,
+    _resolve_cpu_limit,
+    configure_embedding_threads,
 )
-_set_thread_env(_resolve_cpu_limit(_configured_embedding_threads))
 
-from src.chunking import chunk_documents
-from src.vectorization import get_vectorizer, get_vector_store
-from src.search import get_search_engine, HybridSearchEngine
-from src.sequence_chart import get_chart_processor
-from src.image_extraction import get_image_extractor, get_vectorization_data
-from src.path_resolver import display_chunk_id, paths_refer_to_same_file
+
+def _get_chunk_documents():
+    from src.chunking import chunk_documents
+    return chunk_documents
+
+
+def _get_vectorizer():
+    from src.vectorization import get_vectorizer
+    return get_vectorizer()
+
+
+def _get_vector_store():
+    from src.vectorization import get_vector_store
+    return get_vector_store()
+
+
+def _get_search_engine():
+    from src.search import get_search_engine
+    return get_search_engine()
+
+
+def _get_hybrid_search_engine():
+    from src.search import HybridSearchEngine
+    return HybridSearchEngine
+
+
+def _get_chart_processor():
+    from src.sequence_chart import get_chart_processor
+    return get_chart_processor()
+
+
+def _get_image_extractor(force_new: bool = False, image_format: Optional[str] = None):
+    from src.image_extraction import get_image_extractor
+    return get_image_extractor(force_new=force_new, image_format=image_format)
+
+
+def _get_vectorization_data(images):
+    from src.image_extraction import get_vectorization_data
+    return get_vectorization_data(images)
 
 
 def _resolve_worker_count(
@@ -134,22 +88,11 @@ def _apply_cpu_thread_limit(
     target_cpu_utilization: Optional[float] = None,
     reserved_cpu_threads: Optional[int] = None,
 ) -> int:
-    thread_count = _resolve_cpu_limit(
+    return configure_embedding_threads(
         value,
         target_cpu_utilization=target_cpu_utilization,
         reserved_cpu_threads=reserved_cpu_threads,
     )
-    _set_thread_env(thread_count)
-
-    try:
-        import torch
-
-        torch.set_num_threads(thread_count)
-        torch.set_num_interop_threads(max(1, min(2, thread_count)))
-    except Exception:
-        pass
-
-    return thread_count
 
 
 def _format_duration(seconds: float) -> str:
@@ -181,9 +124,7 @@ def _process_chunking(args) -> list:
     """Helper for parallel chunking."""
     file_path = args
     try:
-        # Re-instantiate chunker in each process to avoid pickling issues
-        # or use the convenience function which does it internally
-        return chunk_documents(file_path)
+        return _get_chunk_documents()(file_path)
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
         return []
@@ -196,13 +137,9 @@ def _process_extraction(args) -> list:
         return []
     
     try:
-        extractor = get_image_extractor(force_new=True, image_format=image_format)
-        # Avoid print in parallel process or it might get messy, 
-        # but for now let's keep it minimal or just return results
+        extractor = _get_image_extractor(force_new=True, image_format=image_format)
         return extractor.extract_from_file(pdf_file)
     except Exception as e:
-        # print(f"Error extracting images from {pdf_file}: {e}")
-        # Return empty list on error
         return []
 
 
@@ -229,6 +166,7 @@ def process_documents(
     # Falls back to module constant if not provided.
     input_dir = input_dir or settings.paths.documents_dir or DOCUMENTS_DIR
     input_dir = Path(input_dir)
+    from tqdm import tqdm
     
     backend = settings.vectordb.backend
     configured_workers = max_workers if max_workers is not None else settings.performance.max_workers
@@ -270,16 +208,6 @@ def process_documents(
     else:
         log(f"ChromaDB location: {VECTORDB_DIR}")
     print("-" * 50)
-    
-    # Initialize components
-    vectorizer = get_vectorizer()
-    vector_store = get_vector_store()
-    chart_processor = get_chart_processor()
-    
-    # Create image extractor with format override if specified
-    image_format_override = None
-    if image_format and image_format != "png":
-        image_format_override = image_format
     
     all_vectorized = []
     total_images = 0
@@ -335,6 +263,7 @@ def process_documents(
     
     # 2. Extract images from PDFs
     extraction_time = 0
+    image_format_override = image_format if image_format and image_format != "png" else None
     if include_images:
         log("[2/3] Extracting images from PDFs (Parallel)...")
         step_start = time.perf_counter()
@@ -358,7 +287,7 @@ def process_documents(
                 for i, extracted in enumerate(results):
                     if extracted:
                         total_images += len(extracted)
-                        image_data = get_vectorization_data(extracted)
+                        image_data = _get_vectorization_data(extracted)
                         for data in image_data:
                             data["type"] = "image"
                             items_to_vectorize.append(data)
@@ -371,6 +300,7 @@ def process_documents(
     if include_charts:
         log("[3/3] Processing sequence charts...")
         step_start = time.perf_counter()
+        chart_processor = _get_chart_processor()
         for md_file in input_dir.glob("**/*.md"):
             try:
                 charts = chart_processor.process_file(md_file, export_images=True)
@@ -388,9 +318,13 @@ def process_documents(
     
     # 4. Vectorize and Store
     vectorize_time = 0
+    vector_store = None
     if items_to_vectorize:
         log(f"[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
         step_start = time.perf_counter()
+
+        vectorizer = __get_vectorizer()
+        vector_store = __get_vector_store()
         
         # Extract contents for batch vectorization
         texts = [item["content"] for item in items_to_vectorize]
@@ -417,7 +351,10 @@ def process_documents(
     log("Processing complete!")
     log(f"  Text chunks: {len(chunks)}")
     log(f"  Images extracted: {total_images}")
-    log(f"  Total items in database: {vector_store.count()}")
+    if vector_store is not None:
+        log(f"  Total items in database: {vector_store.count()}")
+    elif items_to_vectorize:
+        log(f"  Total items in database: {len(items_to_vectorize)}")
     log("[TIME] Time Report:")
     log(f"  Chunking:      {_format_duration(chunking_time)}")
     if include_images:
@@ -446,6 +383,7 @@ def search_documents(
         images_only: If True, only return image results.
         use_hybrid: If True, use BM25+Vector hybrid search.
     """
+    configure_embedding_threads()
     start_time = time.perf_counter()
     
     log(f"Searching for: '{query}'")
@@ -463,9 +401,9 @@ def search_documents(
     
     # Use hybrid or regular search
     if use_hybrid:
-        vectorizer = get_vectorizer()
-        vector_store = get_vector_store()
-        hybrid_engine = HybridSearchEngine(vector_store, vectorizer)
+        vectorizer = _get_vectorizer()
+        vector_store = _get_vector_store()
+        hybrid_engine = _get_hybrid_search_engine()(vector_store, vectorizer)
         raw_results = hybrid_engine.search(
             query, 
             top_k=fetch_k, 
@@ -489,7 +427,7 @@ def search_documents(
         # Helper to save hybrid results
         if save_results:
              # We need access to the base search engine for saving utility
-             base_engine = get_search_engine()
+             base_engine = _get_search_engine()
              params = {
                 "top_k": fetch_k,
                 "threshold": search_threshold,
@@ -500,7 +438,7 @@ def search_documents(
              # base_engine.save_search_results(query, results, extra_params=params)
 
     else:
-        engine = get_search_engine()
+        engine = _get_search_engine()
         results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
     
     # Filter for images only if requested
@@ -521,7 +459,7 @@ def search_documents(
     
     # Save results if requested
     if save_results:
-        engine = get_search_engine()
+        engine = _get_search_engine()
         save_params = {
             "top_k": top_k,
             "images_only": images_only,
@@ -586,6 +524,8 @@ def multi_search(
     """
     start_time = time.perf_counter()
     
+    configure_embedding_threads()
+    
     print(f"Multi-Query Search ({len(queries)} queries)")
     print(f"Using backend: {settings.vectordb.backend}")
     if use_hybrid:
@@ -608,9 +548,9 @@ def multi_search(
         search_threshold = 0.4 if images_only else 0.5
         
         if use_hybrid:
-            vectorizer = get_vectorizer()
-            vector_store = get_vector_store()
-            hybrid_engine = HybridSearchEngine(vector_store, vectorizer)
+            vectorizer = _get_vectorizer()
+            vector_store = _get_vector_store()
+            hybrid_engine = _get_hybrid_search_engine()(vector_store, vectorizer)
             raw_results = hybrid_engine.search(
                 query, 
                 top_k=fetch_k, 
@@ -630,7 +570,7 @@ def multi_search(
                 for r in raw_results
             ]
         else:
-            engine = get_search_engine()
+            engine = _get_search_engine()
             results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
         
         # Apply image filter if needed
@@ -697,7 +637,7 @@ def multi_search(
     # Save results if requested
     if save_results and final_results:
         # We need access to the base search engine for saving utility
-        engine = get_search_engine()
+        engine = _get_search_engine()
         
         # Create a composite query string for the filename/record
         composite_query = " | ".join(queries)
@@ -721,7 +661,19 @@ def multi_search(
 
 def show_stats():
     """Show vector database statistics."""
-    vector_store = get_vector_store()
+    backend = settings.vectordb.backend.lower()
+    if backend == "faiss":
+        from src.vectorization.faiss_store import FaissVectorStore
+
+        summary = FaissVectorStore.read_summary()
+        if summary:
+            print("Vector Database Statistics")
+            print("-" * 50)
+            for key, value in summary.items():
+                print(f"  {key}: {value}")
+            return
+
+    vector_store = _get_vector_store()
     stats = vector_store.get_stats()
     
     print("Vector Database Statistics")
@@ -873,7 +825,7 @@ def add_tag(doc_id: str, tag: str):
     doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     try:
         # 1. Get current data
@@ -960,7 +912,7 @@ def remove_tag(doc_id: str, tag: str):
     doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     try:
         # 1. Get current data
@@ -1048,7 +1000,7 @@ def reset_tags(doc_id: str):
     doc_id = resolve_chunk_id(doc_id)
     
     start_time = time.perf_counter()
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     try:
         # 1. Get current data
@@ -1118,7 +1070,7 @@ def list_tags(doc_id: str):
     doc_id = _normalize_doc_id(doc_id)
     doc_id = resolve_chunk_id(doc_id)
     
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     try:
         metadata = vector_store.get_metadata(doc_id)
@@ -1150,7 +1102,9 @@ def resolve_chunk_id(identifier: str) -> str:
     Returns:
         The resolved chunk_id, or the original identifier if no match found.
     """
-    vector_store = get_vector_store()
+    from src.path_resolver import display_chunk_id, paths_refer_to_same_file
+
+    vector_store = _get_vector_store()
     
     # First, check if identifier is already a valid chunk_id
     metadata = vector_store.get_metadata(identifier)
@@ -1190,7 +1144,7 @@ def add_knowledge(identifier: str, knowledge_text: str):
         knowledge_text: The knowledge text to add (markdown supported)
     """
     start_time = time.perf_counter()
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     # Resolve identifier to chunk_id
     doc_id = resolve_chunk_id(identifier)
@@ -1263,7 +1217,7 @@ def update_knowledge(identifier: str, knowledge_text: str):
         knowledge_text: The new knowledge text (replaces existing)
     """
     start_time = time.perf_counter()
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     # Resolve identifier to chunk_id
     doc_id = resolve_chunk_id(identifier)
@@ -1337,7 +1291,7 @@ def get_knowledge(identifier: str):
     Args:
         identifier: chunk_id or image_path
     """
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     
     # Resolve identifier to chunk_id
     doc_id = resolve_chunk_id(identifier)
@@ -1363,7 +1317,7 @@ def get_knowledge(identifier: str):
 
 def list_docs():
     """List source files that have been vectorized."""
-    vector_store = get_vector_store()
+    vector_store = _get_vector_store()
     try:
         documents = vector_store.list_documents()
         # list_documents returns chunk_id -> source_file; aggregate to files

@@ -56,6 +56,9 @@ class TextVectorizer:
                 "sentence-transformers is required. "
                 "Install with: pip install sentence-transformers"
             )
+
+        from src.performance import configure_embedding_threads
+        configure_embedding_threads()
         
         # Force offline mode to prevent SSL errors when model is already downloaded
         import os

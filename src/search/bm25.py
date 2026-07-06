@@ -147,9 +147,11 @@ class HybridSearchEngine:
         if self._index_built:
             return
             
-        # Get all documents from vector store
-        doc_ids = list(self.vector_store._documents.keys())
-        documents = [self.vector_store._documents[did] for did in doc_ids]
+        if hasattr(self.vector_store, "get_indexed_documents"):
+            doc_ids, documents = self.vector_store.get_indexed_documents()
+        else:
+            doc_ids = list(self.vector_store._documents.keys())
+            documents = [self.vector_store._documents[did] for did in doc_ids]
         
         if not documents:
             return
