@@ -323,8 +323,8 @@ def process_documents(
         log(f"[4/4] Vectorizing and Storing {len(items_to_vectorize)} items...")
         step_start = time.perf_counter()
 
-        vectorizer = __get_vectorizer()
-        vector_store = __get_vector_store()
+        vectorizer = _get_vectorizer()
+        vector_store = _get_vector_store()
         
         # Extract contents for batch vectorization
         texts = [item["content"] for item in items_to_vectorize]
