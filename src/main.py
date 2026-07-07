@@ -1613,6 +1613,24 @@ def main():
         default=5,
         help="Top K results to check"
     )
+
+    # Server command
+    server_parser = subparsers.add_parser(
+        "server",
+        help="Start the RAG API server"
+    )
+    server_parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host address (default: 0.0.0.0)"
+    )
+    server_parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port number (default: 8080)"
+    )
     
     
     args = parser.parse_args()
@@ -1714,7 +1732,11 @@ def main():
             eval_main()
         except ImportError:
             print("Could not import tests.eval_retrieval. Make sure to run from project root.")
-    
+
+    elif args.command == "server":
+        from src.api_server import main as run_server
+        run_server(host=args.host, port=args.port)
+
     else:
         parser.print_help()
 
