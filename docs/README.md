@@ -7,6 +7,7 @@
 | Tài liệu                                    | Mô tả                                      |
 | ------------------------------------------- | ------------------------------------------ |
 | [Project Summary](./project-summary.md)     | Tóm tắt dự án: công nghệ, cấu trúc, kiến trúc |
+| [Greenfield Architecture Plan](./greenfield-architecture-plan.md) | Kế hoạch xây dựng lại từ đầu — stack hiện đại 2026 |
 
 ## 🚀 Bắt Đầu Nhanh
 
