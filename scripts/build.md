@@ -1,68 +1,56 @@
-# Build
+# Build Guide
 
-> [!NOTE]
-> To workaround encrypted documents in windows, we will rename `specrag.exe` to `python.exe`
->
-> Currently only built successfully on windows.
-> The dependencies for Linux currently is too large (over 7.5G) and we don't know why, so packaging will failed.
+This guide explains how to build and package SpecRAG. We use a `Makefile` to automate the complex build process, including Cython compilation and PyInstaller bundling.
 
-The script `setup.py` will compile the packages inside `src` into binary library.
+## 🚀 Quick Start
 
-## 0. TLDR
+If you have `make` installed, you can perform all build operations with a single command:
 
-For windows powershell, run these 
+```bash
+# 1. Setup environment and install dependencies
+make setup-env
 
-```pwsh
-. .venv/scripts/Activate.ps1
-python scripts/setup.py build_ext
-cp -r build/lib.win-amd64-cpython-313/src .venv/Lib/site-packages
-python scripts/build.py
-```
+# 2. Compile Python files to Cython binaries (Performance & Protection)
+make compile
 
-## 1. Setup
+# 3. Create a distributable standalone executable
+make build-exec
 
-```sh
-python scripts/setup.py build_ext
-cp -r build/lib.linux-x86_64-cpython-313/src .venv/lib/python3.13/site-packages/ # Linux
-cp -r build/lib.win-amd64-cpython-313/src .venv/Lib/site-packages # Windows (pwsh)
-```
-
-Binary output will locate in a folder like `./build/lib.win-amd64-cpython-311`.
-
-This compiles all Python files in the `src` directory into optimized Cython extensions, which can provide performance improvements over pure Python code.
-
-**Security Note**: Cython compilation helps protect source code by converting Python files into compiled binary extensions (.pyd files on Windows, .so files on Linux/Mac). While not completely secure (determined reverse engineers could potentially extract some information), it provides a reasonable level of protection against casual inspection of the source code.
-
-**Update Procedure**: Before building, copy the compiled library folder to the `.venv/Lib/site-packages/` folder to update the library in your virtual environment. For standalone applications, also copy to the `_internal` folder.
-
-## 2. PyInstaller
-
-The script `build.py` creates a standalone executable using PyInstaller.
-
-```sh
-python scripts/build.py
-```
-
-This will generate a standalone executable in the `dist/` directory named `RagCLI.exe` (on Windows) or `RagCLI` (on Linux/Mac).
-
-The build process includes:
-
-- Bundling all dependencies
-- Including required data files
-- Packaging the specrag application
-- Creating a distributable executable
-
-## 3. Test
-
-To run the built executable:
-
-```sh
-# Windows
-dist/specrag/specrag.exe
-
-# Linux/Mac
+# 4. Run the executable
 ./dist/specrag/specrag
 ```
 
-The executable includes everything needed to run the RAG system without requiring a Python installation or virtual environment.
+---
 
+## 🛠️ Detailed Build Pipeline
+
+### 1. Environment Setup (`make setup-env`)
+Creates a virtual environment and installs the project in editable mode along with development dependencies.
+
+### 2. Cython Compilation (`make compile`)
+Compiles all `.py` files in the `src/` directory into optimized binary extensions (`.so` on Linux, `.pyd` on Windows).
+
+**Why use Cython?**
+- **Performance**: Provides significant speedups for compute-intensive tasks.
+- **Source Protection**: Converts human-readable Python code into compiled binaries, making casual reverse-engineering much harder.
+
+### 3. Wheel Distribution (`make build`)
+Uses the standard `build` package to create `.whl` and `.tar.gz` files in the `dist/` directory. This is the standard way to distribute Python packages.
+
+### 4. Standalone Executable (`make build-exec`)
+Uses PyInstaller and `specrag.spec` to bundle the entire application, including the Python interpreter and all dependencies (torch, transformers, etc.), into a single folder in `dist/specrag/`.
+
+The build process automatically handles:
+- **Heavy Dependencies**: Uses `collect_all` to ensure `torch` and `transformers` are fully bundled.
+- **Metadata**: Copies required package metadata for runtime compatibility.
+- **Hidden Imports**: Resolves complex dynamic imports from `langchain` and `chromadb`.
+
+---
+
+## 🧹 Cleaning Up
+
+To remove build artifacts and start fresh:
+
+- `make clean-src`: Remove only compiled Cython files and `__pycache__`.
+- `make clean-exec`: Remove only `build/` and `dist/` directories.
+- `make clean`: Full nuclear clean (remove everything).

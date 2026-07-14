@@ -14,7 +14,7 @@ import hashlib
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from src.config import settings, SequenceChartConfig, DOCUMENTS_DIR, ensure_directories
+from specrag.config import settings, SequenceChartConfig, DOCUMENTS_DIR, ensure_directories
 
 
 @dataclass

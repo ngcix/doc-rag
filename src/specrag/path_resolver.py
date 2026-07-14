@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Iterable, Optional
 
-from src.config import BASE_DIR, DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR
+from specrag.config import BASE_DIR, DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR
 
 
 _TEXT_CHUNK_ID_RE = re.compile(r"^(?P<source>.+)_(?P<chunk_index>\d+)$")

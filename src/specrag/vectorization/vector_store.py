@@ -10,8 +10,8 @@ import json
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from src.config import settings, VectorDBConfig, ensure_directories
-from src.path_resolver import normalize_metadata_paths
+from specrag.config import settings, VectorDBConfig, ensure_directories
+from specrag.path_resolver import normalize_metadata_paths
 
 
 class VectorStore:

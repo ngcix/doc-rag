@@ -11,12 +11,12 @@ from pathlib import Path
 from typing import Optional
 import concurrent.futures
 
-from src.config import(
+from specrag.config import(
     settings, ensure_directories,
     DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR,
     VECTORDB_DIR, FAISS_INDEX_DIR, PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR, MODELS_DIR
 )
-from src.performance import (
+from specrag.performance import (
     _is_auto_cpu_value,
     _coerce_positive_int,
     _coerce_non_negative_int,
@@ -28,42 +28,42 @@ from src.performance import (
 
 
 def _get_chunk_documents():
-    from src.chunking import chunk_documents
+    from specrag.chunking import chunk_documents
     return chunk_documents
 
 
 def _get_vectorizer():
-    from src.vectorization import get_vectorizer
+    from specrag.vectorization import get_vectorizer
     return get_vectorizer()
 
 
 def _get_vector_store():
-    from src.vectorization import get_vector_store
+    from specrag.vectorization import get_vector_store
     return get_vector_store()
 
 
 def _get_search_engine():
-    from src.search import get_search_engine
+    from specrag.search import get_search_engine
     return get_search_engine()
 
 
 def _get_hybrid_search_engine():
-    from src.search import HybridSearchEngine
+    from specrag.search import HybridSearchEngine
     return HybridSearchEngine
 
 
 def _get_chart_processor():
-    from src.sequence_chart import get_chart_processor
+    from specrag.sequence_chart import get_chart_processor
     return get_chart_processor()
 
 
 def _get_image_extractor(force_new: bool = False, image_format: Optional[str] = None):
-    from src.image_extraction import get_image_extractor
+    from specrag.image_extraction import get_image_extractor
     return get_image_extractor(force_new=force_new, image_format=image_format)
 
 
 def _get_vectorization_data(images):
-    from src.image_extraction import get_vectorization_data
+    from specrag.image_extraction import get_vectorization_data
     return get_vectorization_data(images)
 
 
@@ -412,7 +412,7 @@ def search_documents(
             threshold=search_threshold
         )
         # Convert to SearchResult-like objects for compatibility
-        from src.search import SearchResult
+        from specrag.search import SearchResult
         results = [
             SearchResult(
                 rank=r["rank"],
@@ -558,7 +558,7 @@ def multi_search(
                 bm25_weight=0.6,
                 threshold=search_threshold
             )
-            from src.search import SearchResult
+            from specrag.search import SearchResult
             results = [
                 SearchResult(
                     rank=r["rank"],
@@ -663,7 +663,7 @@ def show_stats():
     """Show vector database statistics."""
     backend = settings.vectordb.backend.lower()
     if backend == "faiss":
-        from src.vectorization.faiss_store import FaissVectorStore
+        from specrag.vectorization.faiss_store import FaissVectorStore
 
         summary = FaissVectorStore.read_summary()
         if summary:
@@ -864,7 +864,7 @@ def add_tag(doc_id: str, tag: str):
         print("Re-calculating vector embedding...")
         
         # 6. Generate New Embedding
-        from src.vectorization.vectorizer import vectorize_text
+        from specrag.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
@@ -957,7 +957,7 @@ def remove_tag(doc_id: str, tag: str):
         print("Re-calculating vector embedding...")
         
         # 8. Generate New Embedding
-        from src.vectorization.vectorizer import vectorize_text
+        from specrag.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
@@ -1029,7 +1029,7 @@ def reset_tags(doc_id: str):
         print("Re-calculating vector embedding...")
         
         # 4. Generate New Embedding
-        from src.vectorization.vectorizer import vectorize_text
+        from specrag.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
@@ -1102,7 +1102,7 @@ def resolve_chunk_id(identifier: str) -> str:
     Returns:
         The resolved chunk_id, or the original identifier if no match found.
     """
-    from src.path_resolver import display_chunk_id, paths_refer_to_same_file
+    from specrag.path_resolver import display_chunk_id, paths_refer_to_same_file
 
     vector_store = _get_vector_store()
     
@@ -1175,7 +1175,7 @@ def add_knowledge(identifier: str, knowledge_text: str):
         print("Re-calculating vector embedding...")
         
         # 4. Generate New Embedding
-        from src.vectorization.vectorizer import vectorize_text
+        from specrag.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
@@ -1252,7 +1252,7 @@ def update_knowledge(identifier: str, knowledge_text: str):
         print("Re-calculating vector embedding...")
         
         # 4. Generate New Embedding
-        from src.vectorization.vectorizer import vectorize_text
+        from specrag.vectorization.vectorizer import vectorize_text
         embedding_start = time.perf_counter()
         new_embedding = vectorize_text(new_content)[0].tolist()
         embedding_time = time.perf_counter() - embedding_start
@@ -1734,7 +1734,7 @@ def main():
             print("Could not import tests.eval_retrieval. Make sure to run from project root.")
 
     elif args.command == "server":
-        from src.api_server import main as run_server
+        from specrag.api_server import main as run_server
         run_server(host=args.host, port=args.port)
 
     else:

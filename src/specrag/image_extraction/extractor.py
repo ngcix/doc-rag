@@ -7,8 +7,8 @@ import re
 
 from PIL import Image
 
-from src.config import BASE_DIR, EXTRACTED_IMAGES_DIR, ensure_directories
-from src.image_extraction.image_info import ExtractedImage
+from specrag.config import BASE_DIR, EXTRACTED_IMAGES_DIR, ensure_directories
+from specrag.image_extraction.image_info import ExtractedImage
 
 
 def _get_relative_path(absolute_path: Path, base_dir: Path) -> str:
@@ -22,7 +22,7 @@ def _get_relative_path(absolute_path: Path, base_dir: Path) -> str:
 def _get_image_extraction_config():
     """Get image extraction config from global settings."""
     try:
-        from src.config import settings
+        from specrag.config import settings
 
         return settings.image_extraction
     except ImportError:

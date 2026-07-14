@@ -13,7 +13,7 @@ if not hasattr(multidict, 'istr'):
 from aiohttp import web
 
 # Import core functions from the project
-from src.main import search_documents, multi_search, add_tag
+from specrag.main import search_documents, multi_search, add_tag
 
 
 def _result_to_dict(r):

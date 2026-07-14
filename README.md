@@ -27,7 +27,7 @@
 ```bash
 # 1. Setup
 git clone <repo-url> && cd SpecRAG
-python -m venv .venv && .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -e .
 
 # 2. Process documents
@@ -183,6 +183,21 @@ models/
 
 ---
 
+## 🛠️ Development & Build
+
+SpecRAG uses a `Makefile` to automate environment setup, Cython compilation, and standalone bundling.
+
+### Quick Build
+```bash
+make setup-env   # Setup venv and install
+make compile     # Compile Cython binaries
+make build-exec  # Build standalone executable (PyInstaller)
+```
+
+> 📖 **Detailed Guide:** [Build Instructions](scripts/build.md)
+
+---
+
 ## 🤖 Cline Integration
 
 SpecRAG includes ready-to-use rules for **Cline** AI agent in `.clinerules/`:
@@ -215,11 +230,19 @@ SpecRAG/
 ├── models/               # NLP models (gte-multilingual-base)
 ├── src/                  # Source code
 │   ├── chunking/         # Text splitting
+│   │   └── __init__.py
 │   ├── image_extraction/ # PDF image extraction
+│   │   └── __init__.py
 │   ├── search/           # Search algorithms
+│   │   └── __init__.py
 │   ├── vectorization/    # Embedding & FAISS
-│   └── main.py           # CLI entry point
-└── tests/
+│   │   └── __init__.py
+│   └── specrag/           # Package root
+│       ├── __init__.py
+│       ├── __main__.py
+│       └── ...
+├── tests/
+└── Makefile            # Build automation
 ```
 
 ---
