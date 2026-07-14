@@ -2,9 +2,9 @@
 from typing import Optional
 
 # Import config from settings
-from src.config.settings import ImageExtractionConfig
-from src.image_extraction.image_info import ExtractedImage
-import src.image_extraction.extractor as pymupdf_fullpage
+from specrag.config.settings import ImageExtractionConfig
+from specrag.image_extraction.image_info import ExtractedImage
+import specrag.image_extraction.extractor as pymupdf_fullpage
 
 __all__ = [
     # Image extraction

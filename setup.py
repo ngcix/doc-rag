@@ -10,7 +10,7 @@ def get_export_name(file_path):
     return f"src.{module_name}"
 
 
-BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SRC_DIR = os.path.join(BASE_DIR, "src")
 
 src_pattern = os.path.join(SRC_DIR, "**", "*.py")

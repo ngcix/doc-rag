@@ -18,7 +18,7 @@ def get_vector_store():
     Returns:
         VectorStore or FaissVectorStore based on settings.vectordb.backend
     """
-    from src.config import settings
+    from specrag.config import settings
 
     backend = settings.vectordb.backend.lower()
     

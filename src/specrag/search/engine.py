@@ -10,12 +10,12 @@ import json
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from src.config import (
+from specrag.config import (
     settings, SearchConfig, 
     PROCESS_INPUT_DIR, PROCESS_OUTPUT_DIR,
     ensure_directories
 )
-from src.path_resolver import display_chunk_id, normalize_metadata_paths
+from specrag.path_resolver import display_chunk_id, normalize_metadata_paths
 
 
 class SearchResult:
@@ -71,7 +71,7 @@ class SearchEngine:
     def vectorizer(self):
         """Get the vectorizer instance."""
         if self._vectorizer is None:
-            from src.vectorization import get_vectorizer
+            from specrag.vectorization import get_vectorizer
             self._vectorizer = get_vectorizer()
         return self._vectorizer
     
@@ -79,7 +79,7 @@ class SearchEngine:
     def vector_store(self):
         """Get the vector store instance."""
         if self._vector_store is None:
-            from src.vectorization import get_vector_store
+            from specrag.vectorization import get_vector_store
             self._vector_store = get_vector_store()
         return self._vector_store
     

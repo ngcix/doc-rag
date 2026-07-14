@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from src.config import settings, ModelConfig, ensure_directories
+from specrag.config import settings, ModelConfig, ensure_directories
 
 
 class TextVectorizer:
@@ -57,7 +57,7 @@ class TextVectorizer:
                 "Install with: pip install sentence-transformers"
             )
 
-        from src.performance import configure_embedding_threads
+        from specrag.performance import configure_embedding_threads
         configure_embedding_threads()
         
         # Force offline mode to prevent SSL errors when model is already downloaded
