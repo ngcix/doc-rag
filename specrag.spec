@@ -2,6 +2,7 @@
 from PyInstaller.utils.hooks import collect_all, collect_data_files, copy_metadata
 
 # Packages that require full collection of data, binaries and hidden imports
+
 packages_to_collect = [
     'fitz',
     'torch',
