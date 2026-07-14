@@ -221,7 +221,7 @@ def process_documents(
     step_start = time.perf_counter()
     
     # Collect files
-    extensions = ['.txt', '.md', '.pdf', '.docx', '.markdown']
+    extensions = ['.txt', '.md', '.pdf', '.docx', '.markdown', '.xlsx', '.xls', '.pptx']
     files_to_chunk = []
     # Use set to avoid duplicates if glob matches multiple patterns (though unlikely with these extensions)
     # But glob is case sensitive on some OS. Windows is usually case insensitive.
