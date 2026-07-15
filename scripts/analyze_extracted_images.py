@@ -55,7 +55,7 @@ def get_llm_config() -> str:
         "repetition_penalty": 1.04,
     })
 
-def analyze_image_with_ai(image_path: Path, prompt: str, session: requests.Session = None) -> Dict:
+def analyze_image_with_ai(image_path: Path, prompt: str, session: Optional[requests.Session] = None) -> Dict:
     """
     Analyze an image using Gauss AI model.
     
@@ -87,15 +87,31 @@ def analyze_image_with_ai(image_path: Path, prompt: str, session: requests.Sessi
     
     try:
         with image_path.open("rb") as f:
+            # Clean filename to avoid invalid characters (remove '.pdf_' prefix)
+            cleaned_name = image_path.name.replace('.pdf_', '_')
+            files = [("files", (cleaned_name, f, "image/png"))]
             response = request_func(
-                api_endpoint_url, 
-                headers=headers, 
-                data=form_data, 
-                files=[("files", f)]
+                api_endpoint_url,
+                headers=headers,
+                data=form_data,
+                files=files
             )
         response.raise_for_status()
         return response.json()
     except Exception as e:
+        # Detailed logging for debugging
+        try:
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Error analyzing image {image_path}: {e}")
+                print(f"Response status: {e.response.status_code}")
+                try:
+                    print(f"Response body: {e.response.text}")
+                except Exception:
+                    pass
+                return {"error": f"{e} (status {e.response.status_code})"}
+        except Exception:
+            pass
+        # Fallback generic error
         print(f"Error analyzing image {image_path}: {e}")
         return {"error": str(e)}
 
@@ -112,7 +128,8 @@ def extract_content_from_response(response: Dict) -> str:
     """
     if not isinstance(response, dict):
         return str(response)
-        
+
+    print("extract_content_from_response")   
     if "error" in response:
         return ""
         
@@ -121,7 +138,9 @@ def extract_content_from_response(response: Dict) -> str:
         # Try Gauss API specific structure first
         if "actions" in response and len(response["actions"]) > 0:
             action = response["actions"][0]
-            if "answer" in action:
+            if "response" in action:
+                return str(action["response"])
+            elif "answer" in action:
                 return str(action["answer"])
             elif "content" in action:
                 return str(action["content"])
@@ -157,7 +176,7 @@ def get_chunk_id_from_image_path(image_path: Path) -> str:
     filename = image_path.stem  # Remove extension
     return filename
 
-def process_single_image(image_path: Path, dry_run: bool = False, image_index: int = 0, total_images: int = 0, session: requests.Session = None) -> Tuple[bool, float]:
+def process_single_image(image_path: Path, dry_run: bool = False, image_index: int = 0, total_images: int = 0, session: Optional[requests.Session] = None) -> Tuple[bool, float]:
     """
     Process a single image: analyze and add knowledge to RAG system.
     
@@ -244,6 +263,45 @@ Provide only factual descriptions of what is visible in the image.
     total_time = time.time() - start_time
     print(f"  Total time: {total_time:.2f}s")
     return True, total_time
+
+def process_image(image_path: Path, query: str = "", dry_run: bool = False, image_index: int = 0, total_images: int = 0, session: Optional[requests.Session] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Analyze an image using the Gauss AI model and return the analysis text.
+    Does NOT add the analysis to the RAG knowledge base.
+    Returns (success, analysis_text_or_None).
+    """
+    start_time = time.time()
+    if dry_run:
+        print(f"[{image_index}/{total_images}] (Dry run) Would analyze {image_path.name}")
+        return True, None
+
+    print(f"[{image_index}/{total_images}] Analyzing {image_path.name}")
+    detailed_prompt = f"""
+Analyze this technical diagram/image in extreme detail. Please describe only what you observe in the image, without asking questions or requesting additional information. Focus on factual observations only, with special attention to the following query: {query}
+
+1. What type of diagram/chart/image this is
+2. All visual elements, components, and their relationships, particularly those related to the query
+3. Any text, labels, or annotations present, especially those relevant to the query
+4. The overall purpose or function represented, with emphasis on the query
+5. Technical specifications or data shown, particularly those connected to the query
+6. Connections, flows, or processes depicted, with a focus on how they relate to the query
+7. Any notable patterns, structures, or key features, especially those that address the query
+Provide only factual descriptions of what is visible in the image, ensuring that the query is explicitly addressed in your analysis.
+""".strip()
+    analysis_result = analyze_image_with_ai(image_path, detailed_prompt, session)
+    #print(analysis_result)
+    if "error" in analysis_result:
+        print(f"  [ERROR] Failed to analyze image: {analysis_result['error']}")
+        return False, None
+
+    analysis_text = extract_content_from_response(analysis_result)
+    if not analysis_text:
+        print("  [ERROR] No analysis text received")
+        return False, None
+
+    print(f"{get_chunk_id_from_image_path(image_path)} has been analyzed!")
+    # Optionally, you could return processing time as well, but this function returns only success and text.
+    return True, analysis_text
 
 def get_memory_usage() -> float:
     """Get current memory usage in MB."""

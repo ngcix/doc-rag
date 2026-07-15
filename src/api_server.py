@@ -14,6 +14,8 @@ from aiohttp import web
 
 # Import core functions from the project
 from src.main import search_documents, multi_search, add_tag
+from pathlib import Path
+from scripts.analyze_extracted_images import process_image
 
 
 def _result_to_dict(r):
@@ -31,7 +33,6 @@ def _result_to_dict(r):
 async def handle_search(request):
     try:
         data = await request.json()
-        print("hi")
         query = data.get("query")
         top_k = data.get("top_k", 5)
         images_only = data.get("images_only", False)
@@ -45,6 +46,15 @@ async def handle_search(request):
             images_only=images_only,
             use_hybrid=use_hybrid,
         )
+        # Analyze image results and embed analysis into metadata
+        for r in results:
+            meta = getattr(r, "metadata", {})
+            if meta.get("content_type") == "image":
+                image_path = meta.get("image_path")
+                if image_path:
+                    success, analysis = process_image(Path(image_path), query=query)
+                    if success and analysis:
+                        meta["image_content"] = analysis
         return web.json_response([_result_to_dict(r) for r in results])
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
