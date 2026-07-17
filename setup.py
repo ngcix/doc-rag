@@ -7,7 +7,7 @@ import os
 def get_export_name(file_path):
     relative_path = os.path.relpath(file_path, SRC_DIR)
     module_name = os.path.splitext(relative_path)[0].replace(os.path.sep, ".")
-    return f"src.{module_name}"
+    return f"{module_name}"
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -28,8 +28,8 @@ for file in all_py_files:
 setup(
     name="specrag",
     version="0.1.0",
-    package_dir={"": "src"},
     packages=find_packages(where="src"),
+    package_dir={"specrag": "src/specrag"},
     ext_modules=cythonize(
         extensions,
         compiler_directives={
