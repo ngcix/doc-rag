@@ -383,9 +383,9 @@ def search_documents(
         images_only: If True, only return image results.
         use_hybrid: If True, use BM25+Vector hybrid search.
     """
-    configure_embedding_threads()
+    from specrag.ops import search_documents as _ops_search
+
     start_time = time.perf_counter()
-    
     log(f"Searching for: '{query}'")
     log(f"Using backend: {settings.vectordb.backend}")
     if use_hybrid:
@@ -393,82 +393,16 @@ def search_documents(
     if images_only:
         print("Filter: Images only")
     print("-" * 50)
-    
-    # Fetch more results if filtering, to ensure we get enough after filter
-    # For image-only search, fetch many more since images may have lower similarity than text
-    fetch_k = 1000 if images_only else top_k
-    search_threshold = 0.5 if images_only else None
-    
-    # Use hybrid or regular search
-    if use_hybrid:
-        vectorizer = _get_vectorizer()
-        vector_store = _get_vector_store()
-        hybrid_engine = _get_hybrid_search_engine()(vector_store, vectorizer)
-        raw_results = hybrid_engine.search(
-            query, 
-            top_k=fetch_k, 
-            vector_weight=0.4,  # Give more weight to BM25 for exact-match
-            bm25_weight=0.6,
-            threshold=search_threshold
-        )
-        # Convert to SearchResult-like objects for compatibility
-        from specrag.search import SearchResult
-        results = [
-            SearchResult(
-                rank=r["rank"],
-                document=r["document"],
-                similarity=r.get("rrf_score", r.get("similarity", 0)),
-                metadata=r["metadata"],
-                chunk_id=r["id"]
-            )
-            for r in raw_results
-        ]
-        
-        # Helper to save hybrid results
-        if save_results:
-             # We need access to the base search engine for saving utility
-             base_engine = _get_search_engine()
-             params = {
-                "top_k": fetch_k,
-                "threshold": search_threshold,
-                "mode": "hybrid",
-                "original_count": len(results)
-             }
-             # Note: We save AFTER filtering below, but if we wanted to save raw hybrid results:
-             # base_engine.save_search_results(query, results, extra_params=params)
 
-    else:
-        engine = _get_search_engine()
-        results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
-    
-    # Filter for images only if requested
-    if images_only:
-        image_types = ["image", "extracted_image", "fullpage"]
-        results = [
-            r for r in results 
-            if r.metadata.get("content_type") in image_types 
-            or r.metadata.get("type") in image_types
-            or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
-        ][:top_k]  # Limit to top_k after filtering
-        
-        # Re-rank after filtering
-        for i, r in enumerate(results):
-            r.rank = i + 1
-    
+    results = _ops_search(
+        query=query,
+        top_k=top_k,
+        save_results=save_results,
+        images_only=images_only,
+        use_hybrid=use_hybrid,
+    )
     search_time = time.perf_counter() - start_time
-    
-    # Save results if requested
-    if save_results:
-        engine = _get_search_engine()
-        save_params = {
-            "top_k": top_k,
-            "images_only": images_only,
-            "use_hybrid": use_hybrid,
-            "fetch_k": fetch_k
-        }
-        engine.save_search_results(query, results, extra_params=save_params)
-    
-    # Display results
+
     if images_only and results:
         print(f"Found {len(results)} image results:\n")
         for r in results:
@@ -483,11 +417,10 @@ def search_documents(
     elif images_only and not results:
         print("No image results found.")
     elif results:
-        # Format results using engine or manual formatting
         if not use_hybrid:
+            engine = _get_search_engine()
             print(engine.format_results(results, format_type="text"))
         else:
-            # Manual formatting for hybrid results
             print(f"Found {len(results)} results:\n")
             for r in results:
                 print(f"[{r.rank}] Score: {r.similarity:.4f}")
@@ -497,9 +430,8 @@ def search_documents(
                 print()
     else:
         print("No results found.")
-    
+
     print(f"\n[TIME] Search completed in {_format_duration(search_time)}")
-    
     return results
 
 
@@ -522,10 +454,9 @@ def multi_search(
         use_hybrid: If True, use BM25+Vector hybrid search
         save_results: If True, save merged results to file
     """
+    from specrag.ops import multi_search as _ops_multi_search
+
     start_time = time.perf_counter()
-    
-    configure_embedding_threads()
-    
     print(f"Multi-Query Search ({len(queries)} queries)")
     print(f"Using backend: {settings.vectordb.backend}")
     if use_hybrid:
@@ -533,149 +464,50 @@ def multi_search(
     if images_only:
         print("Filter: Images only")
     print("-" * 50)
-    
     for i, q in enumerate(queries, 1):
         print(f"  [{i}] {q}")
     print("-" * 50)
-    
-    # Collect results from all queries
-    all_results = {}  # chunk_id -> (best_score, result_obj, query_hits)
-    rrf_k = 60  # RRF parameter
-    
-    for query_idx, query in enumerate(queries):
-        # Search with lower threshold to get more candidates
-        fetch_k = top_k * 3
-        search_threshold = 0.4 if images_only else 0.5
-        
-        if use_hybrid:
-            vectorizer = _get_vectorizer()
-            vector_store = _get_vector_store()
-            hybrid_engine = _get_hybrid_search_engine()(vector_store, vectorizer)
-            raw_results = hybrid_engine.search(
-                query, 
-                top_k=fetch_k, 
-                vector_weight=0.4,
-                bm25_weight=0.6,
-                threshold=search_threshold
-            )
-            from specrag.search import SearchResult
-            results = [
-                SearchResult(
-                    rank=r["rank"],
-                    document=r["document"],
-                    similarity=r.get("rrf_score", r.get("similarity", 0)),
-                    metadata=r["metadata"],
-                    chunk_id=r["id"]
-                )
-                for r in raw_results
-            ]
-        else:
-            engine = _get_search_engine()
-            results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
-        
-        # Apply image filter if needed
-        if images_only:
-            image_types = ["image", "extracted_image", "fullpage"]
-            results = [
-                r for r in results 
-                if r.metadata.get("content_type") in image_types 
-                or r.metadata.get("type") in image_types
-                or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
-            ]
-        
-        # Add to all_results with RRF scoring
-        for rank, result in enumerate(results, 1):
-            chunk_id = result.chunk_id
-            rrf_score = 1.0 / (rrf_k + rank)
-            
-            if chunk_id in all_results:
-                # Update: add RRF score, keep best similarity, track hit count
-                prev_score, prev_result, hit_count = all_results[chunk_id]
-                new_score = prev_score + rrf_score
-                best_result = prev_result if prev_result.similarity > result.similarity else result
-                all_results[chunk_id] = (new_score, best_result, hit_count + 1)
-            else:
-                all_results[chunk_id] = (rrf_score, result, 1)
-    
-    # Sort by RRF score (higher = better, appeared in more queries with higher rank)
-    sorted_results = sorted(all_results.values(), key=lambda x: x[0], reverse=True)
-    
-    # Build final results
-    final_results = []
-    for rank, (rrf_score, result, hit_count) in enumerate(sorted_results[:top_k], 1):
-        result.rank = rank
-        result.similarity = rrf_score  # Override with RRF score for display
-        final_results.append((result, hit_count))
-    
+
+    final_results = _ops_multi_search(
+        queries=queries,
+        top_k=top_k,
+        images_only=images_only,
+        use_hybrid=use_hybrid,
+        save_results=save_results,
+    )
     search_time = time.perf_counter() - start_time
-    
-    # Display results
+
     if not final_results:
         print("No results found.")
     elif images_only:
         print(f"\nFound {len(final_results)} merged image results:\n")
-        for result, hit_count in final_results:
+        for result in final_results:
             image_path = result.metadata.get("image_path", "N/A")
             source = result.metadata.get("source_file", "Unknown")
             page = result.metadata.get("page_number", "?")
-            print(f"[{result.rank}] RRF Score: {result.similarity:.4f} (matched {hit_count}/{len(queries)} queries)")
+            print(f"[{result.rank}] RRF Score: {result.similarity:.4f}")
             print(f"    Image: {image_path}")
             print(f"    Source: {source}, Page {page}")
             print(f"    ID: {result.chunk_id}")
             print()
     else:
         print(f"\nFound {len(final_results)} merged results:\n")
-        for result, hit_count in final_results:
-            print(f"[{result.rank}] RRF Score: {result.similarity:.4f} (matched {hit_count}/{len(queries)} queries)")
+        for result in final_results:
+            print(f"[{result.rank}] RRF Score: {result.similarity:.4f}")
             print(f"    ID: {result.chunk_id}")
             print(f"    Source: {result.metadata.get('source_file', 'Unknown')}")
             print(f"    Content: {result.document[:150] if result.document else 'N/A'}...")
             print()
-    
+
     print(f"[TIME] Multi-search completed in {_format_duration(search_time)}")
-    
-    # Save results if requested
-    if save_results and final_results:
-        # We need access to the base search engine for saving utility
-        engine = _get_search_engine()
-        
-        # Create a composite query string for the filename/record
-        composite_query = " | ".join(queries)
-        
-        # Prepare actual result objects
-        results_to_save = [r for r, _ in final_results]
-        
-        save_params = {
-            "top_k": top_k,
-            "images_only": images_only,
-            "use_hybrid": use_hybrid,
-            "mode": "multi_search",
-            "queries": queries,
-            "rerank_method": "RRF"
-        }
-        
-        engine.save_search_results(composite_query, results_to_save, extra_params=save_params)
-    
-    return [r for r, _ in final_results]
+    return final_results
 
 
 def show_stats():
     """Show vector database statistics."""
-    backend = settings.vectordb.backend.lower()
-    if backend == "faiss":
-        from specrag.vectorization.faiss_store import FaissVectorStore
+    from specrag.ops import get_stats
 
-        summary = FaissVectorStore.read_summary()
-        if summary:
-            print("Vector Database Statistics")
-            print("-" * 50)
-            for key, value in summary.items():
-                print(f"  {key}: {value}")
-            return
-
-    vector_store = _get_vector_store()
-    stats = vector_store.get_stats()
-    
+    stats = get_stats()
     print("Vector Database Statistics")
     print("-" * 50)
     for key, value in stats.items():
@@ -750,69 +582,24 @@ def clean_data(include_models: bool = False, skip_confirm: bool = False):
 
 
 def _normalize_doc_id(doc_id: str) -> str:
-    """
-    Normalize document ID by removing image file extensions.
-    
-    This allows users to input image filenames (e.g., HID_SPEC_V10.pdf_p20.png)
-    and have them automatically converted to the correct doc_id format
-    (e.g., HID_SPEC_V10.pdf_p20).
-    
-    Args:
-        doc_id: Input document ID or image filename
-        
-    Returns:
-        Normalized document ID without image extension
-    """
-    from pathlib import Path
-    
-    # List of image extensions to strip
-    image_extensions = {'.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp'}
-    
-    # Check if the input ends with an image extension
-    path = Path(doc_id)
-    if path.suffix.lower() in image_extensions:
-        # Strip the extension
-        return str(path.with_suffix('')).replace('\\', '/').split('/')[-1]
-    
-    # Also handle full paths
-    if '/' in doc_id or '\\' in doc_id:
-        # Extract just the filename without extension
-        name = path.stem if path.suffix.lower() in image_extensions else path.name
-        return name
-    
-    return doc_id
+    """Normalize document ID by removing image file extensions."""
+    from specrag.ops import normalize_doc_id
+
+    return normalize_doc_id(doc_id)
 
 
 def _rebuild_combined_tags(original_tags: str, user_tags: str) -> str:
     """Helper to combine original and user tags into single string."""
-    parts = []
-    if original_tags:
-        parts.append(original_tags)
-    if user_tags:
-        parts.append(user_tags)
-    return ",".join(parts)
+    from specrag.ops._helpers import rebuild_combined_tags
+
+    return rebuild_combined_tags(original_tags, user_tags)
 
 
 def _rebuild_content_with_tags(base_content: str, all_tags: str) -> str:
     """Helper to rebuild content with proper tag boosting."""
-    import re
-    
-    # Remove old Tags: section if exists (handles both \nTags: and start-of-line Tags:)
-    # The Tags: line often contains repetitions, so we match until end of line
-    # Pattern: Tags: followed by anything until a newline that doesn't start with comma/space/tag
-    base_content = re.sub(r'\nTags:[^\n]*', '', base_content)
-    base_content = re.sub(r'^Tags:[^\n]*\n?', '', base_content)
-    
-    # Clean up any double newlines that might result
-    base_content = re.sub(r'\n{3,}', '\n\n', base_content)
-    base_content = base_content.strip()
-    
-    if all_tags:
-        # Boost tags by repeating (same format as image_info.py)
-        tag_boost_parts = ", ".join([all_tags] * 5)
-        tag_section = f"\nTags: {tag_boost_parts}"
-        return base_content + tag_section
-    return base_content
+    from specrag.ops._helpers import rebuild_content_with_tags
+
+    return rebuild_content_with_tags(base_content, all_tags)
 
 
 def add_tag(doc_id: str, tag: str):
@@ -820,84 +607,26 @@ def add_tag(doc_id: str, tag: str):
     Add a user tag to a document's metadata AND update its vector embedding.
     User tags are stored separately from original (auto-extracted) tags.
     """
-    # Normalize doc_id (strip image extension if present)
-    doc_id = _normalize_doc_id(doc_id)
-    doc_id = resolve_chunk_id(doc_id)
-    
-    start_time = time.perf_counter()
-    vector_store = _get_vector_store()
-    
+    from specrag.ops import add_tag as _ops_add_tag
+    from specrag.ops.errors import ChunkNotFoundError, DuplicateTagError, OpsError
+
     try:
-        # 1. Get current data
-        current_metadata = vector_store.get_metadata(doc_id)
-        if not current_metadata:
-            print(f"Error: Document {doc_id} not found.")
-            return
-
-        current_content = vector_store.get_content(doc_id)
-        if current_content is None:
-            print(f"Error: Could not retrieve content for {doc_id}")
-            return
-
-        # 2. Get original and user tags separately
-        original_tags = current_metadata.get("original_tags", current_metadata.get("tags", ""))
-        user_tags = current_metadata.get("user_tags", "")
-        
-        # Check if tag already exists
-        existing_user_list = [t.strip() for t in user_tags.split(",") if t.strip()]
-        if tag in existing_user_list:
-            print(f"Tag '{tag}' already exists in user tags.")
-            return
-        
-        # 3. Add to user_tags
-        if user_tags:
-            new_user_tags = f"{user_tags},{tag}"
-        else:
-            new_user_tags = tag
-        
-        # 4. Rebuild combined tags
-        new_combined_tags = _rebuild_combined_tags(original_tags, new_user_tags)
-        
-        # 5. Rebuild content with new tags
-        new_content = _rebuild_content_with_tags(current_content, new_combined_tags)
-        
+        result = _ops_add_tag(doc_id, tag)
         print("Re-calculating vector embedding...")
-        
-        # 6. Generate New Embedding
-        from specrag.vectorization.vectorizer import vectorize_text
-        embedding_start = time.perf_counter()
-        new_embedding = vectorize_text(new_content)[0].tolist()
-        embedding_time = time.perf_counter() - embedding_start
-        
-        # 7. Atomic Update (Delete then Add)
-        vector_store.delete([doc_id])
-        
-        # Prepare metadata
-        updated_metadata = current_metadata.copy()
-        updated_metadata["tags"] = new_combined_tags
-        updated_metadata["user_tags"] = new_user_tags
-        # Ensure original_tags is preserved
-        if "original_tags" not in updated_metadata:
-            updated_metadata["original_tags"] = original_tags
-        
-        vector_store.add(
-            ids=[doc_id],
-            embeddings=[new_embedding],
-            documents=[new_content],
-            metadatas=[updated_metadata]
-        )
-        
-        total_time = time.perf_counter() - start_time
-        
-        print(f"Successfully added tag '{tag}' to document '{doc_id}'")
-        print(f"  Original tags: {original_tags or '(none)'}")
-        print(f"  User tags:     {new_user_tags}")
-        print(f"  Combined:      {new_combined_tags}")
+        print(f"Successfully added tag '{tag}' to document '{result['chunk_id']}'")
+        print(f"  Original tags: {result['original_tags'] or '(none)'}")
+        print(f"  User tags:     {result['user_tags']}")
+        print(f"  Combined:      {result['combined_tags']}")
         print("Vector embedding updated.")
         print(f"\n[TIME] Time Report:")
-        print(f"  Embedding:  {_format_duration(embedding_time)}")
-        print(f"  Total:      {_format_duration(total_time)}")
-        
+        print(f"  Embedding:  {_format_duration(result['embedding_seconds'])}")
+        print(f"  Total:      {_format_duration(result['total_seconds'])}")
+    except DuplicateTagError as e:
+        print(str(e))
+    except ChunkNotFoundError as e:
+        print(f"Error: {e}")
+    except OpsError as e:
+        print(f"Error adding tag: {e}")
     except Exception as e:
         print(f"Error adding tag: {e}")
 
@@ -907,86 +636,34 @@ def remove_tag(doc_id: str, tag: str):
     Remove a user-added tag from a document.
     Only user tags can be removed; original tags are immutable.
     """
-    # Normalize doc_id (strip image extension if present)
-    doc_id = _normalize_doc_id(doc_id)
-    doc_id = resolve_chunk_id(doc_id)
-    
-    start_time = time.perf_counter()
-    vector_store = _get_vector_store()
-    
+    from specrag.ops import remove_tag as _ops_remove_tag
+    from specrag.ops.errors import (
+        ChunkNotFoundError,
+        OpsError,
+        TagImmutableError,
+        TagNotFoundError,
+    )
+
     try:
-        # 1. Get current data
-        current_metadata = vector_store.get_metadata(doc_id)
-        if not current_metadata:
-            print(f"Error: Document {doc_id} not found.")
-            return
-
-        current_content = vector_store.get_content(doc_id)
-        if current_content is None:
-            print(f"Error: Could not retrieve content for {doc_id}")
-            return
-
-        # 2. Get original and user tags
-        original_tags = current_metadata.get("original_tags", "")
-        user_tags = current_metadata.get("user_tags", "")
-        
-        # 3. Check if tag is in original tags (cannot remove)
-        original_list = [t.strip() for t in original_tags.split(",") if t.strip()]
-        if tag in original_list:
-            print(f"Error: Cannot remove '{tag}' - it's an original (auto-extracted) tag.")
-            print("Use 'resettags' to restore only original tags.")
-            return
-        
-        # 4. Check if tag exists in user tags
-        user_list = [t.strip() for t in user_tags.split(",") if t.strip()]
-        if tag not in user_list:
-            print(f"Error: Tag '{tag}' not found in user tags.")
-            print(f"Current user tags: {user_tags or '(none)'}")
-            return
-        
-        # 5. Remove from user tags
-        user_list.remove(tag)
-        new_user_tags = ",".join(user_list)
-        
-        # 6. Rebuild combined tags
-        new_combined_tags = _rebuild_combined_tags(original_tags, new_user_tags)
-        
-        # 7. Rebuild content
-        new_content = _rebuild_content_with_tags(current_content, new_combined_tags)
-        
+        result = _ops_remove_tag(doc_id, tag)
         print("Re-calculating vector embedding...")
-        
-        # 8. Generate New Embedding
-        from specrag.vectorization.vectorizer import vectorize_text
-        embedding_start = time.perf_counter()
-        new_embedding = vectorize_text(new_content)[0].tolist()
-        embedding_time = time.perf_counter() - embedding_start
-        
-        # 9. Atomic Update
-        vector_store.delete([doc_id])
-        
-        updated_metadata = current_metadata.copy()
-        updated_metadata["tags"] = new_combined_tags
-        updated_metadata["user_tags"] = new_user_tags
-        
-        vector_store.add(
-            ids=[doc_id],
-            embeddings=[new_embedding],
-            documents=[new_content],
-            metadatas=[updated_metadata]
-        )
-        
-        total_time = time.perf_counter() - start_time
-        
-        print(f"Successfully removed tag '{tag}' from document '{doc_id}'")
-        print(f"  Original tags: {original_tags or '(none)'}")
-        print(f"  User tags:     {new_user_tags or '(none)'}")
-        print(f"  Combined:      {new_combined_tags or '(none)'}")
+        print(f"Successfully removed tag '{tag}' from document '{result['chunk_id']}'")
+        print(f"  Original tags: {result['original_tags'] or '(none)'}")
+        print(f"  User tags:     {result['user_tags'] or '(none)'}")
+        print(f"  Combined:      {result['combined_tags'] or '(none)'}")
         print("Vector embedding updated.")
         print("\n[TIME] Time Report:")
-        print(f"  Embedding:  {_format_duration(embedding_time)}")
-        print(f"  Total:      {_format_duration(total_time)}")
-        
+        print(f"  Embedding:  {_format_duration(result['embedding_seconds'])}")
+        print(f"  Total:      {_format_duration(result['total_seconds'])}")
+    except TagImmutableError as e:
+        print(f"Error: {e}")
+        print("Use 'resettags' to restore only original tags.")
+    except TagNotFoundError as e:
+        print(f"Error: {e}")
+    except ChunkNotFoundError as e:
+        print(f"Error: {e}")
+    except OpsError as e:
+        print(f"Error removing tag: {e}")
     except Exception as e:
         print(f"Error removing tag: {e}")
 
@@ -995,69 +672,28 @@ def reset_tags(doc_id: str):
     """
     Reset tags to original (auto-extracted) tags, removing all user-added tags.
     """
-    # Normalize doc_id (strip image extension if present)
-    doc_id = _normalize_doc_id(doc_id)
-    doc_id = resolve_chunk_id(doc_id)
-    
-    start_time = time.perf_counter()
-    vector_store = _get_vector_store()
-    
+    from specrag.ops import reset_tags as _ops_reset_tags
+    from specrag.ops.errors import ChunkNotFoundError, OpsError
+
     try:
-        # 1. Get current data
-        current_metadata = vector_store.get_metadata(doc_id)
-        if not current_metadata:
-            print(f"Error: Document {doc_id} not found.")
+        result = _ops_reset_tags(doc_id)
+        if not result.get("changed", True):
+            print(result.get("message", f"No user tags to reset for document '{doc_id}'."))
+            print(f"Current tags: {result.get('original_tags') or '(none)'}")
             return
 
-        current_content = vector_store.get_content(doc_id)
-        if current_content is None:
-            print(f"Error: Could not retrieve content for {doc_id}")
-            return
-
-        # 2. Get original tags
-        original_tags = current_metadata.get("original_tags", "")
-        user_tags = current_metadata.get("user_tags", "")
-        
-        if not user_tags:
-            print(f"No user tags to reset for document '{doc_id}'.")
-            print(f"Current tags: {original_tags or '(none)'}")
-            return
-        
-        # 3. Rebuild content with only original tags
-        new_content = _rebuild_content_with_tags(current_content, original_tags)
-        
         print("Re-calculating vector embedding...")
-        
-        # 4. Generate New Embedding
-        from specrag.vectorization.vectorizer import vectorize_text
-        embedding_start = time.perf_counter()
-        new_embedding = vectorize_text(new_content)[0].tolist()
-        embedding_time = time.perf_counter() - embedding_start
-        
-        # 5. Atomic Update
-        vector_store.delete([doc_id])
-        
-        updated_metadata = current_metadata.copy()
-        updated_metadata["tags"] = original_tags
-        updated_metadata["user_tags"] = ""
-        
-        vector_store.add(
-            ids=[doc_id],
-            embeddings=[new_embedding],
-            documents=[new_content],
-            metadatas=[updated_metadata]
-        )
-        
-        total_time = time.perf_counter() - start_time
-        
-        print(f"Successfully reset tags for document '{doc_id}'")
-        print(f"  Removed user tags: {user_tags}")
-        print(f"  Restored to:       {original_tags or '(none)'}")
+        print(f"Successfully reset tags for document '{result['chunk_id']}'")
+        print(f"  Removed user tags: {result.get('removed_user_tags', '')}")
+        print(f"  Restored to:       {result['original_tags'] or '(none)'}")
         print("Vector embedding updated.")
         print("\n[TIME] Time Report:")
-        print(f"  Embedding:  {_format_duration(embedding_time)}")
-        print(f"  Total:      {_format_duration(total_time)}")
-        
+        print(f"  Embedding:  {_format_duration(result['embedding_seconds'])}")
+        print(f"  Total:      {_format_duration(result['total_seconds'])}")
+    except ChunkNotFoundError as e:
+        print(f"Error: {e}")
+    except OpsError as e:
+        print(f"Error resetting tags: {e}")
     except Exception as e:
         print(f"Error resetting tags: {e}")
 
@@ -1066,27 +702,17 @@ def list_tags(doc_id: str):
     """
     List tags for a document, showing original and user-added tags separately.
     """
-    # Normalize doc_id (strip image extension if present)
-    doc_id = _normalize_doc_id(doc_id)
-    doc_id = resolve_chunk_id(doc_id)
-    
-    vector_store = _get_vector_store()
-    
-    try:
-        metadata = vector_store.get_metadata(doc_id)
-        if not metadata:
-            print(f"Document {doc_id} not found.")
-            return
+    from specrag.ops import list_tags as _ops_list_tags
+    from specrag.ops.errors import ChunkNotFoundError
 
-        original_tags = metadata.get("original_tags", "")
-        user_tags = metadata.get("user_tags", "")
-        combined_tags = metadata.get("tags", "")
-        
-        print(f"Tags for {doc_id}:")
-        print(f"  Original (auto-extracted): {original_tags or '(none)'}")
-        print(f"  User-added:                {user_tags or '(none)'}")
-        print(f"  Combined:                  {combined_tags or '(none)'}")
-        
+    try:
+        result = _ops_list_tags(doc_id)
+        print(f"Tags for {result['chunk_id']}:")
+        print(f"  Original (auto-extracted): {result['original_tags'] or '(none)'}")
+        print(f"  User-added:                {result['user_tags'] or '(none)'}")
+        print(f"  Combined:                  {result['combined_tags'] or '(none)'}")
+    except ChunkNotFoundError as e:
+        print(str(e))
     except Exception as e:
         print(f"Error listing tags: {e}")
 
@@ -1102,36 +728,9 @@ def resolve_chunk_id(identifier: str) -> str:
     Returns:
         The resolved chunk_id, or the original identifier if no match found.
     """
-    from specrag.path_resolver import display_chunk_id, paths_refer_to_same_file
+    from specrag.ops import resolve_chunk_id as _ops_resolve
 
-    vector_store = _get_vector_store()
-    
-    # First, check if identifier is already a valid chunk_id
-    metadata = vector_store.get_metadata(identifier)
-    if metadata:
-        return identifier
-
-    all_docs = vector_store.list_documents()
-    for doc_id in all_docs.keys():
-        if display_chunk_id(doc_id) == identifier:
-            return doc_id
-    
-    # If not found, try to find by image_path in metadata
-    # This is a fallback for when user provides image path instead of chunk_id
-    from pathlib import Path
-    identifier_path = Path(identifier).name  # Get just filename
-    
-    # Search through all documents to find matching image_path
-    for doc_id in all_docs.keys():
-        doc_metadata = vector_store.get_metadata(doc_id)
-        if doc_metadata:
-            img_path = doc_metadata.get("image_path", "")
-            if img_path:
-                if paths_refer_to_same_file(img_path, identifier, image=True) or Path(img_path).name == identifier_path:
-                    return doc_id
-    
-    # Return original if no match found
-    return identifier
+    return _ops_resolve(identifier)
 
 
 def add_knowledge(identifier: str, knowledge_text: str):
@@ -1143,65 +742,21 @@ def add_knowledge(identifier: str, knowledge_text: str):
         identifier: chunk_id or image_path
         knowledge_text: The knowledge text to add (markdown supported)
     """
-    start_time = time.perf_counter()
-    vector_store = _get_vector_store()
-    
-    # Resolve identifier to chunk_id
-    doc_id = resolve_chunk_id(identifier)
-    
+    from specrag.ops import add_knowledge as _ops_add_knowledge
+    from specrag.ops.errors import ChunkNotFoundError, OpsError
+
     try:
-        # 1. Get current data
-        current_metadata = vector_store.get_metadata(doc_id)
-        if not current_metadata:
-            print(f"Error: Document {doc_id} not found.")
-            return
-
-        current_content = vector_store.get_content(doc_id)
-        if current_content is None:
-            print(f"Error: Could not retrieve content for {doc_id}")
-            return
-
-        # 2. Update Metadata Knowledge
-        current_knowledge = current_metadata.get("knowledge", "")
-        if current_knowledge:
-            new_knowledge = f"{current_knowledge}\n\n{knowledge_text}"
-        else:
-            new_knowledge = knowledge_text
-        
-        # 3. Update Content for Vectorization (Include knowledge for semantic boost)
-        knowledge_boost = f"\n\n---\nKnowledge:\n{knowledge_text}"
-        new_content = current_content + knowledge_boost
-        
+        result = _ops_add_knowledge(identifier, knowledge_text)
         print("Re-calculating vector embedding...")
-        
-        # 4. Generate New Embedding
-        from specrag.vectorization.vectorizer import vectorize_text
-        embedding_start = time.perf_counter()
-        new_embedding = vectorize_text(new_content)[0].tolist()
-        embedding_time = time.perf_counter() - embedding_start
-        
-        # 5. Atomic Update (Delete then Add)
-        vector_store.delete([doc_id])
-        
-        # Prepare metadata
-        updated_metadata = current_metadata.copy()
-        updated_metadata["knowledge"] = new_knowledge
-        
-        vector_store.add(
-            ids=[doc_id],
-            embeddings=[new_embedding],
-            documents=[new_content],
-            metadatas=[updated_metadata]
-        )
-        
-        total_time = time.perf_counter() - start_time
-        
-        print(f"Successfully added knowledge to document '{doc_id}'")
+        print(f"Successfully added knowledge to document '{result['chunk_id']}'")
         print(f"Knowledge preview: {knowledge_text[:100]}...")
         print("\n[TIME] Time Report:")
-        print(f"  Embedding:  {_format_duration(embedding_time)}")
-        print(f"  Total:      {_format_duration(total_time)}")
-        
+        print(f"  Embedding:  {_format_duration(result['embedding_seconds'])}")
+        print(f"  Total:      {_format_duration(result['total_seconds'])}")
+    except ChunkNotFoundError as e:
+        print(f"Error: {e}")
+    except OpsError as e:
+        print(f"Error adding knowledge: {e}")
     except Exception as e:
         print(f"Error adding knowledge: {e}")
         import traceback
@@ -1216,68 +771,21 @@ def update_knowledge(identifier: str, knowledge_text: str):
         identifier: chunk_id or image_path
         knowledge_text: The new knowledge text (replaces existing)
     """
-    start_time = time.perf_counter()
-    vector_store = _get_vector_store()
-    
-    # Resolve identifier to chunk_id
-    doc_id = resolve_chunk_id(identifier)
-    
-    try:
-        # 1. Get current data
-        current_metadata = vector_store.get_metadata(doc_id)
-        if not current_metadata:
-            print(f"Error: Document {doc_id} not found.")
-            return
+    from specrag.ops import update_knowledge as _ops_update_knowledge
+    from specrag.ops.errors import ChunkNotFoundError, OpsError
 
-        # Get ORIGINAL content (without old knowledge boost)
-        # We need to retrieve base content and rebuild
-        current_content = vector_store.get_content(doc_id)
-        if current_content is None:
-            print(f"Error: Could not retrieve content for {doc_id}")
-            return
-        
-        # Remove old knowledge section if it exists
-        if "\n\n---\nKnowledge:" in current_content:
-            base_content = current_content.split("\n\n---\nKnowledge:")[0]
-        else:
-            base_content = current_content
-        
-        # 2. Set new knowledge (replace completely)
-        new_knowledge = knowledge_text
-        
-        # 3. Rebuild content with new knowledge
-        knowledge_boost = f"\n\n---\nKnowledge:\n{knowledge_text}"
-        new_content = base_content + knowledge_boost
-        
+    try:
+        result = _ops_update_knowledge(identifier, knowledge_text)
         print("Re-calculating vector embedding...")
-        
-        # 4. Generate New Embedding
-        from specrag.vectorization.vectorizer import vectorize_text
-        embedding_start = time.perf_counter()
-        new_embedding = vectorize_text(new_content)[0].tolist()
-        embedding_time = time.perf_counter() - embedding_start
-        
-        # 5. Atomic Update
-        vector_store.delete([doc_id])
-        
-        updated_metadata = current_metadata.copy()
-        updated_metadata["knowledge"] = new_knowledge
-        
-        vector_store.add(
-            ids=[doc_id],
-            embeddings=[new_embedding],
-            documents=[new_content],
-            metadatas=[updated_metadata]
-        )
-        
-        total_time = time.perf_counter() - start_time
-        
-        print(f"Successfully updated knowledge for document '{doc_id}'")
+        print(f"Successfully updated knowledge for document '{result['chunk_id']}'")
         print(f"New knowledge: {knowledge_text[:100]}...")
         print("\n[TIME] Time Report:")
-        print(f"  Embedding:  {_format_duration(embedding_time)}")
-        print(f"  Total:      {_format_duration(total_time)}")
-        
+        print(f"  Embedding:  {_format_duration(result['embedding_seconds'])}")
+        print(f"  Total:      {_format_duration(result['total_seconds'])}")
+    except ChunkNotFoundError as e:
+        print(f"Error: {e}")
+    except OpsError as e:
+        print(f"Error updating knowledge: {e}")
     except Exception as e:
         print(f"Error updating knowledge: {e}")
         import traceback
@@ -1291,50 +799,36 @@ def get_knowledge(identifier: str):
     Args:
         identifier: chunk_id or image_path
     """
-    vector_store = _get_vector_store()
-    
-    # Resolve identifier to chunk_id
-    doc_id = resolve_chunk_id(identifier)
-    
-    try:
-        metadata = vector_store.get_metadata(doc_id)
-        if not metadata:
-            print(f"Document {doc_id} not found.")
-            return
+    from specrag.ops import get_knowledge as _ops_get_knowledge
+    from specrag.ops.errors import ChunkNotFoundError
 
-        knowledge = metadata.get("knowledge", "")
-        if knowledge:
-            print(f"Knowledge for {doc_id}:")
+    try:
+        result = _ops_get_knowledge(identifier)
+        if result["has_knowledge"]:
+            print(f"Knowledge for {result['chunk_id']}:")
             print("-" * 50)
-            print(knowledge)
+            print(result["knowledge"])
             print("-" * 50)
         else:
-            print(f"No knowledge found for {doc_id}")
-        
+            print(f"No knowledge found for {result['chunk_id']}")
+    except ChunkNotFoundError as e:
+        print(str(e))
     except Exception as e:
         print(f"Error getting knowledge: {e}")
 
 
 def list_docs():
     """List source files that have been vectorized."""
-    vector_store = _get_vector_store()
-    try:
-        documents = vector_store.list_documents()
-        # list_documents returns chunk_id -> source_file; aggregate to files
-        file_counts: dict[str, int] = {}
-        for _, source in documents.items():
-            source = source or "Unknown"
-            file_counts[source] = file_counts.get(source, 0) + 1
+    from specrag.ops import list_documents
 
-        print(f"Found {len(file_counts)} files:")
+    try:
+        docs = list_documents()
+        print(f"Found {len(docs)} files:")
         print("-" * 50)
-        # Limit output if too many
-        count = 0
-        for source, chunk_count in sorted(file_counts.items()):
-            print(f"Source: {source} | Chunks: {chunk_count}")
-            count += 1
-            if count >= 10000:
-                print(f"... and {len(file_counts) - 10000} more.")
+        for i, item in enumerate(docs):
+            print(f"Source: {item['source']} | Chunks: {item['chunk_count']}")
+            if i + 1 >= 10000:
+                print(f"... and {len(docs) - 10000} more.")
                 break
     except Exception as e:
         print(f"Error listing documents: {e}")
