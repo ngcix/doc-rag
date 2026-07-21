@@ -26,6 +26,10 @@ requirements.txt
 │   ├── tqdm>=4.66.0
 │   └── numpy>=1.24.0
 │
+├── HTTP API
+│   ├── fastapi>=0.115.0
+│   └── uvicorn[standard]>=0.30.0
+│
 └── Testing
     └── pytest>=7.4.0
 ```

@@ -102,7 +102,8 @@
 | **Image Extraction** | PyMuPDF full-page rendering                 |
 | **Text Splitting**  | LangChain RecursiveCharacterTextSplitter    |
 | **Config**          | Pydantic v2                                 |
+| **HTTP API**        | FastAPI + Uvicorn (`/api/v1`)               |
 
 ---
 
-_Tài liệu kỹ thuật cho SpecRAG - Updated 2026-01_
+_Tài liệu kỹ thuật cho SpecRAG - Updated 2026-07_

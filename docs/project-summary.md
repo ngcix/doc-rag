@@ -4,7 +4,7 @@
 
 **Phiên bản:** v0.3.2  
 **Ngôn ngữ chính:** Python 3.10+  
-**Loại ứng dụng:** CLI (không có web server / API)
+**Loại ứng dụng:** CLI + HTTP API (FastAPI `/api/v1`)
 
 ---
 
@@ -49,6 +49,7 @@ Hệ thống:
 | Config | Pydantic v2 + `config/setting.json` | Cấu hình typed, override runtime |
 | Image | Pillow | Xử lý ảnh |
 | Search | Custom BM25 + RRF | Hybrid & multi-query fusion |
+| HTTP API | FastAPI + Uvicorn | REST `/api/v1` (search, documents, chunks tags/knowledge) |
 
 ### Dev / build (tùy chọn)
 
@@ -59,13 +60,12 @@ Hệ thống:
 | PyInstaller | Đóng gói executable Windows |
 | Cython | Biên dịch `src/` sang binary extension |
 
-### Không có trong project
+### Chưa có / phase sau
 
-- Docker / docker-compose
-- CI/CD (GitHub Actions, v.v.)
-- Web server / REST API
-- Database server (PostgreSQL, Redis, Elasticsearch...)
-- Makefile
+- Document upload + job queue (stub `501` trên `/api/v1/documents/upload`, `/api/v1/jobs/{id}`)
+- Docker / docker-compose, CI/CD
+- Database server (PostgreSQL, Redis, Qdrant…)
+- Auth / JWT
 
 ---
 
@@ -80,15 +80,20 @@ spec-rag/
 ├── models/                   # Cache model Hugging Face (~1.5 GB, tải lúc runtime)
 ├── scripts/                  # Build (PyInstaller/Cython), phân tích ảnh Gauss AI
 ├── src/                      # Mã nguồn chính
-│   ├── main.py               # CLI entry point
-│   ├── config/               # Pydantic settings, path constants
-│   ├── chunking/             # Chia nhỏ văn bản
-│   ├── image_extraction/     # Trích ảnh full-page PDF
-│   ├── vectorization/        # Embedding + FAISS/ChromaDB store
-│   ├── search/               # Semantic + BM25 hybrid search
-│   ├── sequence_chart/       # Xử lý sơ đồ Mermaid
-│   ├── path_resolver.py      # Portable paths khi copy/move database
-│   └── cli_output.py         # Chuẩn hóa output console
+│   ├── specrag/
+│   │   ├── __main__.py       # CLI entry point
+│   │   ├── api/              # FastAPI app, schemas, routes (/api/v1)
+│   │   ├── api_server.py     # uvicorn entry (`specrag server`)
+│   │   ├── ops/              # Callable ops (CLI + API dùng chung)
+│   │   ├── config/           # Pydantic settings, path constants
+│   │   ├── chunking/         # Chia nhỏ văn bản
+│   │   ├── image_extraction/ # Trích ảnh full-page PDF
+│   │   ├── vectorization/    # Embedding + FAISS/ChromaDB store
+│   │   ├── search/           # Semantic + BM25 hybrid search
+│   │   ├── sequence_chart/   # Xử lý sơ đồ Mermaid
+│   │   ├── path_resolver.py  # Portable paths khi copy/move database
+│   │   └── cli_output.py     # Chuẩn hóa output console
+│   └── ...
 ├── pyproject.toml            # Package metadata, deps, CLI entry `specrag`
 ├── requirements.txt          # Dependencies runtime tối thiểu
 └── requirements.lock         # Lockfile đầy đủ (kèm CUDA, dev tools)
@@ -169,6 +174,20 @@ Documents (PDF/DOCX/MD)
 | `specrag addtag / removetag / resettags` | Quản lý tag |
 | `specrag addknowledge / getknowledge` | Bổ sung annotation |
 | `specrag eval` | Đánh giá retrieval (cần `tests/`) |
+| `specrag server` | Chạy FastAPI HTTP API (mặc định `:8080`, docs tại `/docs`) |
+
+### HTTP API (tóm tắt)
+
+```bash
+specrag server --host 0.0.0.0 --port 8080
+# OpenAPI: http://localhost:8080/docs
+# POST /api/v1/search
+# GET  /api/v1/documents
+# GET|POST|DELETE /api/v1/chunks/{id}/tags
+# GET|POST|PUT    /api/v1/chunks/{id}/knowledge
+```
+
+Upload/jobs chưa implement (trả `501`).
 
 ---
 
@@ -223,11 +242,11 @@ SpecRAG được thiết kế để dùng cùng **Cline** (hoặc agent tương 
 | Vấn đề | Chi tiết |
 |-------|----------|
 | Thiếu `tests/` | Được tham chiếu trong `pyproject.toml` và lệnh `eval`, chưa có trong repo |
-| CLI-only | Không có HTTP API, khó tích hợp microservice |
+| Upload / jobs | HTTP stub `501`; ingest vẫn qua CLI `process` |
 | CPU mặc định | Chậm hơn GPU đáng kể |
 | PyInstaller | Chỉ document cho Windows; Linux fail do deps ~7.5 GB |
 | Không có Docker/CI | Deploy thủ công, không pipeline tự động |
-| Mỗi lần gọi CLI | Process mới → load lại model (không daemon) |
+| CLI cold start | Mỗi lần gọi CLI = process mới → load lại model; `specrag server` giữ model in-process |
 
 ---
 
