@@ -25,6 +25,7 @@ specrag <command> [options] [arguments]
 | `updateknowledge` | Cập nhật knowledge |
 | `getknowledge` | Xem knowledge |
 | `eval` | Chạy evaluation |
+| `server` | Chạy FastAPI HTTP API (`/api/v1`, OpenAPI tại `/docs`) |
 
 ---
 
@@ -264,6 +265,23 @@ specrag eval [OPTIONS]
 |--------|---------|
 | `--dataset` | `tests/data/golden_dataset.json` |
 | `--top-k` | 5 |
+
+---
+
+## server
+
+Chạy FastAPI HTTP API (OpenAPI tại `/docs`).
+
+```bash
+specrag server [--host HOST] [--port PORT]
+```
+
+| Option | Default |
+|--------|---------|
+| `--host` | `0.0.0.0` |
+| `--port` | `8080` |
+
+Endpoints chính: `POST /api/v1/search`, `GET /api/v1/documents`, tags/knowledge trên `/api/v1/chunks/{id}/...`. Upload/jobs trả `501` (phase sau).
 
 ---
 
