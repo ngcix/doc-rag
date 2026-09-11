@@ -83,7 +83,7 @@ Knowledge:
 """
 
 # Re-embed với knowledge
-new_embedding = vectorize_text(content)
+new_embedding = get_embedding_provider().embed([content])[0]
 
 # Lưu trong metadata
 metadata["knowledge"] = knowledge_text

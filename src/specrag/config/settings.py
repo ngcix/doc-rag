@@ -1,32 +1,21 @@
 """
 Configuration settings for the RAG system.
 """
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import Optional, Union
-import sys
+
 import json
+import os
+from pathlib import Path
 
+from pydantic import BaseModel, Field
 
-# Device detection removed - using CPU by default to avoid torch import overhead
-# To use GPU, change device in ModelConfig to "cuda"
-
-
-# Correct behaviour:
-# Assume cwd is `/home/vancanh-ng/projects/SpecRag`
-# then in these 3 cases, BASE_DIR should be:
-# `specrag` -> `/home/vancanh-ng/projects/SpecRag`
-# `python -m src.main` -> `/home/vancanh-ng/projects/SpecRag`
-# `./dist/specrag/specrag` -> `/home/vancanh-ng/projects/SpecRag/dist/specrag`
-if getattr(sys, "frozen", False):
-    # Running as compiled exe
-    BASE_DIR = Path(sys.executable).resolve().parent
+if configured_base := os.getenv("SPECRAG_BASE_DIR"):
+    BASE_DIR = Path(configured_base).expanduser().resolve()
 else:
-    # Running from source
-    BASE_DIR = Path(__file__).resolve().parents[3]
+    source_root = Path(__file__).resolve().parents[3]
+    BASE_DIR = source_root if (source_root / "pyproject.toml").exists() else Path.cwd()
 
 
-def _resolve_path(path_value: Optional[str], default: Path) -> Path:
+def _resolve_path(path_value: str | None, default: Path) -> Path:
     """Resolve a configured path, treating relative paths as BASE_DIR-relative."""
     if not path_value:
         return default
@@ -43,7 +32,7 @@ def _load_path_overrides() -> dict:
         return {}
 
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             external_data = json.load(f)
     except Exception:
         return {}
@@ -82,21 +71,34 @@ PROCESS_OUTPUT_DIR = PROCESS_DIR / "output"
 # Model snapshot for local/offline use
 MODEL_SNAPSHOT_ID = "9bbca17d9273fd0d03d5725c7a4b0f6b45142062"
 
-class ModelConfig(BaseModel):
-    """Configuration for the embedding model."""
-    # For online use: model_name: str = "Alibaba-NLP/gte-multilingual-base"
-    # For local/offline use:
-    model_name: str = str(MODELS_DIR / "models--Alibaba-NLP--gte-multilingual-base" / "snapshots" / MODEL_SNAPSHOT_ID)
 
+class EmbeddingConfig(BaseModel):
+    """Connection and compatibility settings for the embedding service."""
 
-    model_cache_dir: Path = MODELS_DIR
-    max_seq_length: int = 8192
-    device: str = "cpu"  # Default CPU. Change to "cuda" manually if GPU needed.
-    normalize_embeddings: bool = True
+    base_url: str = os.getenv("EMBEDDING_URL", "http://embedding:80")
+    model_name: str = os.getenv("EMBEDDING_MODEL", "Alibaba-NLP/gte-multilingual-base")
+    model_revision: str = os.getenv("EMBEDDING_MODEL_REVISION", MODEL_SNAPSHOT_ID)
+    model_variant: str = os.getenv("EMBEDDING_MODEL_VARIANT", "onnx-o3-fp32")
+
+    expected_dimension: int = 768
+    pooling: str = "cls"
+    normalize: bool = True
+    max_sequence_length: int = 8192
+    batch_size: int = 16
+    connect_timeout_seconds: float = 2.0
+    read_timeout_seconds: float = 30.0
+    max_retries: int = 2
+    max_concurrency: int = 8
+
+    @property
+    def fingerprint(self) -> str:
+        normalization = "l2" if self.normalize else "none"
+        return f"{self.model_name}@{self.model_revision}:{self.model_variant}:{self.pooling}:{normalization}:{self.expected_dimension}"
 
 
 class ChunkingConfig(BaseModel):
     """Configuration for document chunking."""
+
     chunk_size: int = 512
     chunk_overlap: int = 150
     separators: list[str] = Field(default=["\n\n", "\n", ". ", " ", ""])
@@ -105,6 +107,7 @@ class ChunkingConfig(BaseModel):
 
 class VectorDBConfig(BaseModel):
     """Configuration for vector database."""
+
     backend: str = "faiss"  # "chromadb" or "faiss"
     collection_name: str = "documents"
     persist_directory: Path = VECTORDB_DIR
@@ -116,6 +119,7 @@ class VectorDBConfig(BaseModel):
 
 class SearchConfig(BaseModel):
     """Configuration for search."""
+
     top_k: int = 5
     score_threshold: float = 0.7
     include_metadata: bool = True
@@ -123,6 +127,7 @@ class SearchConfig(BaseModel):
 
 class SequenceChartConfig(BaseModel):
     """Configuration for sequence chart processing."""
+
     export_format: str = "png"  # png, svg, pdf
     export_quality: int = 150  # DPI
     include_description: bool = True
@@ -130,9 +135,8 @@ class SequenceChartConfig(BaseModel):
 
 class PerformanceConfig(BaseModel):
     """Configuration for CPU usage during processing."""
-    max_workers: Union[int, str, None] = "auto"
-    embedding_threads: Union[int, str, None] = "auto"
-    embedding_batch_size: int = 16
+
+    max_workers: int | str | None = "auto"
     target_cpu_utilization: float = 0.8
     reserved_cpu_threads: int = 2
 
@@ -152,6 +156,7 @@ class ImageExtractionConfig(BaseModel):
 
 class PathConfig(BaseModel):
     """Filesystem path configuration loaded from setting.json."""
+
     database_dir: Path = DATA_DIR
     documents_dir: Path = DOCUMENTS_DIR
     extracted_images_dir: Path = EXTRACTED_IMAGES_DIR
@@ -168,8 +173,9 @@ class PathConfig(BaseModel):
 
 class Settings(BaseModel):
     """Main settings class combining all configurations."""
+
     paths: PathConfig = Field(default_factory=PathConfig)
-    model: ModelConfig = Field(default_factory=ModelConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
     vectordb: VectorDBConfig = Field(default_factory=VectorDBConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
@@ -180,20 +186,30 @@ class Settings(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self._load_external_config()
+        self._apply_environment_overrides()
+
+    def _apply_environment_overrides(self) -> None:
+        """Environment variables take precedence over the JSON config."""
+        if value := os.getenv("EMBEDDING_URL"):
+            self.embedding.base_url = value
+        if value := os.getenv("EMBEDDING_MODEL"):
+            self.embedding.model_name = value
+        if value := os.getenv("EMBEDDING_MODEL_REVISION"):
+            self.embedding.model_revision = value
+        if value := os.getenv("EMBEDDING_MODEL_VARIANT"):
+            self.embedding.model_variant = value
 
     def _load_external_config(self):
         """Load external configuration for all modules if available."""
         import json
+
         config_path = BASE_DIR / "config" / "setting.json"
         if config_path.exists():
             try:
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     external_data = json.load(f)
 
-                sections = [
-                    "paths", "model", "chunking", "vectordb", 
-                    "search", "sequence_chart", "performance", "image_extraction"
-                ]
+                sections = ["paths", "embedding", "chunking", "vectordb", "search", "sequence_chart", "performance", "image_extraction"]
 
                 # 1. Update each section if provided
                 for section in sections:
@@ -213,7 +229,7 @@ class Settings(BaseModel):
                                     default_path = getattr(section_obj, key)
                                     value = _resolve_path(value, Path(default_path))
                                 setattr(section_obj, key, value)
-                
+
                 # 2. Legacy root level chunk settings for backward compatibility
                 if "chunk_size" in external_data and "chunking" not in external_data:
                     self.chunking.chunk_size = external_data["chunk_size"]
@@ -222,6 +238,7 @@ class Settings(BaseModel):
 
             except Exception as e:
                 import logging
+
                 logging.warning(f"Failed to load external config from {config_path}: {e}")
 
 

@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+build
+dist
+data
+models
+process
+reports
+.pytest_cache
+.coverage

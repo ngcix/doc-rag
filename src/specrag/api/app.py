@@ -8,18 +8,27 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from specrag.api.observability import (
+    Metrics,
+    metrics_response,
+    request_observability,
+)
 from specrag.api.routes import chunks, documents, health, jobs, search
 
 logger = logging.getLogger(__name__)
 
 
 def _warmup() -> None:
-    """Load embedding model and vector store into memory."""
-    from specrag.ops._helpers import get_vector_store, get_vectorizer
+    """Verify the embedding service and prepare the vector store."""
+    from specrag.embedding import get_embedding_provider
+    from specrag.ops._helpers import get_vector_store
 
-    vectorizer = get_vectorizer()
-    _ = vectorizer.model
+    embedding_provider = get_embedding_provider()
+    if not embedding_provider.health():
+        raise RuntimeError("Embedding service is not ready")
     store = get_vector_store()
+    if hasattr(store, "validate_model"):
+        store.validate_model(embedding_provider.model_info())
     # Touch store so FAISS rebuilds from embeddings if needed
     if hasattr(store, "_ensure_index_ready"):
         store._ensure_index_ready()
@@ -39,16 +48,26 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Warmup failed — /api/v1/ready will report not ready")
         app.state.ready = False
-    yield
+    try:
+        yield
+    finally:
+        from specrag.embedding import close_embedding_provider
+        from specrag.vectorization import close_vector_store
+
+        close_embedding_provider()
+        close_vector_store()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="SpecRAG API",
         version="0.3.2",
-        description="Specification RAG HTTP API (greenfield MVP /api/v1)",
+        description="Specification ingestion and retrieval API",
         lifespan=lifespan,
     )
+    app.state.metrics = Metrics()
+    app.middleware("http")(request_observability)
+    app.add_api_route("/metrics", metrics_response, methods=["GET"])
     app.include_router(health.router)
     app.include_router(search.router)
     app.include_router(documents.router)

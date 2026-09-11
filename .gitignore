@@ -5,6 +5,7 @@
 venv/
 env/
 .python-version
+.venv-export
 
 # Python
 __pycache__/

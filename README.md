@@ -25,18 +25,33 @@
 ## 🚀 Quick Start
 
 ```bash
-# 1. Setup
+# 1. Install the lightweight RAG service
 git clone <repo-url> && cd SpecRAG
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 
-# 2. Process documents
-cp your-specs/*.pdf data/documents/
-specrag process -fp
+# 2. Export the ONNX model (one-time)
+python -m venv .venv-export
+.venv-export/bin/pip install -r services/embedding/requirements-export.txt
+.venv-export/bin/python services/embedding/export_model.py \
+  --output models/embedding --optimization O3
 
-# 3. Search
-specrag search "authentication flow"
+# 3. Start the embedding service
+docker compose up --build -d embedding
+
+# 4. Re-index documents using the remote embedding API
+cp your-specs/*.pdf data/documents/
+docker compose run --rm rag specrag reindex -fp -y
+
+# 5. Start RAG, then search over REST
+docker compose up -d rag
+curl -X POST http://localhost:8080/api/v1/search \
+  -H 'content-type: application/json' \
+  -d '{"query":"authentication flow","top_k":5}'
 ```
+
+For local CLI development, expose the internal embedding port with
+`docker compose -f compose.yaml -f compose.dev.yaml up embedding`.
 
 ---
 
@@ -119,13 +134,14 @@ specrag clean --yes          # Reset everything
 
 ![System Architecture](docs/pic/structure.png)
 
-### Three-Stage Pipeline
+### Split runtime
 
-| Stage | Steps | Description |
-|-------|-------|-------------|
-| **⬛ Ingestion** | 1→3 | Documents are chunked, full-page images are extracted with context, then embedded into FAISS |
-| **🔵 Inference** | 4→9 | User query → encode → similarity search → retrieve Top-K → build prompt → answer |
-| **🟡 Knowledge Enrichment** | 10→11 | Add tags/descriptions → re-embed → improve future searches |
+- The **embedding container** owns the ONNX model, tokenizer, CLS pooling,
+  normalization, batching, and `/v1/embeddings`.
+- The **RAG container** owns ingestion, metadata, FAISS/BM25, CLI, and REST API.
+- The RAG runtime does not install Torch, Transformers, Sentence Transformers,
+  or ONNX Runtime.
+- FAISS is single-writer. Run one RAG replica per data volume.
 
 ### Tech Stack
 
@@ -170,13 +186,11 @@ The `models/` directory stores NLP models for embedding and searching. SpecRAG u
 
 ```
 models/
-└── models--Alibaba-NLP--gte-multilingual-base/
-    └── snapshots/
-        └── <snapshot-id>/
-            ├── config.json
-            ├── model.safetensors
-            ├── tokenizer.json
-            └── ...
+└── embedding/
+    ├── onnx/model_o3.onnx
+    ├── tokenizer.json
+    ├── 1_Pooling/config.json
+    └── specrag-manifest.json
 ```
 
 > 📖 **Paper:** [mGTE: Generalized Long-Context Text Representation](https://arxiv.org/abs/2407.19669) (2024)
@@ -185,13 +199,16 @@ models/
 
 ## 🛠️ Development & Build
 
-SpecRAG uses a `Makefile` to automate environment setup, Cython compilation, and standalone bundling.
+SpecRAG uses standard Python wheels for development and two Docker images for
+deployment. PyInstaller and Cython are no longer part of the build.
 
 ### Quick Build
 ```bash
 make setup-env   # Setup venv and install
-make compile     # Compile Cython binaries
-make build-exec  # Build standalone executable (PyInstaller)
+make test        # Run unit and contract tests
+make lint        # Ruff + 300-line source limit
+make build       # Build the RAG wheel
+docker compose build
 ```
 
 > 📖 **Detailed Guide:** [Build Instructions](scripts/build.md)
@@ -220,29 +237,20 @@ SpecRAG includes ready-to-use rules for **Cline** AI agent in `.clinerules/`:
 
 ```
 SpecRAG/
-├── .clinerules/          # AI agent rules & workflows
-├── config/               # Settings (Pydantic)
-├── data/
-│   ├── documents/        # Input PDFs
-│   ├── extracted_images/ # Output images
-│   └── faiss_index/      # Vector database
-├── docs/                 # Documentation
-├── models/               # NLP models (gte-multilingual-base)
-├── src/                  # Source code
-│   ├── chunking/         # Text splitting
-│   │   └── __init__.py
-│   ├── image_extraction/ # PDF image extraction
-│   │   └── __init__.py
-│   ├── search/           # Search algorithms
-│   │   └── __init__.py
-│   ├── vectorization/    # Embedding & FAISS
-│   │   └── __init__.py
-│   └── specrag/           # Package root
-│       ├── __init__.py
-│       ├── __main__.py
-│       └── ...
+├── compose.yaml
+├── services/
+│   ├── rag/Dockerfile
+│   └── embedding/
+├── src/specrag/
+│   ├── api/
+│   ├── cli/
+│   ├── embedding/
+│   ├── ingestion/
+│   ├── search/
+│   └── vectorization/
+├── config/
 ├── tests/
-└── Makefile            # Build automation
+└── tools/
 ```
 
 ---

@@ -1,9 +1,9 @@
 """Full-page PDF image extraction using PyMuPDF."""
 
-from pathlib import Path
-from typing import Optional
 import io
 import re
+from pathlib import Path
+from typing import ClassVar
 
 from PIL import Image
 
@@ -32,7 +32,7 @@ def _get_image_extraction_config():
 class ImageExtractor:
     """Extract full-page PDF images for RAG indexing."""
 
-    _caption_patterns = [
+    _caption_patterns: ClassVar[list[str]] = [
         r"(Figure\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
         r"(Table\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
         r"(Fig\.\s*\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
@@ -40,7 +40,7 @@ class ImageExtractor:
         r"(Bảng\s+\d+(\.\d+)?\s*[:.-]\s*.*?)(?=\n|\.)",
     ]
 
-    _visual_text_patterns = [
+    _visual_text_patterns: ClassVar[list[str]] = [
         r"figure\s+\d+",
         r"fig\.\s*\d+",
         r"table\s+\d+",
@@ -51,7 +51,7 @@ class ImageExtractor:
         r"signaling\s+command",
     ]
 
-    def __init__(self, config=None, image_format_override: str = None):
+    def __init__(self, config=None, image_format_override: str | None = None):
         self._config = config or _get_image_extraction_config()
         self._image_format_override = image_format_override
 
@@ -74,27 +74,27 @@ class ImageExtractor:
 
     @property
     def min_width(self) -> int:
-        return self._get_config_value("min_width", 150)
+        return int(self._get_config_value("min_width", 150))
 
     @property
     def min_height(self) -> int:
-        return self._get_config_value("min_height", 150)
+        return int(self._get_config_value("min_height", 150))
 
     @property
     def extract_tables(self) -> bool:
-        return self._get_config_value("extract_tables", True)
+        return bool(self._get_config_value("extract_tables", True))
 
     @property
     def extract_figures(self) -> bool:
-        return self._get_config_value("extract_figures", True)
+        return bool(self._get_config_value("extract_figures", True))
 
     @property
     def context_chars(self) -> int:
-        return self._get_config_value("context_chars", 10000)
+        return int(self._get_config_value("context_chars", 10000))
 
     @property
     def min_drawing_size(self) -> int:
-        return self._get_config_value("min_drawing_size", 20)
+        return int(self._get_config_value("min_drawing_size", 20))
 
     def extract_from_file(
         self,
@@ -234,10 +234,13 @@ class ImageExtractor:
         return ",".join(sorted(set(tags)))
 
 
-_extractor: Optional[ImageExtractor] = None
+_extractor: ImageExtractor | None = None
 
 
-def get_image_extractor(force_new: bool = False, image_format: str = None) -> ImageExtractor:
+def get_image_extractor(
+    force_new: bool = False,
+    image_format: str | None = None,
+) -> ImageExtractor:
     """Get or create the global image extractor instance."""
     global _extractor
     if _extractor is None or force_new:

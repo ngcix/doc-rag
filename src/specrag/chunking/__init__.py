@@ -1,4 +1,5 @@
 """Chunking module."""
-from .chunker import DocumentChunker, DocumentChunk, chunk_documents
 
-__all__ = ["DocumentChunker", "DocumentChunk", "chunk_documents"]
+from .chunker import DocumentChunk, DocumentChunker, chunk_documents
+
+__all__ = ["DocumentChunk", "DocumentChunker", "chunk_documents"]

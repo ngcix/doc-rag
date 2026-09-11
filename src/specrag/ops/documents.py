@@ -19,10 +19,7 @@ def list_documents() -> list[dict[str, Any]]:
         source = source or "Unknown"
         file_counts[source] = file_counts.get(source, 0) + 1
 
-    return [
-        {"source": source, "chunk_count": count}
-        for source, count in sorted(file_counts.items())
-    ]
+    return [{"source": source, "chunk_count": count} for source, count in sorted(file_counts.items())]
 
 
 def get_stats() -> dict[str, Any]:

@@ -1,319 +1,185 @@
-"""
-Vector Database Module
+"""Optional ChromaDB vector store backend."""
 
-This module provides functionality to store and retrieve vector embeddings
-using ChromaDB as the vector store.
-"""
-from typing import Optional, Union
-from pathlib import Path
-import json
+from __future__ import annotations
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from specrag.config import settings, VectorDBConfig, ensure_directories
+from typing import Optional
+
+from specrag.config import VectorDBConfig, ensure_directories, settings
+from specrag.embedding.base import ModelInfo
 from specrag.path_resolver import normalize_metadata_paths
 
 
 class VectorStore:
-    """
-    Manages vector storage using ChromaDB.
-    
-    Provides methods for adding, updating, and querying vector embeddings.
-    """
-    
-    def __init__(self, config: Optional[VectorDBConfig] = None):
-        """
-        Initialize the VectorStore.
-        
-        Args:
-            config: Vector database configuration.
-        """
+    def __init__(self, config: VectorDBConfig | None = None):
         self.config = config or settings.vectordb
         self._client = None
         self._collection = None
         ensure_directories()
-    
+
     @property
     def client(self):
-        """Lazy loading of ChromaDB client."""
         if self._client is None:
-            self._client = self._create_client()
+            try:
+                import chromadb
+                from chromadb.config import Settings as ChromaSettings
+            except ImportError as exc:
+                raise ImportError("Install SpecRAG with the 'chroma' extra to use ChromaDB") from exc
+            self.config.persist_directory.mkdir(parents=True, exist_ok=True)
+            self._client = chromadb.PersistentClient(
+                path=str(self.config.persist_directory),
+                settings=ChromaSettings(
+                    anonymized_telemetry=False,
+                    allow_reset=True,
+                ),
+            )
         return self._client
-    
+
     @property
     def collection(self):
-        """Get or create the collection."""
         if self._collection is None:
-            self._collection = self._get_or_create_collection()
+            metric = self.config.distance_metric
+            self._collection = self.client.get_or_create_collection(
+                name=self.config.collection_name,
+                metadata={
+                    "hnsw:space": metric if metric in {"cosine", "l2", "ip"} else "cosine",
+                    "model_fingerprint": settings.embedding.fingerprint,
+                },
+            )
         return self._collection
-    
-    def _create_client(self):
-        """Create ChromaDB client with persistence."""
-        try:
-            import chromadb
-            from chromadb.config import Settings as ChromaSettings
-        except ImportError:
-            raise ImportError(
-                "chromadb is required. Install with: pip install chromadb"
-            )
-        
-        # Ensure persist directory exists
-        persist_dir = self.config.persist_directory
-        persist_dir.mkdir(parents=True, exist_ok=True)
-        
-        client = chromadb.PersistentClient(
-            path=str(persist_dir),
-            settings=ChromaSettings(
-                anonymized_telemetry=False,
-                allow_reset=True
-            )
-        )
-        
-        print(f"ChromaDB client created. Persist directory: {persist_dir}")
-        return client
-    
-    def _get_or_create_collection(self):
-        """Get or create the vector collection."""
-        # Map distance metric
-        distance_functions = {
-            "cosine": "cosine",
-            "l2": "l2",
-            "ip": "ip"  # inner product
-        }
-        
-        return self.client.get_or_create_collection(
-            name=self.config.collection_name,
-            metadata={"hnsw:space": distance_functions.get(
-                self.config.distance_metric, "cosine"
-            )}
-        )
-    
-    def add(
-        self,
-        ids: list[str],
-        embeddings: list[list[float]],
-        documents: Optional[list[str]] = None,
-        metadatas: Optional[list[dict]] = None
-    ):
-        """
-        Add vectors to the store.
-        
-        Args:
-            ids: Unique identifiers for each vector.
-            embeddings: List of embedding vectors.
-            documents: Optional list of original documents.
-            metadatas: Optional list of metadata dicts.
-        """
-        self.collection.add(
+
+    def add(self, ids, embeddings, documents=None, metadatas=None) -> None:
+        self.collection.upsert(
             ids=ids,
             embeddings=embeddings,
             documents=documents,
-            metadatas=metadatas
+            metadatas=metadatas,
         )
-        print(f"Added {len(ids)} vectors to collection '{self.config.collection_name}'")
-    
-    def add_chunks(self, vectorized_chunks: list[dict]):
-        """
-        Add vectorized chunks to the store.
-        
-        Args:
-            vectorized_chunks: List of dicts from TextVectorizer.vectorize_chunks()
-        """
-        if not vectorized_chunks:
+
+    def replace(self, doc_id, embedding, document, metadata) -> None:
+        self.add([doc_id], [embedding], [document], [metadata])
+
+    def add_chunks(self, chunks: list[dict]) -> None:
+        if not chunks:
             return
-        
-        ids = [chunk["chunk_id"] for chunk in vectorized_chunks]
-        embeddings = [chunk["embedding"] for chunk in vectorized_chunks]
-        documents = [chunk["content"] for chunk in vectorized_chunks]
         metadatas = [
             {
-                "source_file": chunk.get("source_file", ""),
-                **chunk.get("metadata", {})
+                key: value if isinstance(value, (str, int, float, bool)) else str(value)
+                for key, value in {
+                    "source_file": chunk.get("source_file", ""),
+                    **chunk.get("metadata", {}),
+                }.items()
             }
-            for chunk in vectorized_chunks
+            for chunk in chunks
         ]
-        
-        # Ensure metadata values are JSON serializable
-        metadatas = [
-            {k: str(v) if not isinstance(v, (str, int, float, bool)) else v
-             for k, v in m.items()}
-            for m in metadatas
-        ]
-        
-        self.add(ids, embeddings, documents, metadatas)
-    
-    def update_metadata(self, doc_id: str, new_metadata: dict):
-        """
-        Update metadata for a document.
-        
-        Args:
-            doc_id: Document ID to update.
-            new_metadata: Dictionary of metadata to merge.
-        """
-        # Fetch existing data to get current metadata
-        result = self.collection.get(ids=[doc_id], include=["metadatas"])
-        
-        if result["ids"]:
-            current_metadata = result["metadatas"][0] or {}
-            
-            # Merge new metadata
-            # Ensure values are strings if needed (Chroma limitation on types)
-            for k, v in new_metadata.items():
-                if not isinstance(v, (str, int, float, bool)):
-                    new_metadata[k] = str(v)
-            
-            current_metadata.update(new_metadata)
-            
-            # Update in Chroma
-            self.collection.update(
-                ids=[doc_id],
-                metadatas=[current_metadata]
-            )
-            print(f"Updated metadata for {doc_id}")
-        else:
-            print(f"Warning: Document {doc_id} not found, cannot update metadata")
-    
-    def get_metadata(self, doc_id: str) -> dict:
-        """
-        Get metadata for a document.
-        """
-        result = self.collection.get(ids=[doc_id], include=["metadatas"])
-        if result["ids"] and result["metadatas"][0]:
-            return result["metadatas"][0]
-        return {}
-    
-    def get_content(self, doc_id: str) -> Optional[str]:
-        """Get the text content of a document."""
-        result = self.collection.get(ids=[doc_id], include=["documents"])
-        if result["ids"] and result["documents"] and result["documents"][0]:
-            return result["documents"][0]
-        return None
-    
-    def query(
-        self,
-        query_embeddings: list[list[float]],
-        n_results: int = 5,
-        where: Optional[dict] = None,
-        include: Optional[list[str]] = None
-    ) -> dict:
-        """
-        Query the vector store.
-        
-        Args:
-            query_embeddings: Query embedding vectors.
-            n_results: Number of results to return.
-            where: Optional filter conditions.
-            include: What to include in results (documents, metadatas, distances).
-            
-        Returns:
-            Query results dict.
-        """
-        include = include or ["documents", "metadatas", "distances"]
-        
-        results = self.collection.query(
-            query_embeddings=query_embeddings,
-            n_results=n_results,
-            where=where,
-            include=include
+        self.add(
+            [chunk["chunk_id"] for chunk in chunks],
+            [chunk["embedding"] for chunk in chunks],
+            [chunk["content"] for chunk in chunks],
+            metadatas,
         )
-        
-        return results
-    
+
+    def update_metadata(self, doc_id: str, new_metadata: dict) -> None:
+        current = self.get_metadata(doc_id)
+        if not current:
+            raise KeyError(doc_id)
+        current.update({key: value if isinstance(value, (str, int, float, bool)) else str(value) for key, value in new_metadata.items()})
+        self.collection.update(ids=[doc_id], metadatas=[current])
+
+    def get_metadata(self, doc_id: str) -> dict:
+        result = self.collection.get(ids=[doc_id], include=["metadatas"])
+        return (result.get("metadatas") or [{}])[0] if result.get("ids") else {}
+
+    def get_content(self, doc_id: str) -> str | None:
+        result = self.collection.get(ids=[doc_id], include=["documents"])
+        return (result.get("documents") or [None])[0] if result.get("ids") else None
+
     def search_similar(
         self,
         query_embedding: list[float],
         top_k: int = 5,
-        threshold: Optional[float] = None
+        threshold: float | None = None,
     ) -> list[dict]:
-        """
-        Search for similar documents.
-        
-        Args:
-            query_embedding: The query embedding vector.
-            top_k: Number of top results to return.
-            threshold: Optional similarity threshold.
-            
-        Returns:
-            List of search results with documents and scores.
-        """
-        results = self.query(
+        result = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"],
         )
-        
-        # Format results
-        formatted = []
-        if results["ids"] and results["ids"][0]:
-            ids = results["ids"][0]
-            documents = results["documents"][0] if results.get("documents") else [None] * len(ids)
-            metadatas = results["metadatas"][0] if results.get("metadatas") else [{}] * len(ids)
-            distances = results["distances"][0] if results.get("distances") else [0] * len(ids)
-            
-            for i, (doc_id, doc, meta, dist) in enumerate(zip(ids, documents, metadatas, distances)):
-                # Convert distance to similarity score (for cosine: 1 - distance)
-                similarity = 1 - dist if self.config.distance_metric == "cosine" else -dist
-                
-                if threshold is None or similarity >= threshold:
-                    formatted.append({
+        ids = (result.get("ids") or [[]])[0]
+        documents = (result.get("documents") or [[]])[0]
+        metadatas = (result.get("metadatas") or [[]])[0]
+        distances = (result.get("distances") or [[]])[0]
+        rows = []
+        for doc_id, document, metadata, distance in zip(
+            ids,
+            documents,
+            metadatas,
+            distances,
+        ):
+            similarity = 1 - distance if self.config.distance_metric == "cosine" else 1 / (1 + distance)
+            if threshold is None or similarity >= threshold:
+                rows.append(
+                    {
                         "id": doc_id,
-                        "document": doc,
-                        "metadata": meta,
-                        "distance": dist,
+                        "document": document,
+                        "metadata": metadata,
+                        "distance": distance,
                         "similarity": similarity,
-                        "rank": i + 1
-                    })
-        
-        return formatted
-    
-    def delete(self, ids: list[str]):
-        """Delete vectors by ID."""
+                        "rank": len(rows) + 1,
+                    }
+                )
+        return rows
+
+    def delete(self, ids: list[str]) -> None:
         self.collection.delete(ids=ids)
-        print(f"Deleted {len(ids)} vectors")
-    
-    def clear(self):
-        """Clear all vectors from the collection."""
+
+    def clear(self) -> None:
         self.client.delete_collection(self.config.collection_name)
         self._collection = None
-        print(f"Cleared collection '{self.config.collection_name}'")
-    
+
     def count(self) -> int:
-        """Get the number of vectors in the collection."""
         return self.collection.count()
-    
+
     def get_stats(self) -> dict:
-        """Get statistics about the vector store."""
         return {
+            "backend": "chromadb",
             "collection_name": self.config.collection_name,
             "count": self.count(),
             "persist_directory": str(self.config.persist_directory),
-            "persist_directory": str(self.config.persist_directory),
-            "distance_metric": self.config.distance_metric
+            "distance_metric": self.config.distance_metric,
+            "model_fingerprint": (self.collection.metadata or {}).get("model_fingerprint"),
         }
-    
+
     def list_documents(self) -> dict[str, str]:
-        """
-        List all documents in the store.
-        
-        Returns:
-            Dict mapping ID to source file.
-        """
         result = self.collection.get(include=["metadatas"])
-        
-        docs = {}
-        if result["ids"]:
-            ids = result["ids"]
-            metadatas = result["metadatas"]
-            for doc_id, meta in zip(ids, metadatas):
-                docs[doc_id] = normalize_metadata_paths(meta).get("source_file", "Unknown") if meta else "Unknown"
-        return docs
+        return {
+            doc_id: normalize_metadata_paths(metadata or {}).get(
+                "source_file",
+                "Unknown",
+            )
+            for doc_id, metadata in zip(
+                result.get("ids") or [],
+                result.get("metadatas") or [],
+            )
+        }
+
+    def get_indexed_documents(self) -> tuple[list[str], list[str]]:
+        result = self.collection.get(include=["documents"])
+        return list(result.get("ids") or []), list(result.get("documents") or [])
+
+    def validate_model(self, model_info: ModelInfo) -> None:
+        fingerprint = (self.collection.metadata or {}).get("model_fingerprint")
+        if self.count() and not fingerprint:
+            raise RuntimeError(
+                "Existing collection has no model fingerprint; re-index required"
+            )
+        if fingerprint and fingerprint != model_info.fingerprint:
+            raise RuntimeError("Embedding model fingerprint does not match collection")
 
 
-# Global vector store instance
-_vector_store: Optional[VectorStore] = None
+_vector_store: VectorStore | None = None
 
 
 def get_vector_store() -> VectorStore:
-    """Get or create the global vector store instance."""
     global _vector_store
     if _vector_store is None:
         _vector_store = VectorStore()

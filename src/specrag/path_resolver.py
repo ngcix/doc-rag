@@ -1,12 +1,13 @@
 """Resolve stored metadata paths against the current machine configuration."""
+
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 from specrag.config import BASE_DIR, DOCUMENTS_DIR, EXTRACTED_IMAGES_DIR
-
 
 _TEXT_CHUNK_ID_RE = re.compile(r"^(?P<source>.+)_(?P<chunk_index>\d+)$")
 
@@ -15,7 +16,7 @@ def _to_portable_path(path_value: str | Path) -> Path:
     return Path(str(path_value).replace("\\", "/")).expanduser()
 
 
-def _tail_after_marker(path: Path, marker: str) -> Optional[Path]:
+def _tail_after_marker(path: Path, marker: str) -> Path | None:
     parts = path.parts
     lowered = [part.lower() for part in parts]
     marker = marker.lower()
@@ -29,7 +30,7 @@ def _tail_after_marker(path: Path, marker: str) -> Optional[Path]:
     return Path(*tail)
 
 
-def _existing_or_first(candidates: Iterable[Path]) -> Optional[Path]:
+def _existing_or_first(candidates: Iterable[Path]) -> Path | None:
     first = None
     for candidate in candidates:
         if first is None:
@@ -39,7 +40,7 @@ def _existing_or_first(candidates: Iterable[Path]) -> Optional[Path]:
     return first
 
 
-def resolve_document_path(path_value: str | Path | None) -> Optional[Path]:
+def resolve_document_path(path_value: str | Path | None) -> Path | None:
     """Map a stored document path to the current configured documents_dir."""
     if not path_value:
         return None
@@ -60,7 +61,7 @@ def resolve_document_path(path_value: str | Path | None) -> Optional[Path]:
     return _existing_or_first(candidates)
 
 
-def resolve_image_path(path_value: str | Path | None) -> Optional[Path]:
+def resolve_image_path(path_value: str | Path | None) -> Path | None:
     """Map a stored extracted image path to the current extracted_images dir."""
     if not path_value:
         return None

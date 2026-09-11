@@ -1,10 +1,10 @@
 """Image Extraction module using PyMuPDF full-page extraction."""
-from typing import Optional
+
+import specrag.image_extraction.extractor as pymupdf_fullpage
 
 # Import config from settings
 from specrag.config.settings import ImageExtractionConfig
 from specrag.image_extraction.image_info import ExtractedImage
-import specrag.image_extraction.extractor as pymupdf_fullpage
 
 __all__ = [
     # Image extraction
@@ -13,8 +13,10 @@ __all__ = [
     "get_image_extractor",
 ]
 
-def get_image_extractor(force_new: bool = False, image_format: Optional[str] = None):
+
+def get_image_extractor(force_new: bool = False, image_format: str | None = None):
     return pymupdf_fullpage.get_image_extractor(force_new=force_new, image_format=image_format)
+
 
 def get_vectorization_data(images: list[ExtractedImage]) -> list[dict]:
     """

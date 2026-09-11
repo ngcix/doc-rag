@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from specrag.performance import configure_embedding_threads
 from specrag.ops._helpers import (
     filter_image_results,
+    get_embedding_provider,
     get_hybrid_search_engine_cls,
     get_search_engine,
     get_vector_store,
-    get_vectorizer,
 )
 
 
@@ -24,15 +23,17 @@ def search_documents(
 
     Returns list[SearchResult]. Optionally writes process/output when save_results=True.
     """
-    configure_embedding_threads()
-
     fetch_k = 1000 if images_only else top_k
     search_threshold = 0.5 if images_only else None
 
     if use_hybrid:
-        vectorizer = get_vectorizer()
+        embedding_provider = get_embedding_provider()
         vector_store = get_vector_store()
-        hybrid_engine = get_hybrid_search_engine_cls()(vector_store, vectorizer)
+        vector_store.validate_model(embedding_provider.model_info())
+        hybrid_engine = get_hybrid_search_engine_cls()(
+            vector_store,
+            embedding_provider,
+        )
         raw_results = hybrid_engine.search(
             query,
             top_k=fetch_k,
@@ -86,25 +87,29 @@ def multi_search(
 
     Returns list[SearchResult].
     """
-    configure_embedding_threads()
-
     all_results = {}
     rrf_k = 60
+    embedding_provider = get_embedding_provider()
+    query_embeddings = embedding_provider.embed(queries)
 
-    for query in queries:
+    for query, query_embedding in zip(queries, query_embeddings):
         fetch_k = top_k * 3
         search_threshold = 0.4 if images_only else 0.5
 
         if use_hybrid:
-            vectorizer = get_vectorizer()
             vector_store = get_vector_store()
-            hybrid_engine = get_hybrid_search_engine_cls()(vector_store, vectorizer)
+            vector_store.validate_model(embedding_provider.model_info())
+            hybrid_engine = get_hybrid_search_engine_cls()(
+                vector_store,
+                embedding_provider,
+            )
             raw_results = hybrid_engine.search(
                 query,
                 top_k=fetch_k,
                 vector_weight=0.4,
                 bm25_weight=0.6,
                 threshold=search_threshold,
+                query_embedding=query_embedding,
             )
             from specrag.search import SearchResult
 
@@ -120,7 +125,12 @@ def multi_search(
             ]
         else:
             engine = get_search_engine()
-            results = engine.search(query, top_k=fetch_k, threshold=search_threshold)
+            results = engine.search(
+                query,
+                top_k=fetch_k,
+                threshold=search_threshold,
+                query_embedding=query_embedding,
+            )
 
         if images_only:
             results = filter_image_results(results)

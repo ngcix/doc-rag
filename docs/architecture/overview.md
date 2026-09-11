@@ -1,158 +1,74 @@
-# 🏗️ Kiến Trúc Tổng Quan
+# Kiến trúc SpecRAG
 
-## System Overview
+SpecRAG gồm hai deployable độc lập. Embedding service là stateless compute;
+RAG service sở hữu toàn bộ dữ liệu và nghiệp vụ retrieval.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SPECRAG SYSTEM                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌────────────┐    ┌──────────────┐    ┌──────────────┐    ┌─────────────┐ │
-│  │ Documents  │───▶│   Chunking   │───▶│ Vectorization│───▶│ Vector DB   │ │
-│  │ (PDF/DOCX) │    │  (LangChain) │    │   (GTE 768d) │    │ (FAISS)     │ │
-│  └────────────┘    └──────────────┘    └──────────────┘    └─────────────┘ │
-│                                                                    │        │
-│  ┌────────────┐    ┌──────────────┐                               ▼        │
-│  │    PDF     │───▶│   Image      │──────────────────────▶ ┌─────────────┐ │
-│  │  (Images)  │    │  Extraction  │                        │   Search    │ │
-│  └────────────┘    └──────────────┘                        │   Engine    │ │
-│                                                             └─────────────┘ │
-│  ┌────────────┐    ┌──────────────┐                               │        │
-│  │  Markdown  │───▶│  Sequence    │──────────────────────────────▶│        │
-│  │  (Mermaid) │    │   Charts     │                               ▼        │
-│  └────────────┘    └──────────────┘                        ┌─────────────┐ │
-│                                                             │   Results   │ │
-│                                                             └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    Client --> RagApi[RAG_FastAPI]
+    RagApi --> Ingestion
+    RagApi --> Retrieval
+    Ingestion --> EmbeddingClient
+    Retrieval --> EmbeddingClient
+    EmbeddingClient -->|"POST /v1/embeddings"| OnnxService[TEI_ONNX_CPU]
+    Ingestion --> Faiss[FAISS_single_writer]
+    Retrieval --> Faiss
+    Retrieval --> BM25
 ```
 
-## Core Components
+## Embedding service
 
-### 1. Document Chunking (`src/chunking/`)
+- Runtime: TEI CPU với model ONNX đã export.
+- Model: `Alibaba-NLP/gte-multilingual-base`.
+- Contract: CLS pooling, L2 normalization, 768 dimensions, tối đa 8192 token.
+- Sở hữu tokenizer, truncation, batching và model lifecycle.
+- Không biết chunk ID, metadata, FAISS hoặc nghiệp vụ search.
 
-- **Tool**: LangChain `RecursiveCharacterTextSplitter`
-- **Chunk size**: 512 characters
-- **Overlap**: 150 characters
-- **Supports**: TXT, MD, PDF, DOCX
+Chi tiết export và validation nằm tại
+[`services/embedding/README.md`](../../services/embedding/README.md).
 
-### 2. Image Extraction (`src/image_extraction/`)
+## RAG service
 
-- **Tool**: PyMuPDF (fitz) full-page rendering
-- **Mode**: Full-page (`-fp`) capture toàn trang
-- **Features**: Auto-tagging, tag boosting 10x
+- API: `src/specrag/api/`
+- CLI: `src/specrag/cli/`
+- Ingestion: `src/specrag/ingestion/`
+- Embedding HTTP client: `src/specrag/embedding/`
+- Semantic/hybrid retrieval: `src/specrag/search/`
+- FAISS/Chroma adapters: `src/specrag/vectorization/`
+- Document readers/chunking: `src/specrag/chunking/`
 
-### 3. Vectorization (`src/vectorization/`)
+RAG không cài Torch, Transformers, Sentence Transformers hoặc ONNX Runtime.
+Mọi thao tác tạo vector, bao gồm search, ingest và cập nhật tag/knowledge, đều
+đi qua `EmbeddingProvider`.
 
-- **Model**: `Alibaba-NLP/gte-multilingual-base`
-- **Dimension**: 768
-- **Max tokens**: 8192
-- **Backend**: FAISS (default) hoặc ChromaDB
+## Dữ liệu và concurrency
 
-### 4. Search Engine (`src/search/`)
+FAISS, metadata và source documents thuộc RAG data volume. Mỗi volume chỉ có
+một RAG writer. Process lock chặn writer thứ hai; thread lock bảo vệ search và
+mutation trong process. Persistence dùng temp file, `fsync` và atomic rename.
 
-- **Semantic Search**: Cosine similarity trên FAISS
-- **Hybrid Search**: BM25 + Vector (RRF fusion)
-- **Multi-query**: Multiple queries + RRF merge
+`specrag reindex` build index trong staging directory. Live index chỉ bị thay
+thế sau khi toàn bộ extract/embed/store thành công.
 
-### 5. Sequence Charts (`src/sequence_chart/`)
+## Model compatibility
 
-- **Format**: Mermaid diagrams
-- **Processing**: Parse, render, vectorize
+Index summary lưu fingerprint:
 
-## Data Flow
-
-```
-┌──────────────────┐
-│ data/documents/  │  ◀── INPUT: User đặt tài liệu
-│   *.pdf          │
-│   *.docx         │
-└────────┬─────────┘
-         │
-         ▼ process -fp
-┌──────────────────────────────┐
-│ data/extracted_images/       │  ◀── OUTPUT: Hình ảnh
-│   {doc}_p{page}.png          │
-└────────┬─────────────────────┘
-         │
-         ▼ vectorization
-┌──────────────────────────────┐
-│ data/faiss_index/            │  ◀── STORAGE: Vectors
-│   documents.index            │
-│   documents_metadata.pkl     │
-└────────┬─────────────────────┘
-         │
-         ▼ search
-┌──────────────────────────────┐
-│ process/output/              │  ◀── LOGS: Results
-│   query_{ts}.json            │
-└──────────────────────────────┘
+```text
+model_id@revision:variant:pooling:normalization:dimension
 ```
 
-## Key Features
+Readiness và ingest từ chối model có dimension/fingerprint khác index. Khi đổi
+model, revision, pooling hoặc quantization có ảnh hưởng chất lượng, chạy parity,
+Recall@K/NDCG@K rồi re-index.
 
-| Feature | Mô tả |
-|---------|-------|
-| **Intelligent Chunking** | Recursive splitting bảo toàn context |
-| **High-Perf Vectorization** | GTE model 768-dim, multilingual |
-| **Hybrid Search** | Semantic + BM25 exact match |
-| **Smart Image Extraction** | Full-page + auto-tagging |
-| **Tag Boosting** | 10x repeat để tăng semantic weight |
-| **Knowledge Management** | Thêm description vào documents |
-| **Self-Improving** | Feedback loop qua addtag/addknowledge |
+## Runtime
 
-## Technology Stack
+`compose.yaml` khởi động:
 
-| Layer | Technology |
-|-------|------------|
-| **Embedding** | Alibaba-NLP/gte-multilingual-base (768-dim) |
-| **Vector DB** | FAISS (IndexFlatIP, cosine similarity) |
-| **Search** | Semantic + BM25 Hybrid + Multi-Query RRF |
-| **PDF Processing** | PyMuPDF (fitz) |
-| **Image Extraction** | PyMuPDF full-page rendering |
-| **Text Splitting** | LangChain RecursiveCharacterTextSplitter |
-| **Config** | Pydantic v2 |
+1. `embedding`: internal-only port 80, model volume read-only.
+2. `rag`: public port 8080, chỉ start sau khi embedding healthy.
 
-## Processing Pipeline
-
-```
-┌──────┐    ┌─────────┐    ┌────────────┐    ┌───────────┐    ┌────────────┐
-│ CLI  │    │ Chunker │    │ Extractor  │    │ Vectorizer│    │VectorStore │
-└──┬───┘    └────┬────┘    └─────┬──────┘    └─────┬─────┘    └─────┬──────┘
-   │             │               │                 │                │
-   │ process()   │               │                 │                │
-   │─────────────│               │                 │                │
-   │             │               │                 │                │
-   │ chunk_dir() │               │                 │                │
-   │────────────>│               │                 │                │
-   │             │               │                 │                │
-   │  chunks[]   │               │                 │                │
-   │<────────────│               │                 │                │
-   │             │               │                 │                │
-   │ extract()   │               │                 │                │
-   │─────────────│──────────────>│                 │                │
-   │             │               │                 │                │
-   │  images[]   │               │                 │                │
-   │<────────────│───────────────│                 │                │
-   │             │               │                 │                │
-   │ vectorize(all_texts)        │                 │                │
-   │─────────────│───────────────│────────────────>│                │
-   │             │               │                 │                │
-   │  embeddings[]               │                 │                │
-   │<────────────│───────────────│─────────────────│                │
-   │             │               │                 │                │
-   │ add_chunks()│               │                 │                │
-   │─────────────│───────────────│─────────────────│───────────────>│
-   │             │               │                 │                │
-   │             │               │                 │    rebuild()   │
-   │             │               │                 │    save()      │
-   │             │               │                 │                │
-   │   "Done!"   │               │                 │                │
-   │<────────────│───────────────│─────────────────│────────────────│
-```
-
----
-
-**Xem thêm**: 
-- [Project Structure →](./project-structure.md)
-- [Image Extraction →](./image-extraction.md)
-- [Search Engine →](./search-engine.md)
+RAG cung cấp `/health`, `/api/v1/ready`, `/metrics` và request ID. Không scale
+RAG ngang khi còn dùng FAISS local; nếu cần nhiều replica/writer, chuyển storage
+sang Qdrant hoặc pgvector.

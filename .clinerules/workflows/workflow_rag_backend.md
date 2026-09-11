@@ -79,13 +79,13 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 1. **Basic Search** - Use for general semantic queries ONLY:
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search "your query" --top-k 5
+   specrag search "your query" --top-k 5
    ```
 
 2. **Image-Only Search** - Use when looking for diagrams or figures without specific numbers:
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search -pic "diagram or figure name"
+   specrag search -pic "diagram or figure name"
    ```
 
 3. **Hybrid Search** - ⭐ **RECOMMENDED for specific identifiers** ⭐
@@ -97,8 +97,8 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
    - Technical terms requiring exact matching
 
    ```bash
-   .venv\Scripts\python.exe -m src.main search -hy "Table 4.22"
-   .venv\Scripts\python.exe -m src.main search -hy "Figure 4.1: Media Payload"
+   specrag search -hy "Table 4.22"
+   specrag search -hy "Figure 4.1: Media Payload"
    ```
 
    **Why hybrid?** Combines:
@@ -108,8 +108,8 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 4. **Combined Search** - Best for finding specific diagrams by number:
    ```bash
-   .venv\Scripts\python.exe -m src.main search -pic -hy "Figure 3.5: Interrupt Flow"
-   .venv\Scripts\python.exe -m src.main search -pic -hy "Table 4.22"
+   specrag search -pic -hy "Figure 3.5: Interrupt Flow"
+   specrag search -pic -hy "Table 4.22"
    ```
 
 ## 3. View and Analyze Results
@@ -240,7 +240,7 @@ Follow the detailed rule documented in `.clinerules/rule_rag_backend.md`
 
 5. **Add selected tags** using the addtag command with the chunk_id from search results:
    ```bash
-   .venv\Scripts\python.exe -m src.main addtag <chunk_id> "selected,tag,option"
+   specrag addtag <chunk_id> "selected,tag,option"
    ```
 
 ## 8. Cleanup Query Files

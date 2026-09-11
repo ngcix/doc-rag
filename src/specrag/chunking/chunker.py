@@ -4,8 +4,9 @@ Document Chunking Module
 This module provides functionality to split documents into smaller chunks
 for efficient vectorization and retrieval.
 """
-from typing import Optional
+
 from pathlib import Path
+from typing import Optional
 
 try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -13,19 +14,18 @@ except ImportError:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import BaseModel
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from specrag.config import settings, ChunkingConfig
+from specrag.config import ChunkingConfig, settings
 
 
 class DocumentChunk(BaseModel):
     """Represents a single chunk of a document."""
+
     chunk_id: str
     content: str
     metadata: dict
     start_index: int
     end_index: int
-    source_file: Optional[str] = None
+    source_file: str | None = None
 
 
 class DocumentChunker:
@@ -38,7 +38,7 @@ class DocumentChunker:
     - Semantic chunking (paragraph/sentence aware)
     """
 
-    def __init__(self, config: Optional[ChunkingConfig] = None):
+    def __init__(self, config: ChunkingConfig | None = None):
         """
         Initialize the DocumentChunker.
 
@@ -58,12 +58,7 @@ class DocumentChunker:
             is_separator_regex=False,
         )
 
-    def chunk_text(
-        self,
-        text: str,
-        source_file: Optional[str] = None,
-        metadata: Optional[dict] = None
-    ) -> list[DocumentChunk]:
+    def chunk_text(self, text: str, source_file: str | None = None, metadata: dict | None = None) -> list[DocumentChunk]:
         """
         Split text into chunks.
 
@@ -91,19 +86,10 @@ class DocumentChunker:
                 start_idx = current_index
             end_idx = start_idx + len(chunk_content)
 
-            chunk_metadata = {
-                "chunk_index": i,
-                "total_chunks": len(chunks),
-                **(metadata or {})
-            }
+            chunk_metadata = {"chunk_index": i, "total_chunks": len(chunks), **(metadata or {})}
 
             chunk = DocumentChunk(
-                chunk_id=f"{source_file or 'unknown'}_{i}",
-                content=chunk_content,
-                metadata=chunk_metadata,
-                start_index=start_idx,
-                end_index=end_idx,
-                source_file=source_file
+                chunk_id=f"{source_file or 'unknown'}_{i}", content=chunk_content, metadata=chunk_metadata, start_index=start_idx, end_index=end_idx, source_file=source_file
             )
             result.append(chunk)
             current_index = start_idx + 1
@@ -134,139 +120,14 @@ class DocumentChunker:
             "file_size": file_path.stat().st_size,
         }
 
-        return self.chunk_text(
-            text=content,
-            source_file=str(file_path),
-            metadata=metadata
-        )
+        return self.chunk_text(text=content, source_file=str(file_path), metadata=metadata)
 
     def _read_file(self, file_path: Path) -> str:
-        """
-        Read file content based on file type.
+        from specrag.chunking.readers import read_document
 
-        Args:
-            file_path: Path to the file.
+        return read_document(file_path)
 
-        Returns:
-            File content as string.
-        """
-        suffix = file_path.suffix.lower()
-
-        if suffix in ['.txt', '.md', '.markdown']:
-            return file_path.read_text(encoding='utf-8')
-
-        elif suffix == '.pdf':
-            return self._read_pdf(file_path)
-
-        elif suffix == '.docx':
-            return self._read_docx(file_path)
-
-        elif suffix == '.xlsx':
-            return self._read_xlsx(file_path)
-
-        elif suffix == '.xls':
-            return self._read_xls(file_path)
-
-        elif suffix == '.pptx':
-            return self._read_pptx(file_path)
-
-        else:
-            # Try to read as text
-            try:
-                return file_path.read_text(encoding='utf-8')
-            except UnicodeDecodeError:
-                raise ValueError(f"Unsupported file type: {suffix}")
-
-    def _read_pdf(self, file_path: Path) -> str:
-        """Read PDF file content."""
-        # Use PyMuPDF as the single PDF text extraction backend.
-        try:
-            import fitz
-            doc = fitz.open(str(file_path))
-            text_parts = []
-            for page in doc:
-                text = page.get_text()
-                if text:
-                    text_parts.append(text)
-            return "\n\n".join(text_parts)
-        except ImportError:
-            raise ImportError("PyMuPDF (fitz) is required for PDF processing. Install with: pip install pymupdf")
-
-    def _read_docx(self, file_path: Path) -> str:
-        """Read DOCX file content."""
-        try:
-            from docx import Document
-            doc = Document(str(file_path))
-            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-            return "\n\n".join(paragraphs)
-        except ImportError:
-            raise ImportError("python-docx is required for DOCX processing")
-
-    def _read_xlsx(self, file_path: Path) -> str:
-        """Read XLSX file content."""
-        try:
-            import openpyxl
-            wb = openpyxl.load_workbook(str(file_path), read_only=True, data_only=True)
-            text_parts = []
-            for sheet_name in wb.sheetnames:
-                ws = wb[sheet_name]
-                text_parts.append(f"=== Sheet: {sheet_name} ===")
-                for row in ws.iter_rows(values_only=True):
-                    row_text = "\t".join(str(cell) if cell is not None else "" for cell in row)
-                    if row_text.strip():
-                        text_parts.append(row_text)
-            wb.close()
-            return "\n".join(text_parts)
-        except ImportError:
-            raise ImportError("openpyxl is required for XLSX processing. Install with: pip install openpyxl")
-
-    def _read_xls(self, file_path: Path) -> str:
-        """Read XLS file content."""
-        try:
-            import xlrd
-            wb = xlrd.open_workbook(str(file_path))
-            text_parts = []
-            for sheet in wb.sheets():
-                text_parts.append(f"=== Sheet: {sheet.name} ===")
-                for row_idx in range(sheet.nrows):
-                    row_text = "\t".join(str(sheet.cell_value(row_idx, col_idx)) for col_idx in range(sheet.ncols))
-                    if row_text.strip():
-                        text_parts.append(row_text)
-            return "\n".join(text_parts)
-        except ImportError:
-            raise ImportError("xlrd is required for XLS processing. Install with: pip install xlrd>=2.0.1")
-
-    def _read_pptx(self, file_path: Path) -> str:
-        """Read PPTX file content."""
-        try:
-            from pptx import Presentation
-            prs = Presentation(str(file_path))
-            text_parts = []
-            for i, slide in enumerate(prs.slides):
-                text_parts.append(f"=== Slide {i+1} ===")
-                for shape in slide.shapes:
-                    if shape.has_text_frame:
-                        for para in shape.text_frame.paragraphs:
-                            text = para.text.strip()
-                            if text:
-                                text_parts.append(text)
-                    if shape.has_table:
-                        table = shape.table
-                        for row in table.rows:
-                            row_text = "\t".join(cell.text for cell in row.cells)
-                            if row_text.strip():
-                                text_parts.append(row_text)
-            return "\n".join(text_parts)
-        except ImportError:
-            raise ImportError("python-pptx is required for PPTX processing. Install with: pip install python-pptx")
-
-    def chunk_directory(
-        self,
-        directory: Path,
-        extensions: Optional[list[str]] = None,
-        exclude_patterns: Optional[list[str]] = None,
-        recursive: bool = True
-    ) -> list[DocumentChunk]:
+    def chunk_directory(self, directory: Path, extensions: list[str] | None = None, exclude_patterns: list[str] | None = None, recursive: bool = True) -> list[DocumentChunk]:
         """
         Chunk all documents in a directory.
 
@@ -284,8 +145,8 @@ class DocumentChunker:
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
 
-        extensions = extensions or ['.txt', '.md', '.pdf', '.docx', '.markdown', '.xlsx', '.xls', '.pptx']
-        pattern = '**/*' if recursive else '*'
+        extensions = extensions or [".txt", ".md", ".pdf", ".docx", ".markdown", ".xlsx", ".xls", ".pptx"]
+        pattern = "**/*" if recursive else "*"
         exclude_patterns = exclude_patterns or []
 
         all_chunks = []
@@ -309,7 +170,7 @@ class DocumentChunker:
 # Convenience function
 def chunk_documents(
     source: str | Path,
-    config: Optional[ChunkingConfig] = None,
+    config: ChunkingConfig | None = None,
 ) -> list[DocumentChunk]:
     """
     Chunk documents from a file or directory.

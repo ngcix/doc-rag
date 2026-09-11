@@ -43,10 +43,7 @@ def resolve_chunk_id(identifier: str) -> str:
         doc_metadata = vector_store.get_metadata(doc_id)
         if doc_metadata:
             img_path = doc_metadata.get("image_path", "")
-            if img_path and (
-                paths_refer_to_same_file(img_path, identifier, image=True)
-                or Path(img_path).name == identifier_path
-            ):
+            if img_path and (paths_refer_to_same_file(img_path, identifier, image=True) or Path(img_path).name == identifier_path):
                 return doc_id
 
     return identifier

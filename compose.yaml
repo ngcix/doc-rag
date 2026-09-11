@@ -1,0 +1,65 @@
+services:
+  embedding:
+    build:
+      context: .
+      dockerfile: services/embedding/Dockerfile
+    command:
+      - --model-id
+      - /data
+      - --served-model-name
+      - Alibaba-NLP/gte-multilingual-base
+      - --pooling
+      - cls
+      - --dtype
+      - float32
+      - --max-client-batch-size
+      - "32"
+      - --port
+      - "80"
+    volumes:
+      - ./models/embedding:/data:ro
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    cpus: 4
+    mem_limit: 4g
+    restart: unless-stopped
+
+  rag:
+    build:
+      context: .
+      dockerfile: services/rag/Dockerfile
+    environment:
+      EMBEDDING_URL: http://embedding:80
+      SPECRAG_BASE_DIR: /app
+    env_file:
+      - path: ./models/embedding/rag.env
+        required: false
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./process:/app/process
+    depends_on:
+      embedding:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/ready')"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    cpus: 2
+    mem_limit: 2g
+    restart: unless-stopped

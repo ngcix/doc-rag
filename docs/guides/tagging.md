@@ -89,7 +89,7 @@ tag_boost = ", ".join([tag] * 10)
 content = original_content + f"\nTags: {tag_boost}"
 
 # Re-embed với boosted content
-new_embedding = vectorize_text(content)
+new_embedding = get_embedding_provider().embed([content])[0]
 ```
 
 **Kết quả**: Query chứa tag sẽ có similarity score cao hơn.

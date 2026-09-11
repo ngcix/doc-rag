@@ -15,18 +15,18 @@ class SearchMode(str, Enum):
 
 
 class SearchFilters(BaseModel):
-    content_type: Optional[str] = Field(
+    content_type: str | None = Field(
         default=None,
         description='Set to "image" to return image chunks only',
     )
 
 
 class SearchRequest(BaseModel):
-    query: Optional[str] = None
-    queries: Optional[list[str]] = None
+    query: str | None = None
+    queries: list[str] | None = None
     top_k: int = Field(default=5, ge=1, le=100)
     mode: SearchMode = SearchMode.semantic
-    filters: Optional[SearchFilters] = None
+    filters: SearchFilters | None = None
 
     @model_validator(mode="after")
     def require_query_or_queries(self):
@@ -85,11 +85,11 @@ class TagsResponse(BaseModel):
 class TagMutationResponse(BaseModel):
     status: str = "success"
     chunk_id: str
-    tag: Optional[str] = None
+    tag: str | None = None
     original_tags: str = ""
     user_tags: str = ""
     combined_tags: str = ""
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class KnowledgeBody(BaseModel):

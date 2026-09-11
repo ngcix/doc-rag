@@ -6,8 +6,8 @@ import re
 from typing import Any
 
 
-def get_vectorizer():
-    from specrag.vectorization import get_vectorizer as _get
+def get_embedding_provider():
+    from specrag.embedding import get_embedding_provider as _get
 
     return _get()
 
@@ -56,9 +56,7 @@ def filter_image_results(results: list[Any]) -> list[Any]:
     return [
         r
         for r in results
-        if r.metadata.get("content_type") in image_types
-        or r.metadata.get("type") in image_types
-        or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
+        if r.metadata.get("content_type") in image_types or r.metadata.get("type") in image_types or r.metadata.get("region_type") in ["fullpage", "figure", "table", "chart"]
     ]
 
 
@@ -71,17 +69,9 @@ def replace_chunk(
     """Re-embed and atomically replace a chunk. Returns embedding seconds."""
     import time
 
-    from specrag.vectorization.vectorizer import vectorize_text
-
     embedding_start = time.perf_counter()
-    new_embedding = vectorize_text(content)[0].tolist()
+    new_embedding = get_embedding_provider().embed([content])[0]
     embedding_time = time.perf_counter() - embedding_start
 
-    vector_store.delete([doc_id])
-    vector_store.add(
-        ids=[doc_id],
-        embeddings=[new_embedding],
-        documents=[content],
-        metadatas=[metadata],
-    )
+    vector_store.replace(doc_id, new_embedding, content, metadata)
     return embedding_time

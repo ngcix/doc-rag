@@ -1,0 +1,34 @@
+{
+  "documents": [
+    {
+      "id": "rest-api",
+      "text": "The RAG module calls the embedding model through a REST API."
+    },
+    {
+      "id": "faiss",
+      "text": "FAISS stores dense vectors and performs nearest-neighbor search."
+    },
+    {
+      "id": "onnx",
+      "text": "ONNX Runtime executes the embedding model efficiently on CPU."
+    },
+    {
+      "id": "vietnamese",
+      "text": "Dịch vụ embedding xử lý văn bản tiếng Việt và trả về vector."
+    }
+  ],
+  "queries": [
+    {
+      "text": "Which component performs vector similarity search?",
+      "relevant_ids": ["faiss"]
+    },
+    {
+      "text": "Mô-đun nào tạo vector cho văn bản tiếng Việt?",
+      "relevant_ids": ["vietnamese"]
+    },
+    {
+      "text": "CPU model inference runtime",
+      "relevant_ids": ["onnx"]
+    }
+  ]
+}

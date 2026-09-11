@@ -1,56 +1,33 @@
-# Build Guide
+# Build and deployment
 
-This guide explains how to build and package SpecRAG. We use a `Makefile` to automate the complex build process, including Cython compilation and PyInstaller bundling.
-
-## 🚀 Quick Start
-
-If you have `make` installed, you can perform all build operations with a single command:
+## Local RAG package
 
 ```bash
-# 1. Setup environment and install dependencies
 make setup-env
-
-# 2. Compile Python files to Cython binaries (Performance & Protection)
-make compile
-
-# 3. Create a distributable standalone executable
-make build-exec
-
-# 4. Run the executable
-./dist/specrag/specrag
+make test
+make lint
+make build
 ```
 
----
+The wheel contains only the RAG application. It does not bundle the embedding
+model or ML inference frameworks.
 
-## 🛠️ Detailed Build Pipeline
+## ONNX model
 
-### 1. Environment Setup (`make setup-env`)
-Creates a virtual environment and installs the project in editable mode along with development dependencies.
+Follow [`services/embedding/README.md`](../services/embedding/README.md) to
+export and validate the model. Model artifacts are intentionally ignored by
+Git.
 
-### 2. Cython Compilation (`make compile`)
-Compiles all `.py` files in the `src/` directory into optimized binary extensions (`.so` on Linux, `.pyd` on Windows).
+## Containers
 
-**Why use Cython?**
-- **Performance**: Provides significant speedups for compute-intensive tasks.
-- **Source Protection**: Converts human-readable Python code into compiled binaries, making casual reverse-engineering much harder.
+```bash
+docker compose build
+docker compose up
+```
 
-### 3. Wheel Distribution (`make build`)
-Uses the standard `build` package to create `.whl` and `.tar.gz` files in the `dist/` directory. This is the standard way to distribute Python packages.
+Use `compose.dev.yaml` only when the embedding port must be reachable from the
+host for benchmarks:
 
-### 4. Standalone Executable (`make build-exec`)
-Uses PyInstaller and `specrag.spec` to bundle the entire application, including the Python interpreter and all dependencies (torch, transformers, etc.), into a single folder in `dist/specrag/`.
-
-The build process automatically handles:
-- **Heavy Dependencies**: Uses `collect_all` to ensure `torch` and `transformers` are fully bundled.
-- **Metadata**: Copies required package metadata for runtime compatibility.
-- **Hidden Imports**: Resolves complex dynamic imports from `langchain` and `chromadb`.
-
----
-
-## 🧹 Cleaning Up
-
-To remove build artifacts and start fresh:
-
-- `make clean-src`: Remove only compiled Cython files and `__pycache__`.
-- `make clean-exec`: Remove only `build/` and `dist/` directories.
-- `make clean`: Full nuclear clean (remove everything).
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up embedding
+```

@@ -79,9 +79,7 @@ def remove_tag(doc_id: str, tag: str) -> dict[str, Any]:
 
     original_list = [t.strip() for t in original_tags.split(",") if t.strip()]
     if tag in original_list:
-        raise TagImmutableError(
-            f"Cannot remove '{tag}' - it's an original (auto-extracted) tag."
-        )
+        raise TagImmutableError(f"Cannot remove '{tag}' - it's an original (auto-extracted) tag.")
 
     user_list = [t.strip() for t in user_tags.split(",") if t.strip()]
     if tag not in user_list:

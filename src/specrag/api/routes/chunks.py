@@ -14,6 +14,7 @@ from specrag.api.schemas import (
     TagMutationResponse,
     TagsResponse,
 )
+from specrag.embedding import EmbeddingUnavailableError
 from specrag.ops import (
     add_knowledge,
     add_tag,
@@ -36,6 +37,8 @@ router = APIRouter(prefix="/api/v1/chunks", tags=["chunks"])
 
 
 def _map_ops_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, EmbeddingUnavailableError):
+        return HTTPException(status_code=503, detail=str(exc))
     if isinstance(exc, ChunkNotFoundError):
         return HTTPException(status_code=404, detail=str(exc))
     if isinstance(exc, DuplicateTagError):

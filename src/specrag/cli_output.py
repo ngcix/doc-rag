@@ -1,4 +1,5 @@
 """Configure plain, robust CLI output."""
+
 import sys
 
 
