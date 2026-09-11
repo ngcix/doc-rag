@@ -1,304 +1,120 @@
-# 💻 CLI Commands Reference
-
-## Cú Pháp Chung
+# CLI commands
 
 ```bash
-specrag <command> [options] [arguments]
+specrag <command> [options]
 ```
 
-## Danh Sách Commands
+The CLI prints JSON for commands that return data or reports.
 
-| Command | Mô tả |
-|---------|-------|
-| `process` | Xử lý và index tài liệu |
-| `search` | Tìm kiếm semantic/hybrid |
-| `msearch` | Multi-query search |
-| `list` | Liệt kê documents |
-| `stats` | Thống kê database |
-| `clean` | Xóa dữ liệu |
-| `init` | Khởi tạo thư mục |
-| `addtag` | Thêm tag |
-| `listtag` | Xem tags |
-| `removetag` | Xóa user tag |
-| `resettags` | Reset tags |
-| `addknowledge` | Thêm knowledge |
-| `updateknowledge` | Cập nhật knowledge |
-| `getknowledge` | Xem knowledge |
-| `eval` | Chạy evaluation |
-| `server` | Chạy FastAPI HTTP API (`/api/v1`, OpenAPI tại `/docs`) |
+## Commands
 
----
+| Command | Purpose |
+| --- | --- |
+| `process` | Extract, embed and store documents directly into the configured vector store. |
+| `reindex` | Build a fresh FAISS index in staging and atomically replace the live index. |
+| `search` | Semantic search, optionally hybrid or image-only. |
+| `msearch` | Multi-query search with RRF merging. |
+| `stats` | Vector-store summary. |
+| `init` | Create runtime data directories. |
+| `list` | List indexed source documents. |
+| `clean` | Remove generated runtime data. |
+| `addtag` | Add a user tag and re-embed one item. |
+| `listtag` | List original/user/combined tags for one item. |
+| `removetag` | Remove a user tag and re-embed one item. |
+| `resettags` | Remove all user tags and re-embed one item. |
+| `addknowledge` | Append long-form knowledge and re-embed one item. |
+| `updateknowledge` | Replace long-form knowledge and re-embed one item. |
+| `getknowledge` | Read knowledge for one item. |
+| `server` | Start the FastAPI app. |
 
 ## process
 
-Xử lý và vectorize documents.
-
 ```bash
-specrag process [OPTIONS]
+specrag process [--input PATH] [-fp] [--format png|jpeg|jpg] [--workers auto|N]
+                [--embedding-batch-size N] [--no-charts] [--no-images]
 ```
 
-| Option | Shortcut | Mô tả | Default |
-|--------|----------|-------|---------|
-| `--input` | `-i` | Thư mục input | `data/documents/` |
-| `--fullpage` | `-fp` | Full-page extraction | - |
-| `--format` | `-fmt` | png/jpeg | png |
-| `--workers` | `-w` | Max workers cho chunking/extraction (`auto` hoặc số) | `auto` |
-| `--embedding-threads` | | CPU threads cho embedding/vectorization (`auto` hoặc số) | `auto` |
-| `--embedding-batch-size` | | Batch size khi vectorize | `16` |
-| `--no-charts` | | Skip sequence charts | false |
-| `--no-images` | | Skip image extraction | false |
+Notes:
 
-**Lưu ý**:
-- Phải chỉ định `-fp` trừ khi dùng `--no-images`.
+- `-fp` is required unless `--no-images` is used.
+- Embeddings are produced by the configured HTTP embedding service.
+- Use `reindex` for production rebuilds.
+
+Examples:
 
 ```bash
-# Examples
 specrag process -fp
 specrag process -fp --format jpeg
-specrag process -fp --workers 1 --embedding-threads 1
-specrag process -fp --workers auto --embedding-threads auto
 specrag process --no-images
+specrag process -fp --workers 1 --embedding-batch-size 8
 ```
 
----
+## reindex
+
+```bash
+specrag reindex [process options] [--yes]
+```
+
+Examples:
+
+```bash
+specrag reindex -fp -y
+docker compose run --rm rag specrag reindex -fp -y
+```
 
 ## search
 
-Tìm kiếm semantic.
-
 ```bash
-specrag search "query" [OPTIONS]
+specrag search "query" [--top-k N] [--hybrid] [--pic] [--no-save]
 ```
 
-| Option | Shortcut | Mô tả | Default |
-|--------|----------|-------|---------|
-| `--top-k` | `-k` | Số kết quả | 5 |
-| `--hybrid` | `-hy` | BM25 + Vector | off |
-| `--pic` | `-pic` | Images only | off |
-| `--no-save` | | Không lưu logs | off |
+Examples:
 
 ```bash
-# Examples
-specrag search "authentication"
+specrag search "authentication flow"
 specrag search -hy "Figure 4.1"
 specrag search -pic "state machine"
-specrag search -k 10 "connection"
+specrag search -k 10 --no-save "connection"
 ```
-
----
 
 ## msearch
 
-Multi-query search với RRF fusion.
-
 ```bash
-specrag msearch "query1" "query2" [...] [OPTIONS]
+specrag msearch "query1" "query2" [...] [--top-k N] [--hybrid] [--pic] [--no-save]
 ```
 
-| Option | Shortcut | Mô tả | Default |
-|--------|----------|-------|---------|
-| `--top-k` | `-k` | Số kết quả merged | 5 |
-| `--hybrid` | `-hy` | BM25 + Vector | off |
-| `--pic` | `-pic` | Images only | off |
-| `--no-save` | | Không lưu logs | off |
+Examples:
 
 ```bash
-# Examples
 specrag msearch "reconnection" "link loss" "timeout"
-specrag msearch -hy "Figure 4.1" "Media payload"
+specrag msearch -hy "Figure 4.1" "media payload"
 ```
 
----
-
-## list
-
-Liệt kê documents đã index.
-
-```bash
-specrag list
-```
-
----
-
-## stats
-
-Thống kê database.
-
-```bash
-specrag stats
-```
-
-Output:
-```
-Vector Database Statistics
---------------------------------------------------
-  backend: faiss
-  collection_name: documents
-  count: 278
-  index_type: Flat
-  dimension: 768
-```
-
----
-
-## clean
-
-Xóa dữ liệu đã xử lý.
-
-```bash
-specrag clean [OPTIONS]
-```
-
-| Option | Shortcut | Mô tả |
-|--------|----------|-------|
-| `--all` | | Bao gồm models |
-| `--yes` | `-y` | Skip confirmation |
-
-```bash
-# Examples
-specrag clean --yes
-specrag clean --all --yes
-```
-
----
-
-## init
-
-Khởi tạo thư mục cấu trúc.
-
-```bash
-specrag init
-```
-
----
-
-## addtag
-
-Thêm tag vào document.
+## Metadata enrichment
 
 ```bash
 specrag addtag <doc_id> <tag>
-```
-
-```bash
-# Examples
-specrag addtag HID.pdf_p30 bluetooth
-specrag addtag HID.pdf_p30 "security diagram"
-```
-
----
-
-## listtag
-
-Xem tags của document.
-
-```bash
 specrag listtag <doc_id>
-```
-
----
-
-## removetag
-
-Xóa user-added tag.
-
-```bash
 specrag removetag <doc_id> <tag>
-```
-
----
-
-## resettags
-
-Reset về original tags.
-
-```bash
 specrag resettags <doc_id>
-```
 
----
-
-## addknowledge
-
-Thêm knowledge (append).
-
-```bash
 specrag addknowledge <identifier> <knowledge_text>
-```
-
-```bash
-# Examples
-specrag addknowledge HID_p42 "State machine với 5 trạng thái"
-```
-
----
-
-## updateknowledge
-
-Thay thế knowledge.
-
-```bash
 specrag updateknowledge <identifier> <knowledge_text>
-```
-
----
-
-## getknowledge
-
-Xem knowledge.
-
-```bash
 specrag getknowledge <identifier>
 ```
 
----
+`identifier` can be a chunk id or a resolvable image path.
 
-## eval
-
-Chạy retrieval evaluation.
+## Runtime and maintenance
 
 ```bash
-specrag eval [OPTIONS]
+specrag init
+specrag stats
+specrag list
+specrag clean --yes
+specrag clean --all --yes
+specrag server --host 0.0.0.0 --port 8080
 ```
 
-| Option | Default |
-|--------|---------|
-| `--dataset` | `tests/data/golden_dataset.json` |
-| `--top-k` | 5 |
-
----
-
-## server
-
-Chạy FastAPI HTTP API (OpenAPI tại `/docs`).
-
-```bash
-specrag server [--host HOST] [--port PORT]
-```
-
-| Option | Default |
-|--------|---------|
-| `--host` | `0.0.0.0` |
-| `--port` | `8080` |
-
-Endpoints chính: `POST /api/v1/search`, `GET /api/v1/documents`, tags/knowledge trên `/api/v1/chunks/{id}/...`. Upload/jobs trả `501` (phase sau).
-
----
-
-## Help
-
-```bash
-specrag --help
-specrag process --help
-specrag search --help
-```
-
----
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | General error |
-| 2 | CLI argument error |
+API endpoints are mounted under `/api/v1`. OpenAPI is available at `/docs` when
+the server is running.

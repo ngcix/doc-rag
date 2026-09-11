@@ -1,140 +1,59 @@
-# 🏷️ Quản Lý Tags
+# Tagging
 
-## Tổng Quan
+Tags are short user-supplied keywords that become part of one indexed item's
+searchable content.
 
-Tags giúp **cải thiện độ chính xác tìm kiếm**. Khi thêm tag:
-1. Tag được append vào content
-2. Vector embedding được **re-calculate**
-3. Lần search sau sẽ rank cao hơn
+When a tag changes, SpecRAG:
+
+1. Resolves the chunk/image id.
+2. Builds updated content from original text plus tags.
+3. Calls the remote embedding service for one new vector.
+4. Replaces the item in FAISS and persists metadata.
 
 ## Commands
 
-| Command | Mô tả |
-|---------|-------|
-| `listtag` | Xem tags của document |
-| `addtag` | Thêm tag mới |
-| `removetag` | Xóa user tag |
-| `resettags` | Reset về original tags |
+```bash
+specrag listtag <doc_id>
+specrag addtag <doc_id> <tag>
+specrag removetag <doc_id> <tag>
+specrag resettags <doc_id>
+```
 
-## 1. Xem Tags
+Examples:
 
 ```bash
 specrag listtag HID_v1.1.1.pdf_p30
-```
-
-Output:
-```
-Tags for HID_v1.1.1.pdf_p30:
-  Original (auto-extracted): Figure 4.1: Media payload format
-  User-added:                security-diagram
-  Combined:                  Figure 4.1: Media payload format,security-diagram
-```
-
-## 2. Thêm Tag
-
-```bash
-# Single word
-specrag addtag HID_v1.1.1.pdf_p30 bluetooth
-
-# Multi-word (cần quotes)
 specrag addtag HID_v1.1.1.pdf_p30 "security diagram"
-```
-
-Output:
-```
-Re-calculating vector embedding...
-Successfully added tag 'bluetooth' to document 'HID_v1.1.1.pdf_p30'
-  Original tags: Figure 4.1: Media payload format
-  User tags:     bluetooth
-  Combined:      Figure 4.1: Media payload format,bluetooth
-Vector embedding updated.
-
-[TIME] Time Report:
-  Embedding:  0.25s
-  Total:      0.42s
-```
-
-## 3. Xóa Tag
-
-Chỉ có thể xóa **user-added tags**. Original tags không thể xóa.
-
-```bash
-specrag removetag HID_v1.1.1.pdf_p30 bluetooth
-```
-
-Output:
-```
-Successfully removed tag 'bluetooth' from document 'HID_v1.1.1.pdf_p30'
-  Original tags: Figure 4.1: Media payload format
-  User tags:     (none)
-Vector embedding updated.
-```
-
-## 4. Reset Tags
-
-Xóa tất cả user tags, giữ lại original tags.
-
-```bash
+specrag removetag HID_v1.1.1.pdf_p30 "security diagram"
 specrag resettags HID_v1.1.1.pdf_p30
 ```
 
-## Cách Tag Boosting Hoạt Động
+CLI responses are JSON and include the updated tag state and embedding time when
+the item was re-embedded.
 
-Khi thêm tag, hệ thống:
+## Original vs user tags
 
-```python
-# Tags được lặp lại để tăng semantic weight
-# Images: 10x repeat
-tag_boost = ", ".join([tag] * 10)
-content = original_content + f"\nTags: {tag_boost}"
+| Type | Source | Removable |
+| --- | --- | --- |
+| Original | Auto-extracted captions such as `Figure 4.1` or `Table 2`. | No |
+| User | Added through `addtag`. | Yes |
 
-# Re-embed với boosted content
-new_embedding = get_embedding_provider().embed([content])[0]
-```
+## Tag boosting
 
-**Kết quả**: Query chứa tag sẽ có similarity score cao hơn.
+For image items, tags are repeated in the vectorization text to make exact tag
+queries more likely to retrieve the inspected image/page.
 
-## Best Practices
+Use specific phrases:
 
-### Tag Naming
+| Better | Avoid |
+| --- | --- |
+| `authentication flow` | `important` |
+| `state machine` | `diagram` |
+| `bluetooth security` | `tag1` |
 
-| ✅ Good | ❌ Bad |
-|---------|--------|
-| `bluetooth-protocol` | `tag1` |
-| `security-architecture` | `important` |
-| `state-machine` | `see-page-5` |
+## Operational notes
 
-### Use Cases
-
-```bash
-# Categorize by topic
-specrag addtag doc_p30 "authentication"
-specrag addtag doc_p45 "security"
-
-# Project labels
-specrag addtag spec.pdf_p12 "project-alpha"
-
-# Search với tags
-specrag search "project alpha security"
-```
-
-## Original vs User Tags
-
-| Type | Nguồn | Có thể xóa? |
-|------|-------|-------------|
-| **Original** | Auto-extracted từ text (Figure X.Y, Table X) | ❌ |
-| **User** | Thêm bằng `addtag` | ✅ |
-
-## Performance Note
-
-Mỗi lần add/remove tag:
-- Load embedding model (nếu chưa load)
-- Re-embed 1 document (~0.2-0.5s)
-- Rebuild FAISS index
-- Save to disk
-
-→ Với nhiều tags, nên add lần lượt hoặc batch.
-
----
-
-**Xem thêm**: [Knowledge Management →](./knowledge.md)
+- The embedding service must be reachable.
+- The FAISS store allows one writer per data volume.
+- For many corpus-wide tag changes, consider scripting them during a maintenance
+  window and re-running search quality checks.

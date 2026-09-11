@@ -1,109 +1,58 @@
-# 📖 SpecRAG Documentation
+# SpecRAG documentation
 
-> **Specification RAG System** - Hệ thống RAG tối ưu cho tài liệu đặc tả kỹ thuật
+SpecRAG is a two-service RAG system for technical specifications:
 
-## 📄 Tổng Quan Project
+- `embedding`: CPU ONNX/TEI service that exposes `/v1/embeddings`.
+- `rag`: FastAPI/CLI service that owns ingestion, FAISS/BM25, metadata and search.
 
-| Tài liệu                                    | Mô tả                                      |
-| ------------------------------------------- | ------------------------------------------ |
-| [Project Summary](./project-summary.md)     | Tóm tắt dự án: công nghệ, cấu trúc, kiến trúc |
-| [Greenfield Architecture Plan](./greenfield-architecture-plan.md) | Kế hoạch xây dựng lại từ đầu — stack hiện đại 2026 |
+The RAG runtime does not install Torch, Transformers, Sentence Transformers or
+ONNX Runtime. Those dependencies are isolated to model export/validation or the
+embedding image.
 
-## 🚀 Bắt Đầu Nhanh
+## Start here
 
-| Tài liệu                                               | Mô tả                |
-| ------------------------------------------------------ | -------------------- |
-| [Cài đặt](./getting-started/installation.md)           | Hướng dẫn cài đặt    |
-| [Quickstart](./getting-started/quickstart.md)          | Bắt đầu trong 5 phút |
-| [Workflow cơ bản](./getting-started/basic-workflow.md) | Quy trình làm việc   |
+| Document | Purpose |
+| --- | --- |
+| [Installation](./getting-started/installation.md) | Prepare the model artifact, install the RAG package and start Compose. |
+| [Quickstart](./getting-started/quickstart.md) | Index documents and run your first search. |
+| [Basic workflow](./getting-started/basic-workflow.md) | Daily ingest, search and enrichment flow. |
 
-## 📚 Hướng Dẫn Sử Dụng
+## User guides
 
-| Tài liệu                                  | Mô tả                                |
-| ----------------------------------------- | ------------------------------------ |
-| [Xử lý Documents](./guides/processing.md) | Process và index tài liệu            |
-| [Tìm kiếm](./guides/searching.md)         | Semantic, Hybrid, Multi-query search |
-| [Quản lý Tags](./guides/tagging.md)       | AddTag, RemoveTag, ResetTags         |
-| [Knowledge](./guides/knowledge.md)        | Thêm mô tả/annotation                |
+| Document | Purpose |
+| --- | --- |
+| [Processing](./guides/processing.md) | Document ingestion, image extraction and staged re-indexing. |
+| [Searching](./guides/searching.md) | Semantic, hybrid, image-only and multi-query search. |
+| [Tagging](./guides/tagging.md) | User tags and re-embedding behavior. |
+| [Knowledge](./guides/knowledge.md) | Long-form annotations on chunks/images. |
 
-## 📋 Tài Liệu Tham Khảo
+## Reference
 
-| Tài liệu                                      | Mô tả                    |
-| --------------------------------------------- | ------------------------ |
-| [CLI Commands](./reference/cli-commands.md)   | Tất cả lệnh với examples |
-| [Configuration](./reference/configuration.md) | Các tham số cấu hình     |
+| Document | Purpose |
+| --- | --- |
+| [CLI commands](./reference/cli-commands.md) | Supported commands and options. |
+| [Configuration](./reference/configuration.md) | Runtime settings and environment overrides. |
 
-## 🏗️ Kiến Trúc (Cho Developers)
+## Architecture
 
-| Tài liệu                                                | Mô tả                        |
-| ------------------------------------------------------- | ---------------------------- |
-| [Tổng quan](./architecture/overview.md)                 | Kiến trúc hệ thống           |
-| [Cấu trúc Project](./architecture/project-structure.md) | Chi tiết folders và files    |
-| [Image Extraction](./architecture/image-extraction.md)  | Deep dive: trích xuất ảnh    |
-| [Search Engine](./architecture/search-engine.md)        | Deep dive: search algorithms |
+| Document | Purpose |
+| --- | --- |
+| [Overview](./architecture/overview.md) | Two-service runtime, data ownership and reliability controls. |
+| [Project structure](./architecture/project-structure.md) | Source layout and dependency direction. |
+| [Search engine](./architecture/search-engine.md) | FAISS, BM25 and RRF retrieval internals. |
+| [Image extraction](./architecture/image-extraction.md) | Full-page PDF image extraction. |
 
-## 🔌 Tích Hợp
+## Development and integrations
 
-| Tài liệu                                     | Mô tả                    |
-| -------------------------------------------- | ------------------------ |
-| [Cline Integration](./integrations/cline.md) | Tích hợp với Cline Agent |
+| Document | Purpose |
+| --- | --- |
+| [Dependencies](./development/dependencies.md) | Dependency groups and why model libraries stay out of RAG. |
+| [Cline integration](./integrations/cline.md) | How an AI agent should call SpecRAG and enrich results. |
+| [Embedding service](../services/embedding/README.md) | Export, validate and benchmark the ONNX model artifact. |
 
-## 🛠️ Development
+## Maintenance notes
 
-| Tài liệu                                      | Mô tả            |
-| --------------------------------------------- | ---------------- |
-| [Dependencies](./development/dependencies.md) | Thư viện sử dụng |
-
-## 🤖 Workflow cho AI Agent
-
-| Tài liệu                                                                      | Mô tả                                            |
-| ----------------------------------------------------------------------------- | ------------------------------------------------ |
-| [Hướng dẫn sử dụng](./how-to-use.md)                                          | Chi tiết các bước thực hiện của AI Agent         |
-| [RAG Backend Workflow](file:///.clinerules/workflows/workflow_rag_backend.md) | Quy trình tự động tìm kiếm, mô tả ảnh và gắn tag |
-
-> [!NOTE]
-> **Workflow RAG Backend Search and Analysis** là quy trình chuẩn hóa giúp AI Agent (như Cline) thực hiện công việc tra cứu tài liệu một cách thông minh:
->
-> - **Phân tích câu hỏi**: Tự động gợi ý các hướng tìm kiếm cụ thể nếu câu hỏi quá chung chung.
-> - **Tìm kiếm đa phương thức**: Kết hợp Semantic Search, Image-only Search và Hybrid Search (BM25).
-> - **Xử lý hình ảnh**: Tự động mô tả nội dung hình ảnh và re-rank kết quả dựa trên độ liên quan thực tế.
-> - **Gắn thẻ thông minh (Smart Tagging)**: Hỗ trợ tạo và cập nhật metadata cho hình ảnh thông qua tương tác với người dùng.
-> - **Dọn dẹp tự động**: Quản lý các file kết quả tạm trong thư mục `process/` sau khi hoàn thành.
-
----
-
-## Sơ Đồ Tổng Quan
-
-```
-                    ┌─────────────────────────────────────────┐
-                    │              SPECRAG SYSTEM             │
-                    └─────────────────────────────────────────┘
-                                        │
-        ┌───────────────────────────────┼───────────────────────────────┐
-        │                               │                               │
-        ▼                               ▼                               ▼
-┌───────────────┐              ┌───────────────┐              ┌───────────────┐
-│    INPUT      │              │   PROCESSING  │              │    OUTPUT     │
-│               │              │               │              │               │
-│ • PDF         │     ───▶     │ • Chunking    │     ───▶    │ • FAISS Index │
-│ • DOCX        │              │ • Extraction  │              │ • Hybrid Search│
-│ • Markdown    │              │ • Vectorize   │              │ • CLI/Agent   │
-└───────────────┘              └───────────────┘              └───────────────┘
-```
-
-## Công Nghệ Chính
-
-| Layer               | Công nghệ                                   |
-| ------------------- | ------------------------------------------- |
-| **Embedding**       | Alibaba-NLP/gte-multilingual-base (768-dim) |
-| **Vector DB**       | FAISS (IndexFlatIP, cosine similarity)      |
-| **Search**          | Semantic + BM25 Hybrid + Multi-Query RRF    |
-| **PDF Processing**  | PyMuPDF (fitz)                              |
-| **Image Extraction** | PyMuPDF full-page rendering                 |
-| **Text Splitting**  | LangChain RecursiveCharacterTextSplitter    |
-| **Config**          | Pydantic v2                                 |
-| **HTTP API**        | FastAPI + Uvicorn (`/api/v1`)               |
-
----
-
-_Tài liệu kỹ thuật cho SpecRAG - Updated 2026-07_
+- Use `specrag reindex -fp -y` after changing the embedding fingerprint.
+- Use one RAG writer per FAISS data volume.
+- Keep generated reports, implementation plans and one-off migration notes out of
+  this docs tree unless they are still operationally useful.

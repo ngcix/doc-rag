@@ -22,16 +22,22 @@ def _atomic_write(path: Path, writer: Callable[[Path], None]) -> None:
     temporary_path = Path(temporary_name)
     try:
         writer(temporary_path)
-        with temporary_path.open("rb") as temporary_file:
+        with temporary_path.open("r+b") as temporary_file:
             os.fsync(temporary_file.fileno())
         os.replace(temporary_path, path)
-        directory_fd = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        _fsync_parent_directory(path.parent)
     finally:
         temporary_path.unlink(missing_ok=True)
+
+
+def _fsync_parent_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    directory_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
 
 
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:

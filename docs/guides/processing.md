@@ -1,138 +1,75 @@
-# 📄 Xử Lý Documents
+# Processing and re-indexing
 
-## Tổng Quan
+Processing extracts text, renders useful PDF pages, embeds all items through the
+remote embedding service, and writes them to the vector store.
 
-Lệnh `process` thực hiện:
-1. **Chunking**: Chia văn bản thành chunks
-2. **Image Extraction**: Trích xuất hình ảnh từ PDFs
-3. **Vectorization**: Chuyển đổi thành vectors
-4. **Storage**: Lưu vào FAISS database
-
-## Cú Pháp
+## Recommended: staged re-index
 
 ```bash
-specrag process [OPTIONS]
+specrag reindex -fp -y
 ```
+
+`reindex` builds a fresh FAISS store in a staging directory and swaps it into the
+live location only after the full run succeeds. Use it when:
+
+- ingesting a new corpus,
+- changing model revision, pooling, normalization, dimension or variant,
+- recovering from incompatible/legacy index metadata.
+
+## Incremental processing
+
+```bash
+specrag process -fp
+```
+
+`process` writes directly to the configured vector store. It is useful during
+local iteration, but `reindex` is safer for production cutover.
 
 ## Options
 
-| Option | Shortcut | Mô tả |
-|--------|----------|-------|
-| `--input PATH` | `-i` | Thư mục input (default: `data/documents/`) |
-| `--fullpage` | `-fp` | Full-page image extraction (recommended) |
-| `--format` | `-fmt` | Định dạng ảnh: png/jpeg |
-| `--workers` | `-w` | Số worker song song cho chunking/extraction (`auto` hoặc số) |
-| `--embedding-threads` | | Số CPU threads cho vectorization (`auto` hoặc số) |
-| `--embedding-batch-size` | | Batch size khi vectorize |
-| `--no-charts` | | Bỏ qua sequence charts |
-| `--no-images` | | Bỏ qua image extraction |
+| Option | Shortcut | Description |
+| --- | --- | --- |
+| `--input PATH` | `-i` | Source document directory. |
+| `--fullpage` | `-fp` | Render PDF pages with visual content. Required unless `--no-images` is used. |
+| `--format png|jpeg|jpg` | `-fmt` | Rendered image format. |
+| `--workers auto|N` | `-w` | Parallel workers for extraction/chunking. |
+| `--embedding-batch-size N` | | Client batch size for embedding requests. |
+| `--no-charts` | | Skip Mermaid/sequence chart processing. |
+| `--no-images` | | Skip PDF image extraction. |
+| `--yes` | `-y` | `reindex` only: skip replacement confirmation. |
 
-## Image Extraction Mode
+## Supported source files
 
-### Full-page Mode (`-fp`) - Khuyến nghị
+| Extension | Handling |
+| --- | --- |
+| `.pdf` | Text extraction and optional full-page image rendering. |
+| `.docx` | Text extraction. |
+| `.md`, `.markdown` | Text extraction and sequence-chart handling. |
+| `.txt` | Text extraction. |
 
-```bash
-specrag process -fp
-```
+## Full-page extraction
 
-- Capture toàn bộ trang chứa hình ảnh
-- Context đầy đủ (10K chars)
-- Tốt cho RAG, architecture diagrams
+`-fp` renders only pages that appear visually useful. A page is selected when it
+contains signals such as a sufficiently large embedded image, vector drawing,
+figure/table caption, or table-like line structure.
 
-## Ví Dụ Sử Dụng
-
-### Cơ bản
-
-```bash
-# Full-page mode (phổ biến nhất)
-specrag process -fp
-```
-
-### Tùy chọn nâng cao
-
-```bash
-# Custom input directory
-specrag process -fp -i /path/to/docs
-
-# JPEG format (nhỏ hơn PNG)
-specrag process -fp --format jpeg
-
-# Chạy nhẹ máy hơn khi vẫn cần dùng máy trong lúc process
-specrag process -fp --workers 1 --embedding-threads 1
-
-# Chạy nhanh hơn nếu máy rảnh
-specrag process -fp --workers 4 --embedding-threads 4 --embedding-batch-size 32
-
-# Để hệ thống tự tính theo số CPU logical hiện có
-# Mặc định auto nhắm khoảng 75-80% CPU logical
-specrag process -fp --workers auto --embedding-threads auto
-
-# Chỉ text, không images
-specrag process --no-images
-```
-
-### Reprocessing
-
-```bash
-# Xóa data cũ trước khi reprocess
-specrag clean --yes
-
-# Process lại
-specrag process -fp
-```
+Rendered pages are stored in `data/extracted_images/` and indexed as searchable
+items with metadata including `image_path`, `source_file`, `page_number`,
+`region_type` and extracted tags.
 
 ## Output
 
-```
-Processing documents from: data/documents
-Vector store backend: faiss
-FAISS index location: data/faiss_index
---------------------------------------------------
+CLI commands print JSON reports. A typical report includes counts for text
+chunks, extracted images, charts, indexed items and elapsed time.
 
-[1/3] Processing documents (Parallel)...
-  Found 5 files to chunk.
-  Chunking files: 100%|██████████| 5/5
-  Extracted 245 text chunks (took 2.34s)
+## Model compatibility
 
-[2/3] Extracting images from PDFs (Parallel)...
-  Extracting from PDFs: 100%|██████████| 3/3
-  Total images processed: 33 (took 5.12s)
+FAISS metadata stores the embedding fingerprint:
 
-[3/3] Processing sequence charts...
-  Charts processing completed (took 0.5s)
-
-[4/4] Vectorizing and Storing 278 items...
-  Vectorization completed (took 12.5s)
-
-==================================================
-Processing complete!
-  Text chunks: 245
-  Images extracted: 33
-  Total items in database: 278
-[TIME] Time Report:
-  Chunking:      2.34s
-  Image Extract: 5.12s
-  Charts:        0.5s
-  Vectorization: 12.5s
-  -----------------
-  Total:         20.46s
+```text
+model_id@revision:variant:pooling:normalization:dimension
 ```
 
-## Xử Lý Các Loại File
-
-| Extension | Xử lý |
-|-----------|-------|
-| `.pdf` | Text extraction + Image extraction |
-| `.docx` | Text extraction |
-| `.md`, `.markdown` | Text extraction + Mermaid charts |
-| `.txt` | Text extraction |
-
-## Tips
-
-1. **Lần đầu**: Dùng `-fp` để có context đầy đủ
-2. **Nhiều PDFs lớn**: Chạy parallel tự động
-3. **Tiết kiệm disk**: Dùng `--format jpeg`
-
----
-
-**Xem thêm**: [CLI Reference →](../reference/cli-commands.md)
+If this fingerprint no longer matches the configured embedding service,
+readiness/search/ingest reject the store. Run `specrag reindex -fp -y` after
+changing the model contract.

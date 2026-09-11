@@ -28,7 +28,7 @@ def rebuild_index(
         os.replace(backup, live)
     elif backup.exists():
         shutil.rmtree(backup)
-    live_lease = WriterLease(live / f"{settings.vectordb.collection_name}.writer.lock")
+    live_lease = WriterLease(live.parent / f".{live.name}.{settings.vectordb.collection_name}.writer.lock")
     live_lease.acquire()
     staging = live.parent / f".{live.name}.staging-{uuid.uuid4().hex}"
     staging_config = settings.vectordb.model_copy(update={"faiss_index_dir": staging})

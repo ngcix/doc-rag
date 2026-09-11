@@ -1,220 +1,69 @@
-# 🤖 Cline Integration
+# Cline integration
 
-## Tổng Quan
+SpecRAG works well with a vision-capable coding agent such as Cline. The agent
+uses SpecRAG for retrieval, inspects returned image paths when needed, and then
+optionally enriches the index with tags or knowledge.
 
-SpecRAG được thiết kế để tích hợp với **Cline** (LLM Agent) qua CLI. Cline có khả năng **Vision** để xử lý cả văn bản và hình ảnh.
+## Preconditions
 
-### Capabilities
+- The embedding service is running.
+- Documents have been indexed with `specrag reindex -fp -y` or
+  `specrag process -fp`.
+- Cline can read files under `data/extracted_images/` when image results are
+  returned.
 
-- **Đọc kết quả văn bản** từ SpecRAG search
-- **"Nhìn" và phân tích hình ảnh** từ search results
-- **Hiểu context** từ cả text + images
-- **Tự động gắn tag** để cải thiện search quality
+## Retrieval workflow
 
-## Quy Trình 3 Phases
-
-### Phase 1: INGESTION - Nạp Tài Liệu
-
-```
-User → Cline: "Learn this document: specs.pdf"
-                    ↓
-Cline → CLI: specrag process -fp
-                    ↓
-           ┌────────┴────────┐
-           ↓                 ↓
-    Text Chunking     Image Extraction
-           ↓                 ↓
-           └────────┬────────┘
-                    ↓
-            Vectorization (GTE)
-                    ↓
-            FAISS Database
-                    ↓
-Cline → User: "Ingested. I can now search."
+```text
+user question
+  -> choose search strategy
+  -> run specrag search/msearch or call POST /api/v1/search
+  -> inspect JSON results
+  -> read image_path files for visual answers
+  -> answer with citations/metadata
 ```
 
-**CLI Command**:
+Recommended commands:
+
 ```bash
-specrag process -fp --input ./docs
-```
-
-### Phase 2: RETRIEVAL - Tìm Kiếm
-
-```
-User → Cline: "Show me the OAuth diagram"
-                    ↓
-Cline → CLI: specrag search -pic "OAuth diagram"
-                    ↓
-            FAISS Similarity Search
-                    ↓
-            Top-K Results (text + image paths)
-                    ↓
-Cline: Vision Analysis (read images)
-                    ↓
-Cline → User: Response với text + images
-```
-
-**CLI Commands**:
-```bash
-# Semantic search
 specrag search "authentication flow"
-
-# Hybrid search (tốt cho exact match)
 specrag search -hy "Figure 4.1"
-
-# Image-only search
 specrag search -pic "state machine"
+specrag msearch "pairing" "authentication" "security"
 ```
 
-### Phase 3: FEEDBACK - Cải Thiện
+Use `-hy` for exact figure/table names. Use `-pic` when the answer likely lives
+in a rendered page, diagram or table.
 
-```
-User → Cline: "Yes, that's the OAuth flow"
-                    ↓
-Cline decides: This image is relevant, tag it
-                    ↓
-Cline → CLI: specrag addtag doc_id "oauth"
-                    ↓
-            Tag Boost + Re-embedding
-                    ↓
-            FAISS Database Updated
-                    ↓
-Next search ranks this document higher!
-```
+## Enrichment workflow
 
-**CLI Commands**:
-```bash
-# Add tag
-specrag addtag HID_p42 "oauth"
-
-# Add knowledge
-specrag addknowledge HID_p42 "OAuth2 flow diagram"
-```
-
-## Architecture với Cline
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CLINE + SPECRAG SYSTEM                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌────────────┐                                                              │
-│  │    User    │                                                              │
-│  └─────┬──────┘                                                              │
-│        │ Natural Language                                                    │
-│        ▼                                                                     │
-│  ┌─────────────────────────────────────────────┐                            │
-│  │            Cline (LLM Agent)                │                            │
-│  │  ┌─────────────┐  ┌─────────────────────┐   │                            │
-│  │  │   Vision    │  │  Text Processing    │   │                            │
-│  │  │  Capability │  │  + Reasoning        │   │                            │
-│  │  └─────────────┘  └─────────────────────┘   │                            │
-│  └──────────────────────┬──────────────────────┘                            │
-│                         │ CLI Commands                                       │
-│                         ▼                                                    │
-│  ┌─────────────────────────────────────────────┐                            │
-│  │            SpecRAG CLI                      │                            │
-│  │  process | search | addtag | addknowledge  │                            │
-│  └──────────────────────┬──────────────────────┘                            │
-│                         │                                                    │
-│                         ▼                                                    │
-│  ┌─────────────────────────────────────────────┐                            │
-│  │            FAISS Vector Database            │                            │
-│  │  Text Chunks + Image Embeddings + Metadata  │                            │
-│  └─────────────────────────────────────────────┘                            │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-## Tag Boosting Workflow
-
-Khi Cline thêm tag:
-
-```python
-# 1. Original content
-"Image showing authentication flow..."
-
-# 2. After addtag "oauth"
-"Image showing authentication flow...
- Tags: oauth, oauth, oauth, oauth, oauth, oauth, oauth, oauth, oauth, oauth"
- 
-# 3. Re-embed với boosted content
-new_embedding = vectorize(boosted_content)
-
-# 4. Update FAISS
-delete(old_entry)
-add(new_entry_with_boosted_embedding)
-```
-
-**Result**: Query "oauth" sẽ rank document này cao hơn.
-
-## Use Cases
-
-### 1. Technical Documentation
+After Cline verifies a result, it can improve future retrieval:
 
 ```bash
-# Nạp specs
-specrag process -fp -i ./bluetooth-specs/
-
-# Tìm diagrams
-specrag search -pic "connection state machine"
-
-# Tag kết quả
-specrag addtag result_id "bluetooth-fsm"
+specrag addtag <chunk_id> "authentication flow"
+specrag addknowledge <chunk_id> "This rendered page shows the authentication state machine..."
 ```
 
-### 2. Architecture Analysis
+Tags are short retrieval labels. Knowledge is a longer explanation or
+correction. Both operations call the remote embedding service and replace one
+item in FAISS.
 
-```bash
-# Search cho architecture
-specrag search "system architecture overview"
+## Agent guidelines
 
-# Thêm knowledge
-specrag addknowledge arch_p5 "Main system architecture showing microservices"
-```
+- Prefer search before manually browsing long PDFs.
+- Rephrase broad questions into two or three targeted searches.
+- Inspect `image_path` files before describing diagrams.
+- Do not add tags or knowledge unless the result has been verified.
+- Keep user-added tags specific and reusable.
+- Use `--no-save` for throwaway searches if saved result JSON is not needed.
 
-### 3. Multi-Query for Complex Questions
+## Runtime boundary
 
-```bash
-# Câu hỏi phức tạp
-specrag msearch "authentication" "security" "token flow"
-```
+Cline talks to the RAG CLI/API. The RAG service talks to the embedding service.
+Cline should not import model code or run local embedding libraries.
 
-## Best Practices
+Related docs:
 
-### Ingestion
-- Dùng `-fp` (full-page) cho technical docs
-
-### Search
-- Start với semantic search
-- Dùng `-hy` hybrid cho exact Figure/Table lookup
-- Dùng `-pic` khi cần visual reference
-
-### Feedback
-- Tag khi Cline "hiểu" đúng nội dung
-- Add knowledge cho detailed explanations
-- Tags = keywords, Knowledge = descriptions
-
-## Comparison: RAG Truyền Thống vs Vision-Enhanced
-
-| Aspect | Traditional RAG | Vision-Enhanced (Cline+SpecRAG) |
-|--------|-----------------|--------------------------------|
-| Input | Text only | Text + Images |
-| Output | Text results | Text + Image paths |
-| LLM | Text-only | Multimodal (Vision) |
-| Feedback | Manual/None | Automated (addtag) |
-| Improvement | Static | Self-improving |
-
-## Summary
-
-1. **Multimodal**: Xử lý cả văn bản và hình ảnh
-2. **Intelligent**: Cline "hiểu" thực sự nội dung
-3. **Self-Improving**: Database tự cải thiện qua feedback
-4. **User-Friendly**: Kết quả trực quan với images
-
----
-
-**Xem thêm**:
-- [CLI Commands →](../reference/cli-commands.md)
-- [Tagging Guide →](../guides/tagging.md)
-- [Knowledge Guide →](../guides/knowledge.md)
+- [Searching](../guides/searching.md)
+- [Tagging](../guides/tagging.md)
+- [Knowledge](../guides/knowledge.md)

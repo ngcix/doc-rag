@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from specrag.config import SearchConfig
+from specrag.embedding import ModelInfo
 from specrag.search.engine import SearchEngine
 
 
@@ -10,6 +11,9 @@ class StubEmbeddingProvider:
     def embed(self, texts):
         assert texts == ["find me"]
         return [[1.0, 0.0, 0.0]]
+
+    def model_info(self):
+        return ModelInfo("stub", "test", 3, "cls", True, 128)
 
 
 class StubVectorStore:

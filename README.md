@@ -1,245 +1,105 @@
-# 🚀 SpecRAG
+# SpecRAG
 
-**High-performance RAG for Technical Specifications**
+SpecRAG indexes technical specifications for semantic, hybrid and image-aware
+retrieval. It is designed for AI agents that need to search long PDF/spec
+collections, inspect returned diagrams, and enrich the index over time.
 
-> Turn your PDF specs into a searchable knowledge base that AI agents can query instantly.
+## Runtime shape
 
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
-![FAISS](https://img.shields.io/badge/Vector_DB-FAISS-orange)
+SpecRAG runs as two services:
 
----
+- `embedding`: CPU ONNX/TEI service exposing OpenAI-compatible
+  `POST /v1/embeddings`.
+- `rag`: FastAPI/CLI service for ingestion, FAISS/BM25 search, metadata,
+  tags and knowledge.
 
-## ✨ Why SpecRAG?
+The RAG runtime does not install Torch, Transformers, Sentence Transformers or
+ONNX Runtime. Model export and validation live under `services/embedding/`.
 
-| Feature | Description |
-|---------|-------------|
-| 🎯 **Spec-Optimized** | Auto-detects `Figure X.Y`, `Table X.Y` captions in technical docs |
-| 🖼️ **Full-Page Context** | Captures entire page + 10,000 chars of text context |
-| 🔀 **Hybrid Search** | Semantic + BM25 exact match with RRF fusion |
-| 👁️ **Vision-Ready** | Returns image paths for AI agents to analyze diagrams |
-| 🏷️ **Self-Improving** | Tag images → Auto re-embed → Better future searches |
+## Features
 
----
+| Feature | Purpose |
+| --- | --- |
+| Semantic search | Retrieve by meaning using FAISS over normalized embeddings. |
+| Hybrid search | Combine BM25 exact matching and vector search with RRF. |
+| Full-page image extraction | Render PDF pages with diagrams/tables and return image paths. |
+| Tags and knowledge | Re-embed verified annotations to improve future retrieval. |
+| Staged re-index | Build a fresh FAISS store and atomically swap it into place. |
+| API and CLI | Use `specrag` locally or FastAPI on port `8080`. |
 
-## 🚀 Quick Start
+## Quickstart
 
 ```bash
-# 1. Install the lightweight RAG service
-git clone <repo-url> && cd SpecRAG
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+git clone <repository-url>
+cd spec-rag
 
-# 2. Export the ONNX model (one-time)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+```
+
+Export the embedding artifact:
+
+```bash
 python -m venv .venv-export
-.venv-export/bin/pip install -r services/embedding/requirements-export.txt
-.venv-export/bin/python services/embedding/export_model.py \
-  --output models/embedding --optimization O3
+.\.venv-export\Scripts\python.exe -m pip install -r services/embedding/requirements-export.txt
+.\.venv-export\Scripts\python.exe services/embedding/export_model.py --output models/embedding --optimization O3
+```
 
-# 3. Start the embedding service
+Start services and build the index:
+
+```bash
 docker compose up --build -d embedding
-
-# 4. Re-index documents using the remote embedding API
-cp your-specs/*.pdf data/documents/
 docker compose run --rm rag specrag reindex -fp -y
-
-# 5. Start RAG, then search over REST
 docker compose up -d rag
-curl -X POST http://localhost:8080/api/v1/search \
-  -H 'content-type: application/json' \
-  -d '{"query":"authentication flow","top_k":5}'
 ```
 
-For local CLI development, expose the internal embedding port with
-`docker compose -f compose.yaml -f compose.dev.yaml up embedding`.
-
----
-
-## 🔍 Search Types
-
-Choose the right search for your question:
-
-| Question Type | Command | Example |
-|---------------|---------|---------|
-| **Conceptual** | `search` | `search "what is HID protocol"` |
-| **Exact match** | `search -hy` | `search -hy "Figure 4.1"` |
-| **Find diagrams** | `search -pic` | `search -pic "state machine"` |
-| **Complex query** | `msearch` | `msearch "reconnect" "link loss" "timeout"` |
-
-**Combine them:** `search -pic -hy "Figure 4.1"` finds the exact diagram.
-
-### Search Workflow
-
-```
-Question → Strategy Selection → Search Execution → Analyze Results → Present Answer
-              │                        │
-              ├── Semantic            ├── Vector (FAISS)
-              ├── Hybrid (-hy)        ├── BM25 (exact match)
-              └── Multi-query         └── RRF Fusion
-```
-
-### RRF Fusion (Reciprocal Rank Fusion)
-
-Thuật toán kết hợp kết quả từ nhiều nguồn search:
-
-```
-                    Query: "Figure 4.1"
-                           │
-              ┌────────────┴────────────┐
-              ↓                         ↓
-         Vector Search              BM25 Search
-         (semantic)                 (exact match)
-              │                         │
-              └────────────┬────────────┘
-                           ↓
-                      RRF Fusion
-              score = Σ weight/(k + rank)
-                           ↓
-                    Final Ranking
-```
-
-**Tại sao dùng RRF?** Vector score và BM25 score không cùng scale → RRF dùng **rank** thay vì score để merge.
-
-> 📖 **Deep dive:** [Search Guide](docs/guides/searching.md)
-
----
-
-## 🛠️ Core Commands
+Search over REST:
 
 ```bash
-# Process
-specrag process -fp          # Full-page extraction (recommended)
-
-# Search
-specrag search "query"       # Semantic search
-specrag search -hy "query"   # Hybrid (exact + semantic)
-specrag search -pic "query"  # Images only
-specrag msearch "q1" "q2"    # Multi-query with RRF
-
-# Improve
-specrag addtag ID "tag"      # Add tag (triggers re-embed)
-specrag addknowledge ID "text" # Add description
-
-# Manage
-specrag list                 # Show indexed documents
-specrag stats                # Database statistics
-specrag clean --yes          # Reset everything
+curl -X POST http://localhost:8080/api/v1/search ^
+  -H "content-type: application/json" ^
+  -d "{\"query\":\"authentication flow\",\"top_k\":5}"
 ```
 
-> 📖 **Full reference:** [CLI Commands](docs/reference/cli-commands.md)
+Search with the CLI:
 
----
-
-## 🏗️ How It Works
-
-![System Architecture](docs/pic/structure.png)
-
-### Split runtime
-
-- The **embedding container** owns the ONNX model, tokenizer, CLS pooling,
-  normalization, batching, and `/v1/embeddings`.
-- The **RAG container** owns ingestion, metadata, FAISS/BM25, CLI, and REST API.
-- The RAG runtime does not install Torch, Transformers, Sentence Transformers,
-  or ONNX Runtime.
-- FAISS is single-writer. Run one RAG replica per data volume.
-
-### Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Embedding | `Alibaba-NLP/gte-multilingual-base` (768-dim) |
-| Vector DB | FAISS (IndexFlatIP, cosine similarity) |
-| PDF Processing | PyMuPDF (fitz) |
-| Image Extraction | PyMuPDF full-page rendering |
-
-> 📖 **Architecture details:** [Overview](docs/architecture/overview.md)
-
----
-
-## 🧠 Models
-
-The `models/` directory stores NLP models for embedding and searching. SpecRAG uses the **Alibaba-NLP/gte-multilingual-base** model from Hugging Face.
-
-### Model Specifications
-
-| Specification | Value |
-|---------------|-------|
-| **Model** | [Alibaba-NLP/gte-multilingual-base](https://huggingface.co/Alibaba-NLP/gte-multilingual-base) |
-| **Parameters** | 305M |
-| **Embedding Dimension** | 768 |
-| **Max Input Tokens** | 8,192 |
-| **Languages** | 75 languages |
-| **Architecture** | Transformer++ (BERT + RoPE + GLU) |
-| **License** | Apache 2.0 |
-
-### Why This Model?
-
-| Feature | Benefit |
-|---------|---------|
-| **Multilingual** | Supports 75 languages including Vietnamese and English |
-| **Long Context** | 8K tokens allows embedding entire pages |
-| **Fast Inference** | Encoder-only (10x faster than decoder LLMs) |
-| **State-of-the-Art** | Top performance on multilingual retrieval benchmarks |
-| **Elastic Embedding** | Reduces storage costs with dimension flexibility |
-
-### Model Directory Structure
-
-```
-models/
-└── embedding/
-    ├── onnx/model_o3.onnx
-    ├── tokenizer.json
-    ├── 1_Pooling/config.json
-    └── specrag-manifest.json
-```
-
-> 📖 **Paper:** [mGTE: Generalized Long-Context Text Representation](https://arxiv.org/abs/2407.19669) (2024)
-
----
-
-## 🛠️ Development & Build
-
-SpecRAG uses standard Python wheels for development and two Docker images for
-deployment. PyInstaller and Cython are no longer part of the build.
-
-### Quick Build
 ```bash
-make setup-env   # Setup venv and install
-make test        # Run unit and contract tests
-make lint        # Ruff + 300-line source limit
-make build       # Build the RAG wheel
-docker compose build
+specrag search "authentication flow"
+specrag search -hy "Figure 4.1"
+specrag search -pic "state machine diagram"
+specrag msearch "reconnect" "link loss" "timeout"
 ```
 
-> 📖 **Detailed Guide:** [Build Instructions](scripts/build.md)
+For local CLI work against the containerized embedding service:
 
----
-
-## 🤖 Cline Integration
-
-SpecRAG includes ready-to-use rules for **Cline** AI agent in `.clinerules/`:
-
-```
-.clinerules/
-├── rule_rag_backend.md        # Core rules: search first, no manual PDF reading
-└── workflows/
-    ├── workflow_rag_backend.md      # Standard search → analyze → answer
-    └── workflow_rag_with_knowledge.md # Use pre-analyzed knowledge
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up -d embedding
+$env:EMBEDDING_URL="http://localhost:8081"
 ```
 
-**How it works:** Cline automatically searches RAG before answering, analyzes images with vision, and adds tags to improve future searches.
+## Core commands
 
-> 📖 **Setup guide:** [Cline Integration](docs/integrations/cline.md)
+| Command | Purpose |
+| --- | --- |
+| `specrag reindex -fp -y` | Staged full rebuild of the FAISS index. |
+| `specrag process -fp` | Direct processing for local iteration. |
+| `specrag search "query"` | Semantic search. |
+| `specrag search -hy "query"` | Hybrid BM25 + vector search. |
+| `specrag search -pic "query"` | Image/rendered-page results only. |
+| `specrag addtag <id> <tag>` | Add a tag and re-embed one item. |
+| `specrag addknowledge <id> <text>` | Add longer annotation and re-embed one item. |
+| `specrag stats` | Vector-store summary. |
 
----
+## Project layout
 
-## 📁 Project Structure
-
-```
-SpecRAG/
+```text
+spec-rag/
 ├── compose.yaml
+├── config/
+├── docs/
 ├── services/
-│   ├── rag/Dockerfile
+│   ├── rag/
 │   └── embedding/
 ├── src/specrag/
 │   ├── api/
@@ -248,25 +108,30 @@ SpecRAG/
 │   ├── ingestion/
 │   ├── search/
 │   └── vectorization/
-├── config/
 ├── tests/
 └── tools/
 ```
 
----
+## Documentation
 
-## 📚 Documentation
+| Topic | Link |
+| --- | --- |
+| Documentation index | [docs/README.md](docs/README.md) |
+| Installation | [docs/getting-started/installation.md](docs/getting-started/installation.md) |
+| Quickstart | [docs/getting-started/quickstart.md](docs/getting-started/quickstart.md) |
+| CLI reference | [docs/reference/cli-commands.md](docs/reference/cli-commands.md) |
+| Configuration | [docs/reference/configuration.md](docs/reference/configuration.md) |
+| Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
+| Embedding service | [services/embedding/README.md](services/embedding/README.md) |
 
-| | |
-|---|---|
-| **[Getting Started](docs/getting-started/)** | Installation, Quickstart, Basic Workflow |
-| **[Guides](docs/guides/)** | Processing, Searching, Tagging, Knowledge |
-| **[Reference](docs/reference/)** | CLI Commands, Configuration |
-| **[Architecture](docs/architecture/)** | System Overview, Image Extraction, Search Engine |
-| **[Integrations](docs/integrations/)** | Cline AI Agent |
+## Development
 
----
+```bash
+python -m pytest -q
+ruff check src tests services tools scripts
+ruff format --check src tests services tools scripts
+pyright src
+python tools/check_file_lengths.py
+```
 
-## 📄 License
-
-MIT License. Created by **Phung Duc Vu**.
+Hand-written Python files must stay under 300 lines.

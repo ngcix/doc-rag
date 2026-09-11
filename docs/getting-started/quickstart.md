@@ -1,75 +1,83 @@
-# ⚡ Quickstart - Bắt Đầu Trong 5 Phút
+# Quickstart
 
-## Bước 1: Chuẩn Bị Documents
+This flow assumes the embedding artifact exists in `models/embedding` and the
+embedding service is running.
 
-Copy các file PDF/DOCX/Markdown vào thư mục `data/documents/`:
-
-```bash
-cp /path/to/your/*.pdf data/documents/
-```
-
-## Bước 2: Process Documents
-
-Xử lý và vectorize tất cả documents:
+## 1. Add documents
 
 ```bash
-# Full-page mode (khuyến nghị cho RAG)
-specrag process -fp
+mkdir -p data/documents
+cp /path/to/specs/*.pdf data/documents/
 ```
 
-Output:
-```
-Processing documents from: data/documents
-Vector store backend: faiss
---------------------------------------------------
-[1/3] Processing documents...
-  Extracted 245 text chunks
-[2/3] Extracting images from PDFs...
-  Total images processed: 33
-[3/3] Processing sequence charts...
-[4/4] Vectorizing and Storing 278 items...
-==================================================
-Processing complete!
-  Text chunks: 245
-  Images extracted: 33
-  Total items in database: 278
-```
+Supported source files include `.pdf`, `.docx`, `.md`, `.markdown` and `.txt`.
 
-## Bước 3: Tìm Kiếm
+## 2. Rebuild the index
+
+Use staged re-indexing for the normal cutover path. RAG builds a new FAISS index
+in a staging directory and swaps it into place only after extraction, embedding
+and persistence succeed.
 
 ```bash
-# Tìm kiếm semantic
+docker compose run --rm rag specrag reindex -fp -y
+```
+
+For local CLI development:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up -d embedding
+
+# Windows PowerShell
+$env:EMBEDDING_URL="http://localhost:8081"
+
+specrag reindex -fp -y
+```
+
+`-fp` enables full-page image extraction for PDF pages that contain diagrams,
+tables or figure/table captions.
+
+## 3. Start the API
+
+```bash
+docker compose up -d rag
+```
+
+Check readiness:
+
+```bash
+curl http://localhost:8080/api/v1/ready
+```
+
+## 4. Search
+
+REST:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "content-type: application/json" \
+  -d "{\"query\":\"authentication flow\",\"top_k\":5}"
+```
+
+CLI:
+
+```bash
 specrag search "authentication flow"
-
-# Tìm kiếm hybrid (BM25 + Vector)
 specrag search -hy "Figure 4.1"
-
-# Chỉ tìm hình ảnh
 specrag search -pic "state machine diagram"
+specrag msearch "reconnect" "link loss" "timeout"
 ```
 
-## Bước 4: Xem Kết Quả
+CLI output is JSON. Search commands also save result JSON under
+`process/output/` unless `--no-save` is passed.
 
-```bash
-# Liệt kê documents đã index
-specrag list
+## Useful next commands
 
-# Xem stats
-specrag stats
-```
+| Command | Purpose |
+| --- | --- |
+| `specrag stats` | Show vector-store summary. |
+| `specrag list` | List indexed source documents. |
+| `specrag addtag <id> <tag>` | Add a tag and re-embed one chunk. |
+| `specrag addknowledge <id> <text>` | Add a longer annotation and re-embed one chunk. |
+| `specrag clean --yes` | Remove generated data. |
 
-## Quick Reference
-
-| Lệnh | Mô tả |
-|------|-------|
-| `process -fp` | Xử lý với full-page images |
-| `search "query"` | Tìm kiếm semantic |
-| `search -hy "query"` | Tìm kiếm hybrid |
-| `search -pic "query"` | Chỉ tìm images |
-| `list` | Liệt kê documents |
-| `stats` | Thống kê database |
-| `clean --yes` | Xóa dữ liệu |
-
----
-
-**Tiếp theo**: [Workflow Cơ Bản →](./basic-workflow.md)
+Next: [Basic workflow](./basic-workflow.md)

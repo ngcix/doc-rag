@@ -34,7 +34,7 @@ Chi tiết export và validation nằm tại
 - Ingestion: `src/specrag/ingestion/`
 - Embedding HTTP client: `src/specrag/embedding/`
 - Semantic/hybrid retrieval: `src/specrag/search/`
-- FAISS/Chroma adapters: `src/specrag/vectorization/`
+- FAISS vector store and persistence: `src/specrag/vectorization/`
 - Document readers/chunking: `src/specrag/chunking/`
 
 RAG không cài Torch, Transformers, Sentence Transformers hoặc ONNX Runtime.

@@ -1,120 +1,64 @@
-# 🔄 Workflow Cơ Bản
+# Basic workflow
 
-## Tổng Quan
+SpecRAG has three recurring workflows: ingest, retrieve and enrich.
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   1. PROCESS    │ ──▶ │    2. SEARCH    │ ──▶ │   3. ENHANCE    │
-│                 │     │                 │     │                 │
-│ Nạp documents   │     │ Tìm kiếm        │     │ Thêm tags/      │
-│ vào database    │     │ thông tin       │     │ knowledge       │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
+## 1. Ingest or re-index
 
-## 1. Process Documents
-
-### First-time Setup
+Use `reindex` when you want a clean, atomic rebuild of the FAISS store.
 
 ```bash
-# Khởi tạo thư mục
-specrag init
+docker compose run --rm rag specrag reindex -fp -y
+```
 
-# Copy documents
-cp /path/to/docs/*.pdf data/documents/
+Use `process` only for incremental local work where replacing the whole index is
+not required.
 
-# Process với full-page mode
+```bash
 specrag process -fp
 ```
 
-### Reprocessing (khi có documents mới)
+Both commands call the configured embedding service. If the embedding model
+fingerprint changes, rebuild the entire index with `reindex`.
 
-```bash
-# Xóa data cũ
-specrag clean --yes
-
-# Copy documents mới
-cp /new/docs/*.pdf data/documents/
-
-# Process lại
-specrag process -fp
-
-# Verify
-specrag stats
-```
-
-## 2. Search Documents
-
-### Semantic Search (Mặc định)
+## 2. Retrieve
 
 ```bash
 specrag search "bluetooth protocol"
-```
-
-### Hybrid Search (Tốt cho exact match)
-
-```bash
-specrag search -hy "Figure 4.1: Media payload"
-```
-
-### Multi-Query Search (Tốt cho câu hỏi phức tạp)
-
-```bash
+specrag search -hy "Figure 4.1"
+specrag search -pic "state machine diagram"
 specrag msearch "reconnection" "link loss" "timeout"
 ```
 
-### Image-Only Search
+Choose the strategy by intent:
+
+| Intent | Command |
+| --- | --- |
+| Conceptual question | `search "query"` |
+| Exact figure/table/term lookup | `search -hy "query"` |
+| Diagram or rendered page lookup | `search -pic "query"` |
+| Broad or multi-part question | `msearch "q1" "q2"` |
+
+## 3. Enrich
+
+Tags and knowledge update one chunk/image, call the embedding service for the
+new content, and replace that item in FAISS.
 
 ```bash
-specrag search -pic "state machine diagram"
+specrag addtag HID_v1.1.1.pdf_p30 "security diagram"
+specrag addknowledge HID_v1.1.1.pdf_p30 "This page shows the authentication state machine."
+specrag getknowledge HID_v1.1.1.pdf_p30
 ```
 
-## 3. Enhance Database
+Use enrichment when a person or vision-capable agent has inspected a result and
+can add a better description than the raw extracted text.
 
-### Thêm Tags
+## Operational checks
 
 ```bash
-# Xem tags hiện tại
-specrag listtag HID_v1.1.1.pdf_p30
-
-# Thêm tag
-specrag addtag HID_v1.1.1.pdf_p30 "bluetooth"
-
-# Search với tag mới
-specrag search "bluetooth"
+specrag stats
+specrag list
+curl http://localhost:8080/api/v1/ready
 ```
 
-### Thêm Knowledge
-
-```bash
-# Thêm mô tả chi tiết
-specrag addknowledge HID_p42 "Đây là state machine diagram mô tả Bluetooth connection"
-
-# Xem knowledge
-specrag getknowledge HID_p42
-```
-
-## Daily Usage Pattern
-
-```bash
-# 1. Search for information
-specrag search "what I need"
-
-# 2. Find images
-specrag search -pic "diagram type"
-
-# 3. Add tags to improve future searches
-specrag addtag doc_id "relevant-tag"
-
-# 4. Add knowledge when needed
-specrag addknowledge doc_id "detailed description"
-```
-
-## Lưu Ý
-
-- **Process chạy một lần** khi có documents mới
-- **Search chạy nhiều lần** trong quá trình làm việc
-- **Tags/Knowledge** giúp cải thiện độ chính xác theo thời gian
-
----
-
-**Xem thêm**: [Guides →](../guides/)
+Keep one RAG writer per FAISS volume. The embedding service can restart or scale
+independently because it owns no RAG data.

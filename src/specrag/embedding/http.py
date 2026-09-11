@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
-import math
 from collections.abc import Sequence
 from typing import Any
 

@@ -1,282 +1,90 @@
-# 🔍 Tìm Kiếm
+# Searching
 
-## Search Workflow
+SpecRAG supports semantic search, hybrid search, image-only filtering and
+multi-query search.
 
-Quy trình tìm kiếm hoàn chỉnh khi sử dụng với AI agent (Cline):
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. QUESTION ANALYSIS                                           │
-│     • Phân tích intent của câu hỏi                              │
-│     • Xác định domain (audio, network, protocol...)             │
-│     • Nếu vague → suggest specific alternatives                 │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  2. SEARCH STRATEGY SELECTION                                   │
-│     ┌──────────────┬──────────────┬──────────────┐              │
-│     │   Semantic   │    Hybrid    │  Multi-query │              │
-│     │   (concept)  │ (exact+sem)  │  (complex)   │              │
-│     └──────────────┴──────────────┴──────────────┘              │
-│     + Optional: -pic flag for images only                       │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  3. EXECUTE SEARCH                                              │
-│     • Vector search → FAISS similarity                          │
-│     • BM25 search → exact keyword match (if hybrid)             │
-│     • RRF fusion → combine rankings                             │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  4. ANALYZE RESULTS                                             │
-│     • Read query_*.json output                                  │
-│     • Check content_type (text/image)                           │
-│     • If image → describe with vision model                     │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  5. PRESENT ANSWER                                              │
-│     • Synthesize information from results                       │
-│     • Filter noise, focus on relevant content                   │
-│     • Present comprehensive answer                              │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  6. KNOWLEDGE ENRICHMENT (Optional)                             │
-│     • Add tags to improve future searches                       │
-│     • addtag <chunk_id> "tag1, tag2, tag3"                      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Các Loại Search
-
-| Loại | Command | Mô tả |
-|------|---------|-------|
-| Semantic | `search` | Tìm theo ý nghĩa |
-| Hybrid | `search -hy` | BM25 + Vector |
-| Multi-query | `msearch` | Nhiều queries, merge RRF |
-| Image-only | `search -pic` | Chỉ trả về images |
-
-## 1. Semantic Search (Mặc định)
-
-Tìm kiếm dựa trên **ý nghĩa ngữ nghĩa**, không cần exact match.
+## CLI
 
 ```bash
 specrag search "authentication flow"
-```
-
-**Khi nào dùng**:
-- Tìm theo concept/ý nghĩa
-- Không nhớ chính xác từ khóa
-- Câu hỏi tự nhiên
-
-## 2. Hybrid Search
-
-Kết hợp **BM25** (exact match) + **Vector** (semantic).
-
-```bash
-specrag search -hy "Figure 4.1: Media payload"
-```
-
-**Khi nào dùng**:
-- Cần exact match (Figure number, Table number)
-- Tìm thuật ngữ kỹ thuật cụ thể
-- Kết hợp keyword + semantic
-
-## 3. Multi-Query Search
-
-Tìm với nhiều queries, merge kết quả bằng **RRF** (Reciprocal Rank Fusion).
-
-```bash
+specrag search -hy "Figure 4.1"
+specrag search -pic "state machine diagram"
+specrag search -hy -pic "Figure 4.1"
 specrag msearch "reconnection" "link loss" "timeout recovery"
 ```
 
-**Khi nào dùng**:
-- Câu hỏi phức tạp cần nhiều góc nhìn
-- Cải thiện recall cho topic rộng
-- Tìm documents liên quan đến nhiều concepts
+Search commands print JSON. Unless `--no-save` is passed, results are also
+written under `process/output/`.
 
----
-
-## RRF Fusion (Reciprocal Rank Fusion)
-
-RRF là thuật toán **kết hợp kết quả từ nhiều nguồn search** thành một ranking thống nhất.
-
-### Công thức
-
-```
-RRF_score(doc) = Σ  weight / (k + rank_i)
-```
-
-- `k` = constant (mặc định = 60)
-- `rank_i` = thứ hạng của document trong search list thứ i
-- `weight` = trọng số (vector: 0.4, BM25: 0.6)
-
-### Ví dụ
-
-Query: `"Figure 4.1 authentication"`
-
-**Vector Search:**
-| Rank | Doc | Score |
-|------|-----|-------|
-| 1 | Doc_A | 0.85 |
-| 2 | Doc_B | 0.80 |
-| 3 | Doc_C | 0.75 |
-
-**BM25 Search:**
-| Rank | Doc | Score |
-|------|-----|-------|
-| 1 | Doc_B | 12.5 (exact "Figure 4.1") |
-| 2 | Doc_D | 8.2 |
-| 3 | Doc_A | 5.1 |
-
-**RRF Fusion (k=60):**
-```
-Doc_A: 0.4/(60+1) + 0.6/(60+3) = 0.0161
-Doc_B: 0.4/(60+2) + 0.6/(60+1) = 0.0163 ← Winner!
-Doc_C: 0.4/(60+3) + 0          = 0.0063
-Doc_D: 0          + 0.6/(60+2) = 0.0097
-```
-
-**Final:** `[Doc_B, Doc_A, Doc_D, Doc_C]`
-
-→ Doc_B thắng vì xuất hiện ở cả 2 lists với rank tốt.
-
-### Tại sao dùng RRF?
-
-| Vấn đề | RRF giải quyết |
-|--------|----------------|
-| Vector vs BM25 score khác scale | Dùng **rank** thay vì score |
-| Exact match bị miss bởi semantic | BM25 bổ sung exact match |
-| Semantic miss bởi keyword | Vector bổ sung semantic |
-
-### Flow
-
-```
-Query: "Figure 4.1"
-         │
-    ┌────┴────┐
-    ↓         ↓
- Vector    BM25
- Top-20    Top-20
-    │         │
-    └────┬────┘
-         ↓
-    RRF Fusion
-         ↓
-    Final Top-K
-```
-
----
-
-## 4. Image-Only Search
-
-Chỉ trả về kết quả là hình ảnh.
+## REST
 
 ```bash
-specrag search -pic "state machine diagram"
-
-# Kết hợp với hybrid
-specrag search -hy -pic "Figure 4.1"
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "content-type: application/json" \
+  -d "{\"query\":\"authentication flow\",\"top_k\":5}"
 ```
 
-**Khi nào dùng**:
-- Tìm diagrams, flowcharts
-- Tìm tables, figures
-- Cần visual reference
+## Choosing a mode
 
-## Options
+| Need | Use |
+| --- | --- |
+| Natural-language concept search | `search "query"` |
+| Exact figure/table/protocol term lookup | `search -hy "query"` |
+| Diagrams, tables or rendered pages | `search -pic "query"` |
+| Broad question with multiple phrasings | `msearch "q1" "q2"` |
 
-| Option | Shortcut | Mô tả | Default |
-|--------|----------|-------|---------|
-| `--top-k` | `-k` | Số kết quả | 5 |
-| `--hybrid` | `-hy` | Hybrid search | off |
-| `--pic` | `-pic` | Images only | off |
-| `--no-save` | | Không lưu logs | off |
+## Semantic search
 
-## Ví Dụ Chi Tiết
+Semantic search embeds the query through the configured embedding service and
+searches FAISS with cosine similarity.
 
-### Tìm diagram cụ thể
+```text
+query -> /v1/embeddings -> 768-dim vector -> FAISS -> ranked results
+```
+
+## Hybrid search
+
+Hybrid search combines:
+
+- vector search for semantic similarity,
+- BM25 for exact lexical matches,
+- reciprocal rank fusion (RRF) to merge rankings.
+
+RRF uses rank instead of raw score, which avoids comparing BM25 scores and
+vector similarity scores directly.
+
+```text
+RRF_score(doc) = sum(weight / (k + rank))
+```
+
+Use hybrid search for figure numbers, table names, exact acronyms and protocol
+field names.
+
+## Multi-query search
+
+`msearch` embeds all queries in batches, searches each one, and merges results
+with RRF. It is useful for questions that may appear under several terms in a
+specification.
 
 ```bash
-# Hybrid + image để tìm Figure chính xác
-specrag search -hy -pic "Figure 4.1"
+specrag msearch "pairing" "authentication" "security procedure"
 ```
 
-### Tìm với nhiều từ khóa
+## Image-only search
+
+`-pic` filters results to rendered PDF/image items. The result metadata includes
+the stored image path, source file and page number when available.
 
 ```bash
-# Multi-query cho topic phức tạp
-specrag msearch "bluetooth pairing" "security" "PIN code"
+specrag search -pic "connection state machine"
 ```
 
-### Tìm nhiều kết quả hơn
-
-```bash
-# Tăng top-k
-specrag search -k 10 "connection state"
-```
-
-## Output Mẫu
-
-```
-Searching for: 'authentication flow'
-Using backend: faiss
---------------------------------------------------
-Found 5 results:
-
-[1] Score: 0.8542
-    ID: HID_v1.1.1.pdf_p30
-    Source: data/documents/HID_v1.1.1.pdf
-    Content: Tags: Figure 4.1: Authentication flow...
-
-[2] Score: 0.7234
-    ID: HID_v1.1.1.pdf_chunk_45
-    Source: data/documents/HID_v1.1.1.pdf
-    Content: The authentication process begins with...
-
-[TIME] Search completed in 0.15s
-```
-
-## So Sánh Các Phương Pháp
-
-| Phương pháp | Speed | Exact Match | Semantic | Use Case |
-|-------------|-------|-------------|----------|----------|
-| Semantic | ⚡⚡⚡ | ❌ | ✅✅✅ | Concept search |
-| Hybrid | ⚡⚡ | ✅✅ | ✅✅ | Figure/Table lookup |
-| Multi-query | ⚡ | ✅ | ✅✅✅ | Complex questions |
-
-## Decision Tree: Chọn Search Nào?
-
-```
-                    Câu hỏi của bạn
-                          │
-          ┌───────────────┼───────────────┐
-          ↓               ↓               ↓
-    Tìm Figure/Table?   Concept chung?   Phức tạp?
-          │               │               │
-          ↓               ↓               ↓
-    ┌─────────────┐ ┌───────────┐ ┌─────────────────┐
-    │ search -hy  │ │  search   │ │    msearch      │
-    │ -pic        │ │           │ │ "q1" "q2" "q3"  │
-    └─────────────┘ └───────────┘ └─────────────────┘
-          │               │               │
-          ↓               ↓               ↓
-    Exact match +     Semantic       Multi-angle
-    Image filter      similarity     RRF fusion
-```
+This is designed for AI agents with vision capability: search retrieves likely
+pages, and the agent inspects the image file to answer.
 
 ## Tips
 
-1. **Default**: Dùng semantic search trước
-2. **Figure/Table**: Dùng hybrid `-hy`
-3. **Không tìm thấy**: Thử multi-query với các phrasings khác nhau
-4. **Quá nhiều results**: Giảm `-k` hoặc dùng `-pic` để filter
-5. **Cải thiện kết quả**: Dùng `addtag` để enrich metadata → tìm tốt hơn lần sau
-
----
-
-**Xem thêm**: [Search Engine Architecture →](../architecture/search-engine.md)
+- Start with semantic search for broad questions.
+- Use hybrid for exact identifiers.
+- Use `-pic` when the answer likely lives in a diagram/table.
+- Add tags or knowledge after manually confirming an important result.

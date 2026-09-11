@@ -1,91 +1,106 @@
-# 📦 Cài Đặt
+# Installation
 
-## Yêu Cầu Hệ Thống
+## Requirements
 
-- Python 3.10 hoặc 3.11
-- 4GB RAM (khuyến nghị 8GB)
-- 2GB disk space cho models
+- Python 3.10 or newer.
+- Docker and Docker Compose for the two-service runtime.
+- 4 GB RAM for the embedding container and 2 GB RAM for the RAG container.
+- Enough disk for `models/embedding`, `data/` and rendered PDF images.
 
-## Cài Đặt Cơ Bản
-
-### 1. Clone Repository
+## 1. Install the RAG package for local development
 
 ```bash
 git clone <repository-url>
-cd SpecRAG
-```
-
-### 2. Tạo Virtual Environment
-
-```bash
+cd spec-rag
 python -m venv .venv
 
-# Windows
-.venv\Scripts\activate
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 
-# Linux/Mac
+# Linux/macOS
 source .venv/bin/activate
+
+pip install -e ".[dev]"
 ```
 
-### 3. Cài Đặt Dependencies
+The RAG package is intentionally lightweight. It contains FAISS, FastAPI,
+document readers, chunking and the HTTP embedding client. It does not install
+Torch, Transformers, Sentence Transformers or ONNX Runtime.
+
+## 2. Export the embedding artifact
+
+Export is a one-time setup step. The export environment may install model
+libraries because it is separate from the RAG runtime.
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv-export
+
+# Windows PowerShell
+.\.venv-export\Scripts\python.exe -m pip install -r services/embedding/requirements-export.txt
+.\.venv-export\Scripts\python.exe services/embedding/export_model.py --output models/embedding --optimization O3
+
+# Linux/macOS
+.venv-export/bin/pip install -r services/embedding/requirements-export.txt
+.venv-export/bin/python services/embedding/export_model.py --output models/embedding --optimization O3
 ```
 
-### 4. Khởi Tạo Thư Mục
+The export writes `models/embedding/specrag-manifest.json` and
+`models/embedding/rag.env`. Compose loads `rag.env` so RAG can validate the
+index fingerprint.
+
+## 3. Start services
+
+```bash
+docker compose up --build -d embedding
+docker compose up --build -d rag
+```
+
+For local CLI work against the containerized embedding service, expose the
+embedding port:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up -d embedding
+```
+
+Then point local CLI commands at it:
+
+```bash
+# Windows PowerShell
+$env:EMBEDDING_URL="http://localhost:8081"
+
+# Linux/macOS
+export EMBEDDING_URL=http://localhost:8081
+```
+
+## 4. Initialize data directories
 
 ```bash
 specrag init
 ```
 
-Output:
-```
-Directory structure initialized:
-  Documents: data/documents
-  Vector DB: data/vectordb
-  Process Input: process/input
-  Process Output: process/output
+Runtime data is stored under:
+
+```text
+data/
+├── documents/          # Source documents to ingest
+├── extracted_images/   # Rendered PDF pages
+└── faiss_index/        # FAISS index, metadata and embeddings
+
+process/
+├── input/
+└── output/             # Saved search result JSON when --no-save is not used
 ```
 
-## Cài Đặt Nâng Cao
-
-### GPU Support (Optional)
+## Verification
 
 ```bash
-# PyTorch với CUDA
-pip install torch --index-url https://download.pytorch.org/whl/cu118
-
-# FAISS GPU
-pip install faiss-gpu
-```
-
-## Kiểm Tra Cài Đặt
-
-```bash
-# Xem help
 specrag --help
-
-# Xem stats (sẽ báo empty nếu chưa có data)
 specrag stats
+curl http://localhost:8080/health
+curl http://localhost:8080/api/v1/ready
 ```
 
-## Cấu Trúc Thư Mục Sau Cài Đặt
+`/health` is a liveness check. `/api/v1/ready` is true only after RAG can reach
+the embedding service and validate the vector store.
 
-```
-SpecRAG/
-├── data/
-│   ├── documents/          # Đặt tài liệu cần xử lý
-│   ├── extracted_images/   # Hình ảnh trích xuất
-│   ├── faiss_index/        # Vector database
-│   └── vectordb/           # ChromaDB (alternative)
-├── models/                 # Local embedding models
-├── process/
-│   ├── input/              # Query logs
-│   └── output/             # Result logs
-└── src/                    # Source code
-```
-
----
-
-**Tiếp theo**: [Quickstart →](./quickstart.md)
+Next: [Quickstart](./quickstart.md)

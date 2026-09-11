@@ -1,150 +1,60 @@
-# 🧠 Knowledge Management
+# Knowledge
 
-## Tổng Quan
-
-**Knowledge** là mô tả chi tiết/annotation cho document. Khác với tags (keywords ngắn), knowledge là text dài mô tả nội dung.
-
-| Aspect | Tags | Knowledge |
-|--------|------|-----------|
-| **Format** | Keywords ngắn | Text dài (markdown) |
-| **Boosting** | 10x repeat | 1x trong section riêng |
-| **Mục đích** | Quick categorization | Detailed description |
+Knowledge is a longer annotation for one indexed item. It is useful when a
+person or a vision-capable agent inspects a rendered page and can add a clearer
+description than the raw extracted text.
 
 ## Commands
 
-| Command | Mô tả |
-|---------|-------|
-| `addknowledge` | Thêm knowledge (append) |
-| `updateknowledge` | Thay thế knowledge |
-| `getknowledge` | Xem knowledge |
+```bash
+specrag addknowledge <identifier> <knowledge_text>
+specrag updateknowledge <identifier> <knowledge_text>
+specrag getknowledge <identifier>
+```
 
-## 1. Thêm Knowledge
+`identifier` can be a chunk id or an image path that resolves to a stored item.
+
+Examples:
 
 ```bash
-specrag addknowledge HID_p42 "Đây là state machine diagram mô tả 5 trạng thái Bluetooth"
-```
-
-Output:
-```
-Re-calculating vector embedding...
-Successfully added knowledge to document 'HID_p42'
-Knowledge preview: Đây là state machine diagram mô tả 5 trạng thái Bluetooth...
-
-[TIME] Time Report:
-  Embedding:  0.32s
-  Total:      0.48s
-```
-
-## 2. Xem Knowledge
-
-```bash
+specrag addknowledge HID_p42 "This page shows the Bluetooth connection state machine."
+specrag updateknowledge HID_p42 "Corrected description of the state transitions."
 specrag getknowledge HID_p42
 ```
 
-Output:
-```
-Knowledge for HID_p42:
---------------------------------------------------
-Đây là state machine diagram mô tả 5 trạng thái Bluetooth:
-IDLE → SCANNING → CONNECTING → CONNECTED → DISCONNECTING.
-Transition triggers: user action, timeout, error.
---------------------------------------------------
-```
+## Behavior
 
-## 3. Cập Nhật Knowledge
+When knowledge changes, SpecRAG:
 
-Thay thế hoàn toàn knowledge hiện tại:
+1. Loads the item's current content and metadata.
+2. Appends or replaces the `Knowledge:` section.
+3. Calls the remote embedding service for the updated content.
+4. Replaces the item in FAISS and saves metadata.
 
-```bash
-specrag updateknowledge HID_p42 "Mô tả mới hoàn toàn"
-```
+CLI responses are JSON.
 
-## Flexible Identifier
+## Tags vs knowledge
 
-Có thể dùng **chunk_id** hoặc **image_path**:
+| Need | Use |
+| --- | --- |
+| Short keywords for retrieval | Tags |
+| Detailed explanation or correction | Knowledge |
+| A vision model's description of an image | Knowledge |
+| Category labels shared by many items | Tags |
 
-```bash
-# Bằng chunk_id
-specrag addknowledge HID_SPEC_V10.pdf_p42 "description"
+## Good knowledge text
 
-# Bằng image path
-specrag addknowledge "data/extracted_images/HID_SPEC_V10.pdf_p42.png" "description"
-```
+- Describe what is visible or stated in the source.
+- Include important protocol names, figure names and state names.
+- Mention uncertainty or corrections explicitly.
+- Keep it concise enough to stay useful in retrieval context.
 
-## Cách Knowledge Được Lưu
-
-```python
-# Knowledge được append vào content
-content = original_content + f"""
-
----
-Knowledge:
-{knowledge_text}
-"""
-
-# Re-embed với knowledge
-new_embedding = get_embedding_provider().embed([content])[0]
-
-# Lưu trong metadata
-metadata["knowledge"] = knowledge_text
-```
-
-## Use Cases
-
-### 1. Agent Annotation
-
-Agent (Cline) nhìn ảnh, hiểu nội dung, thêm mô tả:
-
-```bash
-addknowledge "HID_p42" "This flowchart shows Bluetooth HID connection lifecycle with 5 states"
-```
-
-### 2. Expert Knowledge Injection
-
-SME thêm technical details:
-
-```bash
-addknowledge "A2DP_p18" "Đây là SBC encoder flow. Bitpool range: 2-53. Joint Stereo được dùng khi channel similarity cao."
-```
-
-### 3. Correction/Clarification
-
-Sửa lại mô tả không chính xác:
-
-```bash
-updateknowledge "Core_v6_p100" "Đây KHÔNG phải BR/EDR diagram. Đây là BLE advertisement flow."
-```
-
-## Knowledge vs Tags
-
-| Scenario | Dùng Tags | Dùng Knowledge |
-|----------|-----------|----------------|
-| Quick categorization | ✅ `bluetooth`, `security` | |
-| Detailed explanation | | ✅ "This diagram shows..." |
-| Keyword matching | ✅ | |
-| Semantic understanding | | ✅ |
-
-## Best Practices
-
-1. **Be specific**: Mô tả chi tiết nội dung thực sự trong document
-2. **Include keywords**: Đưa các keywords quan trọng vào knowledge
-3. **Use markdown**: Có thể format với markdown
-4. **Keep updated**: Update khi hiểu biết thay đổi
-
-## Ví Dụ Markdown Knowledge
+Example:
 
 ```bash
 specrag addknowledge doc_id "
-## State Machine Overview
-- **States**: IDLE, SCANNING, CONNECTING, CONNECTED, DISCONNECTING
-- **Transitions**: Triggered by user actions, timeouts, or errors
-- **Key Feature**: Automatic reconnection on link loss
-
-### Related Sections
-See Figure 4.2 for detailed timing diagram.
+This diagram shows the authentication flow between the host and device.
+Main states: idle, challenge, response validation and authenticated.
+The timeout branch returns the flow to idle.
 "
 ```
-
----
-
-**Xem thêm**: [Tagging →](./tagging.md) | [Cline Integration →](../integrations/cline.md)

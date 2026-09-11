@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="SpecRAG API",
-        version="0.3.2",
+        version="0.4.0",
         description="Specification ingestion and retrieval API",
         lifespan=lifespan,
     )
