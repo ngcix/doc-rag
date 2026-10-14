@@ -89,7 +89,7 @@ Changing any fingerprint field requires a full `specrag reindex`.
 `compose.yaml` runs:
 
 - `embedding` on internal port `80`, mounting `./models/embedding:/data:ro`.
-- `rag` on public port `8080`, mounting `./data` and `./process`.
+- `rag` on public port `10000`, mounting `./data` and `./process`.
 
-`compose.dev.yaml` exposes the embedding service on `127.0.0.1:8081` for local
+`compose.dev.yaml` exposes the embedding service on `10001` for local
 CLI development.

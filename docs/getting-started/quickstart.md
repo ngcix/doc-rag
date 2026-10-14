@@ -28,7 +28,7 @@ For local CLI development:
 docker compose -f compose.yaml -f compose.dev.yaml up -d embedding
 
 # Windows PowerShell
-$env:EMBEDDING_URL="http://localhost:8081"
+$env:EMBEDDING_URL="http://localhost:10001"
 
 specrag reindex -fp -y
 ```
@@ -45,7 +45,7 @@ docker compose up -d rag
 Check readiness:
 
 ```bash
-curl http://localhost:8080/api/v1/ready
+curl http://localhost:10000/api/v1/ready
 ```
 
 ## 4. Search
@@ -53,7 +53,7 @@ curl http://localhost:8080/api/v1/ready
 REST:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/search \
+curl -X POST http://localhost:10000/api/v1/search \
   -H "content-type: application/json" \
   -d "{\"query\":\"authentication flow\",\"top_k\":5}"
 ```

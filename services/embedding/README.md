@@ -35,7 +35,7 @@ Run the candidate repeatedly:
 
 ```bash
 python services/embedding/validate.py \
-  --candidate-url http://localhost:8081 \
+  --candidate-url http://localhost:10001 \
   --expected-dimension 768
 ```
 
@@ -47,7 +47,7 @@ Recall@K and NDCG@K on the project corpus before cutover.
 ```bash
 python services/embedding/evaluate_retrieval.py \
   tests/data/embedding_golden.json \
-  --url http://localhost:8081 --top-k 3
+  --url http://localhost:10001 --top-k 3
 ```
 
 ## Runtime contract

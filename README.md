@@ -25,7 +25,7 @@ ONNX Runtime. Model export and validation live under `services/embedding/`.
 | Full-page image extraction | Render PDF pages with diagrams/tables and return image paths. |
 | Tags and knowledge | Re-embed verified annotations to improve future retrieval. |
 | Staged re-index | Build a fresh FAISS store and atomically swap it into place. |
-| API and CLI | Use `specrag` locally or FastAPI on port `8080`. |
+| API and CLI | Use `specrag` locally or FastAPI on port `10000`. |
 
 ## Quickstart
 
@@ -57,7 +57,7 @@ docker compose up -d rag
 Search over REST:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/search ^
+curl -X POST http://localhost:10000/api/v1/search ^
   -H "content-type: application/json" ^
   -d "{\"query\":\"authentication flow\",\"top_k\":5}"
 ```
@@ -75,7 +75,7 @@ For local CLI work against the containerized embedding service:
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml up -d embedding
-$env:EMBEDDING_URL="http://localhost:8081"
+$env:EMBEDDING_URL="http://localhost:10001"
 ```
 
 ## Core commands

@@ -12,9 +12,9 @@ help:
 	@echo "  help         - Show this help message"
 
 setup-env:
-	python3 -m venv .venv
-	./.venv/bin/pip install --upgrade pip
-	./.venv/bin/pip install -e ".[dev]"
+	python -m venv .venv
+	./.venv/bin/python -m pip install --upgrade
+	./.venv/bin/python -m pip install -e ".[dev]"
 
 test:
 	PYTHONPATH=src ./.venv/bin/pytest tests/

@@ -19,7 +19,7 @@ written under `process/output/`.
 ## REST
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/search \
+curl -X POST http://localhost:10000/api/v1/search \
   -H "content-type: application/json" \
   -d "{\"query\":\"authentication flow\",\"top_k\":5}"
 ```

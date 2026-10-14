@@ -42,7 +42,7 @@ services:
         required: false
     user: "${UID:-1000}:${GID:-1000}"
     ports:
-      - "8080:8080"
+      - "10000:8080"
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data

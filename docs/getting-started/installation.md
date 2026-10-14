@@ -66,10 +66,10 @@ Then point local CLI commands at it:
 
 ```bash
 # Windows PowerShell
-$env:EMBEDDING_URL="http://localhost:8081"
+$env:EMBEDDING_URL="http://localhost:10001"
 
 # Linux/macOS
-export EMBEDDING_URL=http://localhost:8081
+export EMBEDDING_URL=http://localhost:10001
 ```
 
 ## 4. Initialize data directories
@@ -96,8 +96,8 @@ process/
 ```bash
 specrag --help
 specrag stats
-curl http://localhost:8080/health
-curl http://localhost:8080/api/v1/ready
+curl http://localhost:10000/health
+curl http://localhost:10000/api/v1/ready
 ```
 
 `/health` is a liveness check. `/api/v1/ready` is true only after RAG can reach

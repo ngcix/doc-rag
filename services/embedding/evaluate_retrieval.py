@@ -18,7 +18,7 @@ except ImportError:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset", type=Path)
-    parser.add_argument("--url", default="http://localhost:8081")
+    parser.add_argument("--url", default="http://localhost:10001")
     parser.add_argument("--model", default="Alibaba-NLP/gte-multilingual-base")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--min-recall", type=float, default=0.8)

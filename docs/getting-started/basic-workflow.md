@@ -57,7 +57,7 @@ can add a better description than the raw extracted text.
 ```bash
 specrag stats
 specrag list
-curl http://localhost:8080/api/v1/ready
+curl http://localhost:10000/api/v1/ready
 ```
 
 Keep one RAG writer per FAISS volume. The embedding service can restart or scale

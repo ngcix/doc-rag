@@ -21,7 +21,7 @@ DEFAULT_SAMPLES = [
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--candidate-url", default="http://localhost:8081")
+    parser.add_argument("--candidate-url", default="http://localhost:10001")
     parser.add_argument("--baseline-url")
     parser.add_argument("--model", default="Alibaba-NLP/gte-multilingual-base")
     parser.add_argument("--samples", type=Path)

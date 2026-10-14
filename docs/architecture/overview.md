@@ -67,7 +67,7 @@ Recall@K/NDCG@K rồi re-index.
 `compose.yaml` khởi động:
 
 1. `embedding`: internal-only port 80, model volume read-only.
-2. `rag`: public port 8080, chỉ start sau khi embedding healthy.
+2. `rag`: public port 10000, chỉ start sau khi embedding healthy.
 
 RAG cung cấp `/health`, `/api/v1/ready`, `/metrics` và request ID. Không scale
 RAG ngang khi còn dùng FAISS local; nếu cần nhiều replica/writer, chuyển storage
