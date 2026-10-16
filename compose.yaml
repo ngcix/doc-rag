@@ -6,8 +6,6 @@ services:
     command:
       - --model-id
       - /data
-      - --served-model-name
-      - Alibaba-NLP/gte-multilingual-base
       - --pooling
       - cls
       - --dtype
