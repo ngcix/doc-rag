@@ -59,6 +59,10 @@ Open `http://localhost:10000/` for the web UI: search, upload documents
 (indexed in the background), and delete documents. It has no authentication;
 expose port `10000` only on a trusted network.
 
+The `rag` container keeps the whole index in memory and is capped at 10 GB by
+default; set `RAG_MEM_LIMIT` (for example `RAG_MEM_LIMIT=14g` in `.env`) to
+change it. Budget roughly 1 GB per 100k chunks.
+
 Search over REST:
 
 ```bash

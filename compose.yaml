@@ -61,5 +61,6 @@ services:
       retries: 6
       start_period: 10s
     cpus: 2
-    mem_limit: 2g
+    # Embeddings, chunk text, and the FAISS index are held in memory.
+    mem_limit: ${RAG_MEM_LIMIT:-10g}
     restart: unless-stopped

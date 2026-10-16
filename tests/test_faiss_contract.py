@@ -61,6 +61,25 @@ def test_faiss_store_round_trip(tmp_path) -> None:
     assert results[0]["similarity"] == pytest.approx(1.0)
 
 
+def test_list_embeddings_on_disk_load_as_float32(tmp_path) -> None:
+    import pickle
+
+    import numpy as np
+
+    config = VectorDBConfig(faiss_index_dir=tmp_path)
+    (tmp_path / "documents_metadata.pkl").write_bytes(
+        pickle.dumps({"metadata": {"one": {}}, "documents": {"one": "first"}, "dimension": 3, "model_fingerprint": _model().fingerprint})
+    )
+    (tmp_path / "documents_embeddings.pkl").write_bytes(pickle.dumps({"embeddings": {"one": [1.0, 0.0, 0.0]}}))
+    store = FaissVectorStore(config)
+
+    results = store.search_similar([1.0, 0.0, 0.0], top_k=1)
+    store.close()
+
+    assert store._embeddings["one"].dtype == np.float32
+    assert results[0]["id"] == "one"
+
+
 def test_failed_generation_keeps_previous_committed_store(
     tmp_path,
     monkeypatch,

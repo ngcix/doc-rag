@@ -9,6 +9,7 @@ from specrag.embedding.base import ModelInfo
 from specrag.path_resolver import normalize_metadata_paths
 from specrag.vectorization.faiss_persistence import (
     FaissPersistenceMixin,
+    as_vectors,
     read_store_summary,
 )
 from specrag.vectorization.writer_lease import WriterLease
@@ -22,7 +23,7 @@ class FaissVectorStore(FaissPersistenceMixin):
         self._index = None
         self._metadata: dict[str, dict] = {}
         self._documents: dict[str, str] = {}
-        self._embeddings: dict[str, list[float]] = {}
+        self._embeddings: dict = {}  # doc_id -> float32 ndarray
         self._id_to_idx: dict[str, int] = {}
         self._idx_to_id: dict[int, str] = {}
         self._dimension: int | None = None
@@ -103,9 +104,10 @@ class FaissVectorStore(FaissPersistenceMixin):
             self._ensure_embeddings_loaded()
             self._validate_vectors(ids, embeddings)
             snapshot = self._snapshot_state()
+            vectors = as_vectors(dict(zip(ids, embeddings)))
             try:
                 for index, doc_id in enumerate(ids):
-                    self._embeddings[doc_id] = embeddings[index]
+                    self._embeddings[doc_id] = vectors[doc_id]
                     if documents:
                         self._documents[doc_id] = documents[index]
                     if metadatas:

@@ -17,6 +17,13 @@ from specrag.vectorization.persistence import (
 )
 
 
+def as_vectors(embeddings: dict) -> dict:
+    """Store vectors as float32 arrays; Python float lists cost ~8x the memory."""
+    import numpy as np
+
+    return {doc_id: np.asarray(vector, dtype=np.float32) for doc_id, vector in embeddings.items()}
+
+
 def read_store_summary(config: VectorDBConfig | None = None) -> dict | None:
     config = config or settings.vectordb
     path = config.faiss_index_dir / f"{config.collection_name}_summary.json"
@@ -98,7 +105,7 @@ class FaissPersistenceMixin:
         self._model_fingerprint = data.get("model_fingerprint")
         legacy_embeddings = data.get("embeddings", {})
         if legacy_embeddings:
-            self._embeddings = legacy_embeddings
+            self._embeddings = as_vectors(legacy_embeddings)
             self._embeddings_loaded = True
             self._index_needs_rebuild = True
 
@@ -109,7 +116,7 @@ class FaissPersistenceMixin:
         path = self._active_path("embeddings")
         if path.exists():
             with path.open("rb") as source:
-                self._embeddings = pickle.load(source).get("embeddings", {})
+                self._embeddings = as_vectors(pickle.load(source).get("embeddings", {}))
         elif (read_store_summary(self.config) or {}).get("generation"):
             raise RuntimeError("Committed FAISS embedding generation is missing")
         self._embeddings_loaded = True
