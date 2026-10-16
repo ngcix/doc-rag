@@ -50,12 +50,12 @@ def _image_items(images: list) -> list[dict]:
     return items
 
 
-def _chart_items(input_dir: Path) -> list[dict]:
+def _chart_items(markdown_files: list[Path]) -> list[dict]:
     from specrag.sequence_chart import get_chart_processor
 
     processor = get_chart_processor()
     items = []
-    for markdown in input_dir.rglob("*.md"):
+    for markdown in markdown_files:
         charts = processor.process_file(markdown, export_images=True)
         chart_items = processor.get_vectorization_data(charts)
         for item in chart_items:
@@ -67,6 +67,7 @@ def _chart_items(input_dir: Path) -> list[dict]:
 def ingest_documents(
     input_dir: Path | None = None,
     *,
+    files: list[Path] | None = None,
     include_charts: bool = True,
     include_images: bool = True,
     image_format: str = "png",
@@ -75,18 +76,19 @@ def ingest_documents(
     embedding_provider: EmbeddingProvider | None = None,
     vector_store=None,
 ) -> IngestionReport:
-    """Extract, embed, and persist all supported documents."""
+    """Extract, embed, and persist ``files``, or all supported documents in ``input_dir``."""
     started = time.perf_counter()
-    input_dir = Path(input_dir or settings.paths.documents_dir)
-    if not input_dir.exists():
-        raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
+    if files is None:
+        input_dir = Path(input_dir or settings.paths.documents_dir)
+        if not input_dir.exists():
+            raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
+        files = discover_documents(input_dir)
 
     workers = _resolve_cpu_limit(
         max_workers if max_workers is not None else settings.performance.max_workers,
         target_cpu_utilization=settings.performance.target_cpu_utilization,
         reserved_cpu_threads=settings.performance.reserved_cpu_threads,
     )
-    files = discover_documents(input_dir)
     chunks = chunk_documents(files, min(workers, max(1, len(files)))) if files else []
     items = _text_items(chunks)
 
@@ -101,7 +103,8 @@ def ingest_documents(
             )
             items.extend(_image_items(images))
 
-    chart_items = _chart_items(input_dir) if include_charts else []
+    markdown_files = [path for path in files if path.suffix.lower() == ".md"]
+    chart_items = _chart_items(markdown_files) if include_charts else []
     items.extend(chart_items)
 
     if items:

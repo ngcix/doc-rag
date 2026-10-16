@@ -1,8 +1,15 @@
 """Callable operations shared by CLI and HTTP API."""
 
-from specrag.ops.documents import get_chunk, get_stats, list_documents
+from specrag.ops.documents import (
+    delete_document,
+    get_chunk,
+    get_stats,
+    ingest_file,
+    list_documents,
+)
 from specrag.ops.errors import (
     ChunkNotFoundError,
+    DocumentNotFoundError,
     DuplicateTagError,
     OpsError,
     TagImmutableError,
@@ -15,15 +22,18 @@ from specrag.ops.tags import add_tag, list_tags, remove_tag, reset_tags
 
 __all__ = [
     "ChunkNotFoundError",
+    "DocumentNotFoundError",
     "DuplicateTagError",
     "OpsError",
     "TagImmutableError",
     "TagNotFoundError",
     "add_knowledge",
     "add_tag",
+    "delete_document",
     "get_chunk",
     "get_knowledge",
     "get_stats",
+    "ingest_file",
     "list_documents",
     "list_tags",
     "multi_search",

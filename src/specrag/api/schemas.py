@@ -60,6 +60,22 @@ class DocumentListResponse(BaseModel):
     total: int
 
 
+class JobResponse(BaseModel):
+    id: str
+    kind: str
+    target: str
+    status: str
+    created_at: float
+    started_at: float | None = None
+    finished_at: float | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class JobListResponse(BaseModel):
+    jobs: list[JobResponse]
+
+
 class StatsResponse(BaseModel):
     stats: dict[str, Any]
 

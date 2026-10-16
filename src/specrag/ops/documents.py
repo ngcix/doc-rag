@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from specrag.config import settings
 from specrag.ops._helpers import get_vector_store
-from specrag.ops.errors import ChunkNotFoundError
+from specrag.ops.errors import ChunkNotFoundError, DocumentNotFoundError
 from specrag.ops.resolve import normalize_doc_id, resolve_chunk_id
 
 
@@ -55,3 +56,41 @@ def get_chunk(chunk_id: str, content_preview_chars: int = 500) -> dict[str, Any]
         "content_preview": preview,
         "content_length": len(content),
     }
+
+
+def _chunk_ids_for_source(vector_store, source: str) -> list[str]:
+    return [chunk_id for chunk_id, chunk_source in vector_store.list_documents().items() if chunk_source == source]
+
+
+def _stored_document(source: str) -> Path | None:
+    """Return the file for ``source`` only if it lives inside documents_dir."""
+    path = Path(source).resolve()
+    if path.is_relative_to(settings.paths.documents_dir.resolve()) and path.is_file():
+        return path
+    return None
+
+
+def delete_document(source: str) -> dict[str, Any]:
+    """Remove a document's chunks from the index and its file from documents_dir."""
+    vector_store = get_vector_store()
+    chunk_ids = _chunk_ids_for_source(vector_store, source)
+    path = _stored_document(source)
+    if not chunk_ids and path is None:
+        raise DocumentNotFoundError(f"Document {source} not found.")
+    vector_store.delete(chunk_ids)
+    if path is not None:
+        path.unlink()
+    return {"source": source, "deleted_chunks": len(chunk_ids), "file_deleted": path is not None}
+
+
+def ingest_file(path: Path) -> dict[str, Any]:
+    """Index one file, replacing any chunks from a previous version of it."""
+    from specrag.ingestion import ingest_documents
+
+    path = path.resolve()
+    source = str(path)
+    vector_store = get_vector_store()
+    replaced = _chunk_ids_for_source(vector_store, source)
+    vector_store.delete(replaced)
+    report = ingest_documents(files=[path], vector_store=vector_store)
+    return {"source": source, **report.to_dict(), "replaced_chunks": len(replaced)}

@@ -9,6 +9,10 @@ class ChunkNotFoundError(OpsError):
     """Chunk / document id was not found in the vector store."""
 
 
+class DocumentNotFoundError(OpsError):
+    """No indexed chunks or stored file match the document source."""
+
+
 class DuplicateTagError(OpsError):
     """User tag already exists on the chunk."""
 

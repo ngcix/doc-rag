@@ -26,6 +26,7 @@ ONNX Runtime. Model export and validation live under `services/embedding/`.
 | Tags and knowledge | Re-embed verified annotations to improve future retrieval. |
 | Staged re-index | Build a fresh FAISS store and atomically swap it into place. |
 | API and CLI | Use `specrag` locally or FastAPI on port `10000`. |
+| Web UI | Search, upload, and delete documents at `http://localhost:10000/`. |
 
 ## Quickstart
 
@@ -54,12 +55,24 @@ docker compose run --rm rag specrag reindex -fp -y
 docker compose up -d rag
 ```
 
+Open `http://localhost:10000/` for the web UI: search, upload documents
+(indexed in the background), and delete documents. It has no authentication;
+expose port `10000` only on a trusted network.
+
 Search over REST:
 
 ```bash
 curl -X POST http://localhost:10000/api/v1/search ^
   -H "content-type: application/json" ^
   -d "{\"query\":\"authentication flow\",\"top_k\":5}"
+```
+
+Upload or delete a document over REST (both return a job; poll
+`GET /api/v1/jobs/{id}` for the result):
+
+```bash
+curl -F "file=@spec.pdf" http://localhost:10000/api/v1/documents/upload
+curl -X DELETE "http://localhost:10000/api/v1/documents?source=/app/data/documents/spec.pdf"
 ```
 
 Search with the CLI:

@@ -29,6 +29,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",
     "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +59,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["specrag*"]
+
+[tool.setuptools.package-data]
+"specrag.api" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,18 +1,26 @@
-"""Document list / stats and greenfield stubs."""
+"""Document list, stats, upload, and delete routes."""
 
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
+import uuid
+from pathlib import Path
+from typing import BinaryIO
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 
 from specrag.api.schemas import (
     DocumentListItem,
     DocumentListResponse,
+    JobResponse,
     NotImplementedResponse,
     StatsResponse,
 )
-from specrag.ops import get_stats, list_documents
+from specrag.config import settings
+from specrag.ingestion.loaders import SUPPORTED_EXTENSIONS
+from specrag.ops import delete_document, get_stats, ingest_file, list_documents
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
@@ -30,17 +38,38 @@ async def documents_stats():
     return StatsResponse(stats=stats)
 
 
-@router.post(
-    "/upload",
-    response_model=NotImplementedResponse,
-    status_code=501,
-    summary="Upload document (not implemented)",
-)
-async def upload_document():
-    raise HTTPException(
-        status_code=501,
-        detail="Document upload / ingest jobs are not implemented in this phase",
-    )
+@router.post("/upload", response_model=JobResponse, status_code=202)
+async def upload_document(request: Request, file: UploadFile):
+    name = Path(file.filename or "").name
+    if not name or name.startswith("."):
+        raise HTTPException(status_code=400, detail="A file name is required")
+    if Path(name).suffix.lower() not in SUPPORTED_EXTENSIONS:
+        allowed = ", ".join(SUPPORTED_EXTENSIONS)
+        raise HTTPException(status_code=400, detail=f"Unsupported file type; allowed: {allowed}")
+    path = await asyncio.to_thread(_save_upload, file.file, name)
+    job = request.app.state.jobs.submit("ingest", str(path), lambda: ingest_file(path))
+    return JobResponse(**job.to_dict())
+
+
+def _save_upload(source: BinaryIO, name: str) -> Path:
+    """Write via a temp file so a running ingest never reads a partial file."""
+    documents_dir = settings.paths.documents_dir
+    documents_dir.mkdir(parents=True, exist_ok=True)
+    target = (documents_dir / name).resolve()
+    partial = documents_dir / f".{name}.{uuid.uuid4().hex}.part"
+    try:
+        with partial.open("wb") as out:
+            shutil.copyfileobj(source, out)
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
+    return target
+
+
+@router.delete("", response_model=JobResponse, status_code=202)
+async def delete_document_by_source(request: Request, source: str):
+    job = request.app.state.jobs.submit("delete", source, lambda: delete_document(source))
+    return JobResponse(**job.to_dict())
 
 
 @router.get(
@@ -53,17 +82,4 @@ async def get_document(document_id: str):
     raise HTTPException(
         status_code=501,
         detail=f"GET document '{document_id}' is not implemented in this phase",
-    )
-
-
-@router.delete(
-    "/{document_id}",
-    response_model=NotImplementedResponse,
-    status_code=501,
-    summary="Delete document (not implemented)",
-)
-async def delete_document(document_id: str):
-    raise HTTPException(
-        status_code=501,
-        detail=f"DELETE document '{document_id}' is not implemented in this phase",
     )

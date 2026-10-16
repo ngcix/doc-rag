@@ -5,9 +5,13 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
+from specrag.api.job_queue import JobQueue
 from specrag.api.observability import (
     Metrics,
     metrics_response,
@@ -16,6 +20,8 @@ from specrag.api.observability import (
 from specrag.api.routes import chunks, documents, health, jobs, search
 
 logger = logging.getLogger(__name__)
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def _warmup() -> None:
@@ -51,6 +57,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        app.state.jobs.shutdown()
         from specrag.embedding import close_embedding_provider
         from specrag.vectorization import close_vector_store
 
@@ -66,6 +73,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.state.metrics = Metrics()
+    app.state.jobs = JobQueue()
     app.middleware("http")(request_observability)
     app.add_api_route("/metrics", metrics_response, methods=["GET"])
     app.include_router(health.router)
@@ -73,4 +81,6 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(chunks.router)
     app.include_router(jobs.router)
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+    app.add_api_route("/", lambda: RedirectResponse("/ui/"), include_in_schema=False)
     return app
