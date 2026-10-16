@@ -36,21 +36,40 @@ def file_sha256(path: Path) -> str:
 
 
 def export(args: argparse.Namespace) -> None:
+    from optimum.exporters.onnx import main_export
+    from optimum.exporters.onnx.model_configs import BertOnnxConfig
     from sentence_transformers import (
         SentenceTransformer,
         export_dynamic_quantized_onnx_model,
         export_optimized_onnx_model,
     )
+    from transformers import AutoConfig
 
     args.output.mkdir(parents=True, exist_ok=True)
-    model = SentenceTransformer(
+    SentenceTransformer(
         args.model,
         revision=args.revision,
         trust_remote_code=True,
-        backend="onnx",
-        model_kwargs={"export": True},
+    ).save_pretrained(args.output)
+    # gte-multilingual uses a remote-code architecture (model_type "new") that
+    # optimum cannot export or optimize natively; it takes BERT-style inputs.
+    config = AutoConfig.from_pretrained(args.model, revision=args.revision, trust_remote_code=True)
+    main_export(
+        args.model,
+        args.output / "onnx",
+        task="feature-extraction",
+        revision=args.revision,
+        trust_remote_code=True,
+        library_name="transformers",
+        custom_onnx_configs={"model": BertOnnxConfig(config, task="feature-extraction")},
     )
-    model.save_pretrained(args.output)
+    model = SentenceTransformer(
+        str(args.output),
+        trust_remote_code=True,
+        backend="onnx",
+        model_kwargs={"file_name": "onnx/model.onnx"},
+    )
+    model[0].auto_model.config.model_type = "bert"
 
     artifact = "onnx/model.onnx"
     if args.optimization != "none":
