@@ -64,6 +64,16 @@ def _chart_items(markdown_files: list[Path]) -> list[dict]:
     return items
 
 
+def _embed_items(provider: EmbeddingProvider, items: list[dict], batch_size: int = 1024) -> None:
+    """Embed in slices, keeping float32 arrays instead of a full list of float lists."""
+    import numpy as np
+
+    for offset in range(0, len(items), batch_size):
+        batch = items[offset : offset + batch_size]
+        for item, vector in zip(batch, provider.embed([item["content"] for item in batch])):
+            item["embedding"] = np.asarray(vector, dtype=np.float32)
+
+
 def ingest_documents(
     input_dir: Path | None = None,
     *,
@@ -113,9 +123,7 @@ def ingest_documents(
         provider = embedding_provider or get_embedding_provider()
         store = vector_store or get_vector_store()
         store.validate_model(provider.model_info())
-        vectors = provider.embed([item["content"] for item in items])
-        for item, vector in zip(items, vectors):
-            item["embedding"] = vector
+        _embed_items(provider, items)
         store.add_chunks(items)
 
     return IngestionReport(

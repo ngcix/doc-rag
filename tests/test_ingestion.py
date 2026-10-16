@@ -51,4 +51,4 @@ def test_ingestion_embeds_before_single_store_write(tmp_path, monkeypatch) -> No
 
     assert report.indexed_items == 1
     assert store.validated.dimension == 3
-    assert store.chunks[0]["embedding"] == [1.0, 0.0, 0.0]
+    assert store.chunks[0]["embedding"].tolist() == [1.0, 0.0, 0.0]
