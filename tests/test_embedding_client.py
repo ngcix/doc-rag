@@ -29,9 +29,7 @@ def test_embed_batches_and_preserves_response_order() -> None:
         data = [
             {
                 "index": index,
-                "embedding": (
-                    [1.0, 0.0, 0.0] if index == 0 else [0.0, 1.0, 0.0]
-                ),
+                "embedding": ([1.0, 0.0, 0.0] if index == 0 else [0.0, 1.0, 0.0]),
             }
             for index in reversed(range(len(body["input"])))
         ]
@@ -86,6 +84,32 @@ def test_embed_rejects_non_normalized_vectors() -> None:
 
     with pytest.raises(EmbeddingContractError, match="not L2 normalized"):
         client.embed(["one"])
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reported", "ok"),
+    [
+        ({}, "Alibaba-NLP/gte-multilingual-base", True),
+        ({}, "/data", False),
+        ({"served_model_name": "/data"}, "/data", True),
+        ({"served_model_name": "/data"}, "other", False),
+    ],
+)
+def test_embed_checks_served_model_name(overrides, reported, ok) -> None:
+    transport = httpx.MockTransport(
+        lambda _: httpx.Response(
+            200,
+            json={"model": reported, "data": [{"index": 0, "embedding": [1.0, 0.0, 0.0]}]},
+        )
+    )
+    raw_client = httpx.Client(transport=transport, base_url="http://embedding.test")
+    client = HttpEmbeddingClient(_config(**overrides), raw_client)
+
+    if ok:
+        assert client.embed(["one"]) == [[1.0, 0.0, 0.0]]
+    else:
+        with pytest.raises(EmbeddingContractError, match="Expected model"):
+            client.embed(["one"])
 
 
 def test_model_fingerprint_captures_vector_invariants() -> None:

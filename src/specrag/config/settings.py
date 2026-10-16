@@ -79,6 +79,8 @@ class EmbeddingConfig(BaseModel):
     model_name: str = os.getenv("EMBEDDING_MODEL", "Alibaba-NLP/gte-multilingual-base")
     model_revision: str = os.getenv("EMBEDDING_MODEL_REVISION", MODEL_SNAPSHOT_ID)
     model_variant: str = os.getenv("EMBEDDING_MODEL_VARIANT", "onnx-o3-fp32")
+    # Name the embedding service reports; TEI reports its --model-id path.
+    served_model_name: str = os.getenv("EMBEDDING_SERVED_MODEL", "")
 
     expected_dimension: int = 768
     pooling: str = "cls"
@@ -198,6 +200,8 @@ class Settings(BaseModel):
             self.embedding.model_revision = value
         if value := os.getenv("EMBEDDING_MODEL_VARIANT"):
             self.embedding.model_variant = value
+        if value := os.getenv("EMBEDDING_SERVED_MODEL"):
+            self.embedding.served_model_name = value
 
     def _load_external_config(self):
         """Load external configuration for all modules if available."""

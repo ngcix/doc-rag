@@ -35,6 +35,7 @@ services:
       dockerfile: services/rag/Dockerfile
     environment:
       EMBEDDING_URL: http://embedding:80
+      EMBEDDING_SERVED_MODEL: /data
       SPECRAG_BASE_DIR: /app
     env_file:
       - path: ./models/embedding/rag.env

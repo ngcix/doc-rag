@@ -109,8 +109,9 @@ class HttpEmbeddingClient:
         expected_count: int,
     ) -> list[list[float]]:
         response_model = payload.get("model")
-        if response_model and response_model != self.config.model_name:
-            raise EmbeddingContractError(f"Expected model {self.config.model_name}, received {response_model}")
+        expected_model = self.config.served_model_name or self.config.model_name
+        if response_model and response_model != expected_model:
+            raise EmbeddingContractError(f"Expected model {expected_model}, received {response_model}")
         data = payload.get("data")
         if not isinstance(data, list) or len(data) != expected_count:
             raise EmbeddingContractError(f"Expected {expected_count} embeddings, received {len(data) if isinstance(data, list) else 'invalid data'}")
@@ -118,9 +119,7 @@ class HttpEmbeddingClient:
         try:
             ordered = sorted(data, key=lambda item: item["index"])
             if [item["index"] for item in ordered] != list(range(expected_count)):
-                raise EmbeddingContractError(
-                    "Embedding response indices do not match input order"
-                )
+                raise EmbeddingContractError("Embedding response indices do not match input order")
             vectors = [[float(value) for value in item["embedding"]] for item in ordered]
         except (KeyError, TypeError, ValueError) as exc:
             raise EmbeddingContractError("Malformed embedding response") from exc
@@ -133,9 +132,7 @@ class HttpEmbeddingClient:
             if self.config.normalize:
                 norm = math.sqrt(sum(value * value for value in vector))
                 if not 0.98 <= norm <= 1.02:
-                    raise EmbeddingContractError(
-                        f"Embedding is not L2 normalized (norm={norm:.4f})"
-                    )
+                    raise EmbeddingContractError(f"Embedding is not L2 normalized (norm={norm:.4f})")
         return vectors
 
     def health(self) -> bool:
