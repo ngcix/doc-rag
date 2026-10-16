@@ -123,7 +123,7 @@ class SearchConfig(BaseModel):
     """Configuration for search."""
 
     top_k: int = 5
-    score_threshold: float = 0.7
+    score_threshold: float = 0.3
     include_metadata: bool = True
 
 
