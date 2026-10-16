@@ -12,6 +12,7 @@ services:
       - float32
       - --max-client-batch-size
       - "32"
+      - --auto-truncate
       - --port
       - "80"
     volumes:

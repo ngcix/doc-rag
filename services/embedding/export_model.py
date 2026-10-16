@@ -18,6 +18,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--revision", default=DEFAULT_REVISION)
     parser.add_argument("--output", type=Path, default=Path("models/embedding"))
+    parser.add_argument(
+        "--max-seq-length",
+        type=int,
+        default=1024,
+        help="TEI warm-up allocates for this length; 8192 needs >4 GB RAM in fp32",
+    )
     parser.add_argument("--optimization", choices=["none", "O1", "O2", "O3"], default="O3")
     parser.add_argument(
         "--quantization",
@@ -54,7 +60,7 @@ def export(args: argparse.Namespace) -> None:
     # sentence-transformers 5.x writes a config TEI cannot parse; TEI requires
     # the legacy keys.
     (args.output / "sentence_bert_config.json").write_text(
-        json.dumps({"max_seq_length": 8192, "do_lower_case": False}, indent=2),
+        json.dumps({"max_seq_length": args.max_seq_length, "do_lower_case": False}, indent=2),
         encoding="utf-8",
     )
     # gte-multilingual uses a remote-code architecture (model_type "new") that
@@ -115,7 +121,7 @@ def export(args: argparse.Namespace) -> None:
         "dimension": dimension,
         "pooling": "cls",
         "normalized": True,
-        "max_sequence_length": 8192,
+        "max_sequence_length": args.max_seq_length,
         "artifact": artifact,
         "artifact_sha256": digest,
         "variant": variant,
