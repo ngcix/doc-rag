@@ -51,6 +51,12 @@ def export(args: argparse.Namespace) -> None:
         revision=args.revision,
         trust_remote_code=True,
     ).save_pretrained(args.output)
+    # sentence-transformers 5.x writes a config TEI cannot parse; TEI requires
+    # the legacy keys.
+    (args.output / "sentence_bert_config.json").write_text(
+        json.dumps({"max_seq_length": 8192, "do_lower_case": False}, indent=2),
+        encoding="utf-8",
+    )
     # gte-multilingual uses a remote-code architecture (model_type "new") that
     # optimum cannot export or optimize natively; it takes BERT-style inputs.
     config = AutoConfig.from_pretrained(args.model, revision=args.revision, trust_remote_code=True)
