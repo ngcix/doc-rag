@@ -253,7 +253,6 @@ def ensure_directories():
         EXTRACTED_IMAGES_DIR,
         VECTORDB_DIR,
         FAISS_INDEX_DIR,
-        MODELS_DIR,
         PROCESS_INPUT_DIR,
         PROCESS_OUTPUT_DIR,
     ]
