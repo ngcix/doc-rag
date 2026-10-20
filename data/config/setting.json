@@ -1,7 +1,7 @@
 {
     "paths": {
-        "database_dir": "./data/",
-        "documents_dir": "./data/documents/"
+        "database_dir": "./",
+        "documents_dir": "./documents/"
     },
     "chunking": {
         "chunk_size": 512,

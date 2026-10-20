@@ -1,24 +1,34 @@
+# Portainer-ready stack. Images are prebuilt (no build: section). The mounted
+# folder (./data in this repo, a host path on the node) holds everything that is
+# not code:
+#
+#   data/
+#     config/setting.json            runtime settings
+#     models/embedding/              exported TEI model files (+ rag.env)
+#     documents/, vectordb/,         written by rag
+#     faiss_index/, extracted_images/
+#     process/                       sequence-chart and image outputs
+#
+# Each service mounts that folder at /specrag. Change the host path in the
+# volumes entries if it lives elsewhere.
+
 services:
   embedding:
-    build:
-      context: .
-      dockerfile: services/embedding/Dockerfile
+    image: specrag-embedding:0.4.0
     command:
       - --model-id
-      - /data
+      - /specrag/models/embedding
       - --pooling
       - cls
-      - --dtype
-      - float32
       - --max-client-batch-size
       - "32"
       - --auto-truncate
       - --port
       - "80"
     volumes:
-      - ./models/embedding:/data:ro
-    expose:
-      - "80"
+      - ./data:/specrag:ro
+    ports:
+      - "13333:80"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
       interval: 10s
@@ -30,23 +40,17 @@ services:
     restart: unless-stopped
 
   rag:
-    build:
-      context: .
-      dockerfile: services/rag/Dockerfile
+    image: specrag-rag:0.4.0
+    user: "1000:1000"
     environment:
+      SPECRAG_BASE_DIR: /specrag
       EMBEDDING_URL: http://embedding:80
-      EMBEDDING_SERVED_MODEL: /data
-      SPECRAG_BASE_DIR: /app
-    env_file:
-      - path: ./models/embedding/rag.env
-        required: false
-    user: "${UID:-1000}:${GID:-1000}"
-    ports:
-      - "10000:8080"
+      EMBEDDING_SERVED_MODEL: /specrag/models/embedding
+      EMBEDDING_MODEL_VARIANT: onnx-o3-fp32
     volumes:
-      - ./config:/app/config:ro
-      - ./data:/app/data
-      - ./process:/app/process
+      - ./data:/specrag
+    ports:
+      - "9999:8080"
     depends_on:
       embedding:
         condition: service_healthy
@@ -62,5 +66,5 @@ services:
       start_period: 10s
     cpus: 2
     # Embeddings, chunk text, and the FAISS index are held in memory.
-    mem_limit: ${RAG_MEM_LIMIT:-10g}
+    mem_limit: 10g
     restart: unless-stopped

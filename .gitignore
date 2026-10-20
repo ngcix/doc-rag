@@ -31,8 +31,8 @@ eggs/
 Thumbs.db
 
 # Project specific - Downloaded models (~1.5GB)
-models/*
-!models/.gitkeep
+data/models/*
+!data/models/.gitkeep
 
 # Data directories - Vector stores
 data/vectordb/*
