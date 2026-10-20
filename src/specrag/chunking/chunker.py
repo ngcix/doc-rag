@@ -145,7 +145,7 @@ class DocumentChunker:
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
 
-        extensions = extensions or [".txt", ".md", ".pdf", ".docx", ".markdown", ".xlsx", ".xls", ".pptx"]
+        extensions = extensions or [".txt", ".md", ".pdf", ".docx", ".markdown", ".xlsx", ".xls", ".pptx", ".csv"]
         pattern = "**/*" if recursive else "*"
         exclude_patterns = exclude_patterns or []
 

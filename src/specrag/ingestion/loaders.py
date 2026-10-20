@@ -17,6 +17,7 @@ SUPPORTED_EXTENSIONS = (
     ".xlsx",
     ".xls",
     ".pptx",
+    ".csv",
 )
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 
@@ -13,6 +14,7 @@ def read_document(path: Path) -> str:
         ".xlsx": _read_xlsx,
         ".xls": _read_xls,
         ".pptx": _read_pptx,
+        ".csv": _read_csv,
     }
     if suffix in {".txt", ".md", ".markdown"}:
         return path.read_text(encoding="utf-8")
@@ -38,8 +40,37 @@ def _read_docx(path: Path) -> str:
         from docx import Document
     except ImportError as exc:
         raise ImportError("python-docx is required for DOCX processing") from exc
-    document = Document(str(path))
-    return "\n\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip())
+    from docx.table import Table
+
+    blocks = []
+    for block in Document(str(path)).iter_inner_content():
+        text = _docx_table_text(block) if isinstance(block, Table) else block.text
+        if text.strip():
+            blocks.append(text)
+    return "\n\n".join(blocks)
+
+
+def _docx_table_text(table) -> str:
+    lines = []
+    for row in table.rows:
+        cells = []
+        previous = None
+        for cell in row.cells:
+            # Horizontally merged cells repeat the same underlying cell; keep one.
+            if previous is not None and cell._tc is previous._tc:
+                continue
+            cells.append(cell.text.strip())
+            previous = cell
+        text = "\t".join(cells)
+        if text.strip():
+            lines.append(text)
+    return "\n".join(lines)
+
+
+def _read_csv(path: Path) -> str:
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        lines = ("\t".join(row) for row in csv.reader(handle))
+        return "\n".join(line for line in lines if line.strip())
 
 
 def _read_xlsx(path: Path) -> str:
