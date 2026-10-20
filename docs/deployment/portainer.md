@@ -26,11 +26,20 @@ sudo chown -R 1000:1000 /srv/specrag/{documents,vectordb,faiss_index,extracted_i
 
 ## Images
 
+Build both images from the repo root. `compose.yaml` has no `build:` section,
+so build them directly:
+
+```bash
+docker build -f services/embedding/Dockerfile -t specrag-embedding:0.4.0 .
+docker build -f services/rag/Dockerfile -t specrag-rag:0.4.0 .
+docker save specrag-rag:0.4.0 specrag-embedding:0.4.0 | gzip > specrag-images-0.4.0.tar.gz
+```
+
 Portainer does not build from local folders. Either:
 
 - push the images to a registry the node can reach, and change the `image:`
   lines in `compose.yaml` to the registry names, or
-- load them on the node: `gunzip -c specrag-images.tar.gz | docker load`.
+- load them on the node: `gunzip -c specrag-images-0.4.0.tar.gz | docker load`.
   The names must be `specrag-rag:0.4.0` and `specrag-embedding:0.4.0`.
 
 ## Settings in compose.yaml
@@ -39,7 +48,6 @@ Portainer does not build from local folders. Either:
 |---------|-------|-----------|
 | Host folder | `./data` here, `/srv/specrag` in the example | `volumes` of both services |
 | API port (host) | `9999` → container 8080 | `rag.ports` |
-| Embedding port (host) | `13333` → container 80 | `embedding.ports` |
 | Images | `specrag-rag:0.4.0`, `specrag-embedding:0.4.0` | `image:` |
 | Owner of data/process | `1000:1000` | `rag.user` |
 | Model variant | `onnx-o3-fp32` | `rag.environment.EMBEDDING_MODEL_VARIANT` (must match `rag.env`) |
@@ -55,9 +63,8 @@ Portainer does not build from local folders. Either:
 
 ## Notes
 
-- The embedding port `13333` is published to all interfaces, so anyone who can
-  reach the node can call the embedding API directly. Remove that `ports:` entry
-  when testing is done.
+- The embedding service is not published. `rag` reaches it at
+  `http://embedding:80` on the stack network, and nothing outside can call it.
 - `rag` mounts the folder read-write because it writes the index, documents,
   images and `process/` there. The app does not write `config/` or `models/`,
   but the mount is read-write as a whole.

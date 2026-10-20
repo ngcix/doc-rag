@@ -27,8 +27,8 @@ services:
       - "80"
     volumes:
       - ./data:/specrag:ro
-    ports:
-      - "13333:80"
+    expose:
+      - "80"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
       interval: 10s
@@ -46,7 +46,8 @@ services:
       SPECRAG_BASE_DIR: /specrag
       EMBEDDING_URL: http://embedding:80
       EMBEDDING_SERVED_MODEL: /specrag/models/embedding
-      EMBEDDING_MODEL_VARIANT: onnx-o3-fp32
+      # Must equal EMBEDDING_MODEL_VARIANT in models/embedding/rag.env.
+      EMBEDDING_MODEL_VARIANT: onnx-o3-fp32-78306c03fd06
     volumes:
       - ./data:/specrag
     ports:
