@@ -10,6 +10,7 @@ from pathlib import Path
 from specrag.config import settings
 from specrag.graph import get_graph_store
 from specrag.ingestion.service import IngestionReport, ingest_documents
+from specrag.tables import get_table_store
 from specrag.vectorization import close_vector_store
 from specrag.vectorization.faiss_store import FaissVectorStore
 from specrag.vectorization.writer_lease import WriterLease
@@ -43,6 +44,7 @@ def rebuild_index(
             input_dir,
             vector_store=staging_store,
             graph_store=get_graph_store(staging_config),
+            table_store=get_table_store(staging_config),
             **ingestion_options,
         )
     except Exception:

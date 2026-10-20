@@ -57,6 +57,18 @@ specrag find "channel switch"                               # clauses whose titl
 
 See [Structure graph](../guides/structure-graph.md).
 
+## Spreadsheet workflow
+
+For Excel/CSV tables, search finds the sheet and row; exact lookup reads the
+value:
+
+```bash
+specrag search -hy "Greece 5GHz channel plan"      # metadata.sheet = 5GHz, row_label = ... GR
+specrag lookup --row GR --column 144 --sheet 5GHz  # value: No
+```
+
+See [Spreadsheets](../guides/spreadsheets.md).
+
 ## Enrichment workflow
 
 After Cline verifies a result, it can improve future retrieval:

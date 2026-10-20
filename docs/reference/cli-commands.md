@@ -116,6 +116,15 @@ specrag find <text> [--source TEXT] [--limit N]
 `key` is a clause number (`9.4.2.1`), annex (`Annex C`, `C.3`), table or figure
 (`Table 9-277`). See [Structure graph](../guides/structure-graph.md).
 
+## Spreadsheet lookup
+
+```bash
+specrag tables [--source TEXT]
+specrag lookup [--row VALUE] [--column HEADER] [--sheet TEXT] [--source TEXT] [--limit N]
+```
+
+Give `--row`, `--column` or both. See [Spreadsheets](../guides/spreadsheets.md).
+
 ## Runtime and maintenance
 
 ```bash

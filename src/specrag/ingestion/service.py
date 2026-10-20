@@ -25,6 +25,7 @@ class IngestionReport:
     indexed_items: int
     elapsed_seconds: float
     graph_documents: int = 0
+    table_documents: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -87,6 +88,7 @@ def ingest_documents(
     embedding_provider: EmbeddingProvider | None = None,
     vector_store=None,
     graph_store=None,
+    table_store=None,
 ) -> IngestionReport:
     """Extract, embed, and persist ``files``, or all supported documents in ``input_dir``."""
     started = time.perf_counter()
@@ -134,6 +136,10 @@ def ingest_documents(
 
         graph_documents = index_document_graphs(files, chunks, graph_store or get_graph_store())
 
+    from specrag.tables import get_table_store, index_document_tables
+
+    table_documents = index_document_tables(files, table_store or get_table_store())
+
     return IngestionReport(
         text_chunks=len(chunks),
         images=len(images),
@@ -141,4 +147,5 @@ def ingest_documents(
         indexed_items=len(items),
         elapsed_seconds=time.perf_counter() - started,
         graph_documents=graph_documents,
+        table_documents=table_documents,
     )

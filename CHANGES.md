@@ -9,6 +9,10 @@
 - Tag PDF chunks with `page`, `clause` and `clause_title` metadata.
 - Remove repeated PDF headers/footers before chunking.
 - Read tables in DOCX files in document order and support CSV files.
+- Read `.xlsx`/`.csv` as tables: detect merged multi-row headers and stacked
+  tables, emit one self-describing chunk per row, keep footnotes as sheet notes.
+- Add exact cell lookup (`tables.sqlite`, `/api/v1/tables`, `/api/v1/tables/lookup`,
+  `specrag tables`, `specrag lookup`).
 
 ## v0.4.0
 

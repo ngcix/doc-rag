@@ -114,6 +114,18 @@ def _add_graph_commands(subparsers) -> None:
     find.add_argument("--limit", "-k", type=int, default=20)
 
 
+def _add_table_commands(subparsers) -> None:
+    tables = subparsers.add_parser("tables", help="List spreadsheet sheets and their columns")
+    tables.add_argument("--source", "-s")
+
+    lookup = subparsers.add_parser("lookup", help="Exact spreadsheet lookup by row and/or column")
+    lookup.add_argument("--row", "-r", help='Cell value identifying the row, e.g. "GR"')
+    lookup.add_argument("--column", "-c", help='Header level, e.g. "144"')
+    lookup.add_argument("--sheet")
+    lookup.add_argument("--source", "-s")
+    lookup.add_argument("--limit", "-k", type=int, default=200)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="specrag",
@@ -124,6 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_search_commands(subparsers)
     _add_metadata_commands(subparsers)
     _add_graph_commands(subparsers)
+    _add_table_commands(subparsers)
 
     server = subparsers.add_parser("server", help="Start the REST API")
     server.add_argument("--host", default="0.0.0.0")

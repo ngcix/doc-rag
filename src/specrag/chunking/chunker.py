@@ -125,8 +125,34 @@ class DocumentChunker:
             annotate_chunks(chunks, pdf)
             return chunks
 
+        from specrag.tables import SPREADSHEET_EXTENSIONS
+
+        if file_path.suffix.lower() in SPREADSHEET_EXTENSIONS:
+            return self._chunk_spreadsheet(file_path, metadata)
+
         content = self._read_file(file_path)
         return self.chunk_text(text=content, source_file=str(file_path), metadata=metadata)
+
+    def _chunk_spreadsheet(self, file_path: Path, metadata: dict) -> list[DocumentChunk]:
+        """One chunk per table record, each repeating its row label and header path."""
+        from specrag.tables import spreadsheet_chunks
+
+        pieces = spreadsheet_chunks(file_path)
+        chunks, offset = [], 0
+        for index, piece in enumerate(pieces):
+            chunk_metadata = {"chunk_index": index, "total_chunks": len(pieces), **metadata, **piece.metadata}
+            chunks.append(
+                DocumentChunk(
+                    chunk_id=f"{file_path}_{index}",
+                    content=piece.content,
+                    metadata=chunk_metadata,
+                    start_index=offset,
+                    end_index=offset + len(piece.content),
+                    source_file=str(file_path),
+                )
+            )
+            offset += len(piece.content)
+        return chunks
 
     def _read_file(self, file_path: Path) -> str:
         from specrag.chunking.readers import read_document

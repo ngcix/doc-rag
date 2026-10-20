@@ -26,6 +26,7 @@ embedding image.
 | [Tagging](./guides/tagging.md) | User tags and re-embedding behavior. |
 | [Knowledge](./guides/knowledge.md) | Long-form annotations on chunks/images. |
 | [Structure graph](./guides/structure-graph.md) | Clause tree and cross-references for navigating large specs. |
+| [Spreadsheets](./guides/spreadsheets.md) | Header-aware Excel/CSV records and exact cell lookup. |
 
 ## Reference
 

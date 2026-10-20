@@ -22,6 +22,7 @@ from specrag.ops import (
     update_knowledge,
     walk_graph,
 )
+from specrag.ops.tables import list_tables, lookup_table
 from specrag.performance import _coerce_positive_int, _is_auto_cpu_value
 
 
@@ -114,6 +115,8 @@ def dispatch(args, parser) -> None:
         "clause": lambda: _print(lookup_node(args.key, args.source, args.text)),
         "refs": lambda: _print(walk_graph(args.key, args.source, "in" if args.incoming else "out", args.depth)),
         "find": lambda: _print(find_nodes(args.text, args.source, args.limit)),
+        "tables": lambda: _print(list_tables(args.source)),
+        "lookup": lambda: _print(lookup_table(args.row, args.column, args.sheet, args.source, args.limit)),
         "server": lambda: _run_server(args.host, args.port),
     }
     if args.command is None:
