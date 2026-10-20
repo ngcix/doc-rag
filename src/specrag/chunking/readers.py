@@ -27,12 +27,9 @@ def read_document(path: Path) -> str:
 
 
 def _read_pdf(path: Path) -> str:
-    try:
-        import fitz
-    except ImportError as exc:
-        raise ImportError("PyMuPDF is required for PDF processing") from exc
-    with fitz.open(str(path)) as document:
-        return "\n\n".join(text for page in document if (text := page.get_text()))
+    from specrag.chunking.pdf import read_pdf
+
+    return read_pdf(path).text
 
 
 def _read_docx(path: Path) -> str:

@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 from specrag.config import settings
+from specrag.graph import get_graph_store
 from specrag.ingestion.service import IngestionReport, ingest_documents
 from specrag.vectorization import close_vector_store
 from specrag.vectorization.faiss_store import FaissVectorStore
@@ -41,6 +42,7 @@ def rebuild_index(
         report = ingest_documents(
             input_dir,
             vector_store=staging_store,
+            graph_store=get_graph_store(staging_config),
             **ingestion_options,
         )
     except Exception:

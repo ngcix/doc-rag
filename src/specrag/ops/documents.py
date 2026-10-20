@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from specrag.config import settings
+from specrag.graph import get_graph_store
 from specrag.ops._helpers import get_vector_store
 from specrag.ops.errors import ChunkNotFoundError, DocumentNotFoundError
 from specrag.ops.resolve import normalize_doc_id, resolve_chunk_id
@@ -78,6 +79,7 @@ def delete_document(source: str) -> dict[str, Any]:
     if not chunk_ids and path is None:
         raise DocumentNotFoundError(f"Document {source} not found.")
     vector_store.delete(chunk_ids)
+    get_graph_store().delete_document(source)
     if path is not None:
         path.unlink()
     return {"source": source, "deleted_chunks": len(chunk_ids), "file_deleted": path is not None}

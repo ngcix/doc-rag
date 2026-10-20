@@ -25,6 +25,7 @@ embedding image.
 | [Searching](./guides/searching.md) | Semantic, hybrid, image-only and multi-query search. |
 | [Tagging](./guides/tagging.md) | User tags and re-embedding behavior. |
 | [Knowledge](./guides/knowledge.md) | Long-form annotations on chunks/images. |
+| [Structure graph](./guides/structure-graph.md) | Clause tree and cross-references for navigating large specs. |
 
 ## Reference
 

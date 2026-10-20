@@ -23,3 +23,7 @@ class TagNotFoundError(OpsError):
 
 class TagImmutableError(OpsError):
     """Attempt to remove an original (auto-extracted) tag."""
+
+
+class NodeNotFoundError(OpsError):
+    """No structure-graph node matches the requested clause, table or figure."""

@@ -105,6 +105,17 @@ specrag getknowledge <identifier>
 
 `identifier` can be a chunk id or a resolvable image path.
 
+## Structure graph
+
+```bash
+specrag clause <key> [--source TEXT] [--text]
+specrag refs <key> [--source TEXT] [--in] [--depth N]
+specrag find <text> [--source TEXT] [--limit N]
+```
+
+`key` is a clause number (`9.4.2.1`), annex (`Annex C`, `C.3`), table or figure
+(`Table 9-277`). See [Structure graph](../guides/structure-graph.md).
+
 ## Runtime and maintenance
 
 ```bash

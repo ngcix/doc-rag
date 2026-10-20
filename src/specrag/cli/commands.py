@@ -9,15 +9,18 @@ from specrag.ingestion import ingest_documents, rebuild_index
 from specrag.ops import (
     add_knowledge,
     add_tag,
+    find_nodes,
     get_knowledge,
     get_stats,
     list_documents,
     list_tags,
+    lookup_node,
     multi_search,
     remove_tag,
     reset_tags,
     search_documents,
     update_knowledge,
+    walk_graph,
 )
 from specrag.performance import _coerce_positive_int, _is_auto_cpu_value
 
@@ -108,6 +111,9 @@ def dispatch(args, parser) -> None:
         "addknowledge": lambda: _print(add_knowledge(args.identifier, args.knowledge)),
         "updateknowledge": lambda: _print(update_knowledge(args.identifier, args.knowledge)),
         "getknowledge": lambda: _print(get_knowledge(args.identifier)),
+        "clause": lambda: _print(lookup_node(args.key, args.source, args.text)),
+        "refs": lambda: _print(walk_graph(args.key, args.source, "in" if args.incoming else "out", args.depth)),
+        "find": lambda: _print(find_nodes(args.text, args.source, args.limit)),
         "server": lambda: _run_server(args.host, args.port),
     }
     if args.command is None:

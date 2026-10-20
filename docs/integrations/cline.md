@@ -18,7 +18,8 @@ optionally enriches the index with tags or knowledge.
 user question
   -> choose search strategy
   -> run specrag search/msearch or call POST /api/v1/search
-  -> inspect JSON results
+  -> inspect JSON results (metadata.clause / metadata.page for PDFs)
+  -> follow the structure graph: specrag clause / refs / find
   -> read image_path files for visual answers
   -> answer with citations/metadata
 ```
@@ -34,6 +35,27 @@ specrag msearch "pairing" "authentication" "security"
 
 Use `-hy` for exact figure/table names. Use `-pic` when the answer likely lives
 in a rendered page, diagram or table.
+
+## Structure graph workflow
+
+For specifications with numbered clauses, search gives the entry point and the
+graph gives the context:
+
+```bash
+specrag search -hy "Channel Switch Announcement element"   # result metadata.clause = 9.4.2.17
+specrag clause 9.4.2.17 --text                              # full clause text and its references
+specrag refs 9.4.2.17 --in                                  # procedures that use the element
+specrag find "channel switch"                               # clauses whose title matches
+```
+
+- Use `clause --text` instead of stitching search chunks together when the
+  answer needs a whole clause.
+- Follow `references` for definitions a clause depends on, and `referenced_by`
+  (or `refs --in`) for behaviour that uses it.
+- Use `find` with a `dot11…` name to locate MIB attributes.
+- Cite clause numbers and page numbers from the graph or chunk metadata.
+
+See [Structure graph](../guides/structure-graph.md).
 
 ## Enrichment workflow
 

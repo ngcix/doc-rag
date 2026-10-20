@@ -96,6 +96,24 @@ def _add_metadata_commands(subparsers) -> None:
     get_knowledge.add_argument("identifier")
 
 
+def _add_graph_commands(subparsers) -> None:
+    clause = subparsers.add_parser("clause", help="Show a clause, table or figure with its references")
+    clause.add_argument("key", help='e.g. "9.4.2.1", "Annex C", "Table 9-277"')
+    clause.add_argument("--source", "-s", help="Limit to documents whose path contains this text")
+    clause.add_argument("--text", "-t", action="store_true", help="Include the node text")
+
+    refs = subparsers.add_parser("refs", help="Follow cross-references from (or to) a node")
+    refs.add_argument("key")
+    refs.add_argument("--source", "-s")
+    refs.add_argument("--in", dest="incoming", action="store_true", help="Show nodes that reference KEY")
+    refs.add_argument("--depth", "-d", type=int, default=1)
+
+    find = subparsers.add_parser("find", help="Find clauses/tables/figures by title and MIB attributes by name")
+    find.add_argument("text")
+    find.add_argument("--source", "-s")
+    find.add_argument("--limit", "-k", type=int, default=20)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="specrag",
@@ -105,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_document_commands(subparsers)
     _add_search_commands(subparsers)
     _add_metadata_commands(subparsers)
+    _add_graph_commands(subparsers)
 
     server = subparsers.add_parser("server", help="Start the REST API")
     server.add_argument("--host", default="0.0.0.0")

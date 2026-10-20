@@ -17,7 +17,7 @@ from specrag.api.observability import (
     metrics_response,
     request_observability,
 )
-from specrag.api.routes import chunks, documents, health, jobs, search
+from specrag.api.routes import chunks, documents, graph, health, jobs, search
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(chunks.router)
     app.include_router(jobs.router)
+    app.include_router(graph.router)
     app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
     app.add_api_route("/", lambda: RedirectResponse("/ui/"), include_in_schema=False)
     return app

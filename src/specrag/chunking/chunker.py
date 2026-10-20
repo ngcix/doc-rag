@@ -111,15 +111,21 @@ class DocumentChunker:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        # Read file content based on extension
-        content = self._read_file(file_path)
-
         metadata = {
             "file_name": file_path.name,
             "file_extension": file_path.suffix,
             "file_size": file_path.stat().st_size,
         }
 
+        if file_path.suffix.lower() == ".pdf":
+            from specrag.chunking.pdf import annotate_chunks, read_pdf
+
+            pdf = read_pdf(file_path)
+            chunks = self.chunk_text(text=pdf.text, source_file=str(file_path), metadata=metadata)
+            annotate_chunks(chunks, pdf)
+            return chunks
+
+        content = self._read_file(file_path)
         return self.chunk_text(text=content, source_file=str(file_path), metadata=metadata)
 
     def _read_file(self, file_path: Path) -> str:

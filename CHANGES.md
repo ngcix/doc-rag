@@ -1,5 +1,15 @@
 # Changes
 
+## Unreleased
+
+- Add a rule-based structure graph for PDFs: clause tree from bookmarks,
+  clause/table/figure cross-references, captions and `dot11` MIB terms, stored
+  in `graph.sqlite` beside the FAISS index.
+- Add `specrag clause`, `specrag refs`, `specrag find` and `/api/v1/graph/*`.
+- Tag PDF chunks with `page`, `clause` and `clause_title` metadata.
+- Remove repeated PDF headers/footers before chunking.
+- Read tables in DOCX files in document order and support CSV files.
+
 ## v0.4.0
 
 - Split SpecRAG into a lightweight RAG runtime and a separate embedding service.
