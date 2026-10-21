@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- The page is served from <prefix>/ui/; relative API paths resolve from <prefix>/ so the UI works behind a path-prefix proxy. -->
+<base href="../">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SpecRAG</title>
 <style>
@@ -138,7 +140,7 @@ $("search-form").onsubmit = async (event) => {
   $("results-summary").textContent = "Searching…";
   results.replaceChildren();
   try {
-    const data = await api("/api/v1/search", {
+    const data = await api("api/v1/search", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ query: $("query").value, mode: $("mode").value, top_k: Number($("top-k").value) }),
@@ -174,7 +176,7 @@ function renderResult(r) {
 async function loadDocuments() {
   const tbody = $("docs");
   try {
-    const data = await api("/api/v1/documents");
+    const data = await api("api/v1/documents");
     $("doc-count").textContent = `(${data.total})`;
     tbody.replaceChildren(...data.documents.map((doc) => {
       const del = el("button", { className: "btn danger", textContent: "Delete" });
@@ -195,7 +197,7 @@ async function deleteDocument(source, button) {
   if (!confirm(`Delete ${basename(source)} and remove it from the index?`)) return;
   button.disabled = true;
   try {
-    await api(`/api/v1/documents?source=${encodeURIComponent(source)}`, { method: "DELETE" });
+    await api(`api/v1/documents?source=${encodeURIComponent(source)}`, { method: "DELETE" });
     pollJobs();
   } catch (error) {
     alert(error.message);
@@ -217,7 +219,7 @@ async function uploadFiles(files) {
     const form = new FormData();
     form.append("file", file);
     try {
-      await api("/api/v1/documents/upload", { method: "POST", body: form });
+      await api("api/v1/documents/upload", { method: "POST", body: form });
     } catch (error) {
       alert(`${file.name}: ${error.message}`);
     }
@@ -233,7 +235,7 @@ async function pollJobs() {
   clearTimeout(pollTimer);
   let jobs = [];
   try {
-    jobs = (await api("/api/v1/jobs")).jobs;
+    jobs = (await api("api/v1/jobs")).jobs;
   } catch {
     pollTimer = setTimeout(pollJobs, 3000);
     return;
