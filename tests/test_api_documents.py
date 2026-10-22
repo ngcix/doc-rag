@@ -66,6 +66,27 @@ def test_upload_rejects_unsupported_type(documents_dir) -> None:
     assert not any(documents_dir.iterdir())
 
 
+def test_download_document_returns_stored_file(documents_dir) -> None:
+    document = documents_dir / "spec file.pdf"
+    document.write_bytes(b"pdf-content")
+
+    response = TestClient(create_app()).get("/api/v1/documents/download", params={"source": str(document)})
+
+    assert response.status_code == 200
+    assert response.content == b"pdf-content"
+    assert "spec%20file.pdf" in response.headers["content-disposition"]
+
+
+def test_download_document_rejects_file_outside_documents_dir(documents_dir, tmp_path_factory) -> None:
+    outside = tmp_path_factory.mktemp("outside-download") / "secret.txt"
+    outside.write_text("secret")
+
+    response = TestClient(create_app()).get("/api/v1/documents/download", params={"source": str(outside)})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
+
+
 def test_failed_job_reports_error(documents_dir, monkeypatch) -> None:
     def boom(path):
         raise RuntimeError("embedding down")

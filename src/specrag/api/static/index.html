@@ -26,10 +26,11 @@
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
   .panel h2 { margin: 0 0 12px; font-size: 15px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  input, select, button.btn { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+  input, select, .btn { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
   input[type=search] { flex: 1; min-width: 240px; }
   input[type=number] { width: 72px; }
-  button.btn { cursor: pointer; }
+  .btn { cursor: pointer; text-decoration: none; display: inline-block; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.danger { color: var(--err); }
   button:disabled { opacity: .5; cursor: default; }
@@ -179,12 +180,18 @@ async function loadDocuments() {
     const data = await api("api/v1/documents");
     $("doc-count").textContent = `(${data.total})`;
     tbody.replaceChildren(...data.documents.map((doc) => {
+      const download = el("a", {
+        className: "btn",
+        textContent: "Download",
+        href: `api/v1/documents/download?source=${encodeURIComponent(doc.source)}`,
+        download: "",
+      });
       const del = el("button", { className: "btn danger", textContent: "Delete" });
       del.onclick = () => deleteDocument(doc.source, del);
       return el("tr", {},
         el("td", { textContent: basename(doc.source), title: doc.source }),
         el("td", { className: "num", textContent: doc.chunk_count }),
-        el("td", { className: "num" }, del),
+        el("td", { className: "num" }, el("div", { className: "actions" }, download, del)),
       );
     }));
     if (!data.total) tbody.replaceChildren(el("tr", {}, el("td", { colSpan: 3, className: "muted", textContent: "No documents indexed yet." })));

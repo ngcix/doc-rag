@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 
 from specrag.api.schemas import (
     DocumentListItem,
@@ -36,6 +37,16 @@ async def list_docs():
 async def documents_stats():
     stats = await asyncio.to_thread(get_stats)
     return StatsResponse(stats=stats)
+
+
+@router.get("/download", response_class=FileResponse)
+async def download_document(source: str):
+    """Download a stored source document without exposing arbitrary host files."""
+    documents_dir = settings.paths.documents_dir.resolve()
+    path = Path(source).resolve()
+    if not path.is_relative_to(documents_dir) or not path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+    return FileResponse(path, filename=path.name)
 
 
 @router.post("/upload", response_model=JobResponse, status_code=202)
